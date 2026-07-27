@@ -29,6 +29,8 @@ export interface OrderListingTableProps<T> {
   fixedColumns: string[];
   scrollableColumns: string[];
   maxFixedColumns?: number;
+  /** Column labels visible by default; defaults to every fixed + scrollable column. Columns omitted here still appear in Column Mgmt, just unchecked until the user enables them. */
+  defaultVisibleColumns?: string[];
   filterSections: OrderListingFilterSection<T>[];
   categoryDropdown: OrderListingDropdownFilter<T>;
   typeDropdown: OrderListingDropdownFilter<T>;
@@ -48,12 +50,18 @@ export interface OrderListingTableProps<T> {
   listViewIcon?: (active: boolean) => ReactNode;
   defaultView?: "grid" | "list";
   gridClassName?: string;
-  /** Provide to make rows expandable, revealing nested child rows (e.g. an email thread's messages). */
+  /** Provide to make rows expandable, revealing nested child rows (e.g. CCC requests linked to an email). */
   getChildren?: (row: T) => T[] | undefined;
   /** Cell renderer for nested child rows; defaults to `renderCell`. */
   renderChildCell?: (columnLabel: string, childRow: T, parentRow: T) => ReactNode;
   /** Column whose text gets indented for child rows, reinforcing the nesting visually (e.g. "Subject"). */
   childIndentColumnLabel?: string;
+  /** Provide to make child rows themselves expandable, revealing a second nested tier (e.g. a CCC's own correspondence). Deeper data than this should be surfaced via a link/affordance inside a rendered cell rather than a 3rd tier. */
+  getGrandchildren?: (childRow: T, parentRow: T) => T[] | undefined;
+  /** Cell renderer for grandchild rows; defaults to `renderChildCell` (or `renderCell`). */
+  renderGrandchildCell?: (columnLabel: string, grandchildRow: T, childRow: T, parentRow: T) => ReactNode;
+  /** Column whose text gets indented for grandchild rows; defaults to `childIndentColumnLabel`. */
+  grandchildIndentColumnLabel?: string;
 }
 
 export function OrderListingTable<T>({
@@ -62,6 +70,7 @@ export function OrderListingTable<T>({
   fixedColumns,
   scrollableColumns,
   maxFixedColumns = 4,
+  defaultVisibleColumns,
   filterSections,
   categoryDropdown,
   typeDropdown,
@@ -81,6 +90,9 @@ export function OrderListingTable<T>({
   getChildren,
   renderChildCell,
   childIndentColumnLabel,
+  getGrandchildren,
+  renderGrandchildCell,
+  grandchildIndentColumnLabel,
 }: OrderListingTableProps<T>) {
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<"grid" | "list">(defaultView);
@@ -95,8 +107,9 @@ export function OrderListingTable<T>({
   const [colMgmtOpen, setColMgmtOpen] = useState(false);
   const [activeColTab, setActiveColTab] = useState<"fixed" | "scrollable" | "sort">("fixed");
   const allSortCols = [...fixedColumns, ...scrollableColumns];
-  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(allSortCols));
-  const [tempVisibleCols, setTempVisibleCols] = useState<Set<string>>(new Set(allSortCols));
+  const initialVisibleCols = defaultVisibleColumns ?? allSortCols;
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(initialVisibleCols));
+  const [tempVisibleCols, setTempVisibleCols] = useState<Set<string>>(new Set(initialVisibleCols));
   const [colSortOrder, setColSortOrder] = useState<string[]>(allSortCols);
   const [tempColSortOrder, setTempColSortOrder] = useState<string[]>(allSortCols);
   const [dragColIdx, setDragColIdx] = useState<number | null>(null);
@@ -438,10 +451,15 @@ export function OrderListingTable<T>({
 
                   if (!hasChildren || !isExpanded) return [parentRow];
 
-                  const childRows = children.map((child, idx) => {
+                  const childRows = children.flatMap((child, idx) => {
                     const isLast = idx === children.length - 1;
-                    return (
-                      <tr key={`${rowKey}::${getRowKey(child)}`}
+                    const childKey = getRowKey(child);
+                    const grandchildren = getGrandchildren?.(child, row) ?? [];
+                    const hasGrandchildren = grandchildren.length > 0;
+                    const childExpanded = expandedRows.has(childKey);
+
+                    const childRow = (
+                      <tr key={`${rowKey}::${childKey}`}
                         className="border-b border-[#f2f2f2] bg-[#fafbfc] hover:bg-[#f5eef1] cursor-pointer transition-colors"
                         onClick={() => onRowClick?.(child)}>
                         <td className="w-[52px] h-[38px] relative p-0">
@@ -458,11 +476,68 @@ export function OrderListingTable<T>({
                             key={col.key}
                             className={`h-[38px] ${col.label === childIndentColumnLabel ? "pl-9 pr-4" : "px-4"}`}
                           >
-                            {(renderChildCell ?? renderCell)(col.label, child, row)}
+                            {col.label === childIndentColumnLabel ? (
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="min-w-0">{(renderChildCell ?? renderCell)(col.label, child, row)}</div>
+                                {hasGrandchildren && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setExpandedRows(prev => {
+                                        const next = new Set(prev);
+                                        if (childExpanded) next.delete(childKey); else next.add(childKey);
+                                        return next;
+                                      });
+                                    }}
+                                    className="inline-flex items-center gap-[5px] shrink-0 px-[8px] py-[3px] rounded-full bg-[#fdf0f4] text-[#c53e6c] hover:bg-[#fbe1e9] text-[11px] font-medium cursor-pointer transition-colors"
+                                    aria-label={childExpanded ? "Hide replies" : "Show replies"}
+                                  >
+                                    <svg fill="none" viewBox="0 0 8 8" className={`size-[7px] shrink-0 transition-transform duration-200 ${childExpanded ? "rotate-90" : ""}`}>
+                                      <path d="M1 0.5L6 4L1 7.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                    </svg>
+                                    {childExpanded ? "Hide" : "Show"} {grandchildren.length} {grandchildren.length === 1 ? "reply" : "replies"}
+                                  </button>
+                                )}
+                              </div>
+                            ) : (renderChildCell ?? renderCell)(col.label, child, row)}
                           </td>
                         ))}
                       </tr>
                     );
+
+                    if (!hasGrandchildren || !childExpanded) return [childRow];
+
+                    const grandchildIndentLabel = grandchildIndentColumnLabel ?? childIndentColumnLabel;
+                    const grandchildRows = grandchildren.map((grandchild, gidx) => {
+                      const isLastGrandchild = gidx === grandchildren.length - 1;
+                      return (
+                        <tr key={`${rowKey}::${childKey}::${getRowKey(grandchild)}`}
+                          className="border-b border-[#f2f2f2] bg-[#f5f2f4] hover:bg-[#f0e5ea] cursor-pointer transition-colors"
+                          onClick={() => onRowClick?.(grandchild)}>
+                          <td className="w-[52px] h-[38px] relative p-0">
+                            {/* Same tree-connector pattern, reused one tier deeper */}
+                            <svg width="52" height="38" viewBox="0 0 52 38" className="absolute inset-0">
+                              <line x1="26" y1="0" x2="26" y2="19" stroke="#c53e6c" strokeWidth="2" opacity="0.55" />
+                              {!isLastGrandchild && <line x1="26" y1="19" x2="26" y2="38" stroke="#c53e6c" strokeWidth="2" opacity="0.55" />}
+                              <path d="M26 19 Q26 24 31 24 H37" stroke="#c53e6c" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.55" />
+                              <path d="M34 20.5 L38 24 L34 27.5" stroke="#c53e6c" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.55" />
+                            </svg>
+                          </td>
+                          {visibleColumns.map(col => (
+                            <td
+                              key={col.key}
+                              className={`h-[38px] ${col.label === grandchildIndentLabel ? "pl-16 pr-4" : "px-4"}`}
+                            >
+                              {(renderGrandchildCell
+                                ? renderGrandchildCell(col.label, grandchild, child, row)
+                                : (renderChildCell ?? renderCell)(col.label, grandchild, child))}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    });
+
+                    return [childRow, ...grandchildRows];
                   });
 
                   return [parentRow, ...childRows];

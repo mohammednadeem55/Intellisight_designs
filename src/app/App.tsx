@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { toast, Toaster } from "sonner";
 import svgPaths from "@/imports/IntelliSightEmailLogin/svg-ghyavcwom4";
 import notifSvg from "@/imports/Notification/svg-ysaztztd8j";
@@ -11,6 +11,7 @@ import imgAvatar2 from "@/imports/HoldManagementOrderDetailsV2/046edf4ec7def23e1
 import imgLeftPanel from "@/imports/IntelliSightEmailLogin/17e78b7b41621dd481ed133d49944eb83c5f8836.png";
 import {
   BarChart2,
+  ChevronDown,
   CornerDownRight,
   FileText,
   Globe,
@@ -751,8 +752,188 @@ type Email = {
   received: string;
   size: string;
   body?: string;
+  /** Nested correspondence — under a CCC row this is that CCC's own thread (level 2); under a reply this is its further replies (level 3+, surfaced via a "+N more" link rather than a 3rd inline row tier). */
   replies?: Email[];
+  /** CCC requests linked to this email (level 1 nested rows). Only ever set on root email rows. */
+  linkedCccs?: Email[];
+  /** Set on CCC/reply rows so clicking through navigates to the root email's detail/thread view rather than a synthetic nested id. */
+  rootEmailId?: string;
+  // CCC request fields (Command Center listing columns)
+  cccId?: string;
+  csrOwner?: string;
+  businessGroup?: string;
+  opportunityNumber?: string;
+  accountManager?: string;
+  accountName?: string;
+  cccRequestType?: string;
+  cccRequestSubtype?: string;
+  cccRequestStatus?: string;
+  awaitingReason?: string;
+  cccRequestReceivedDate?: string;
+  slaTimeRemaining?: string;
+  poNumber?: string;
+  quoteNumber?: string;
+  orderNumber?: string;
+  operatingUnit?: string;
+  poAmount?: string;
+  currentMonthBookableAmount?: string;
+  currency?: string;
+  statusNotes?: string;
+  currentStatusDate?: string;
+  currentAutomationStatus?: string;
+  currentAutomationResult?: string;
+  automationDetailsLink?: string;
+  previousStatus?: string;
+  previousStatusDate?: string;
+  previousStage?: string;
+  previousAutomationStatus?: string;
+  oaStatus?: string;
+  oaSummary?: string;
+  oaValidationRecords?: string;
 };
+
+const CSR_OWNERS = ["A. Sharma", "M. Chen", "R. Okafor", "L. Novak", "T. Reyes"];
+const BUSINESS_GROUPS = ["Enterprise", "Mid-Market", "Public Sector", "SMB"];
+const ACCOUNT_MANAGERS = ["J. Patel (FE-2201)", "K. Summers (FE-1187)", "D. Alvarez (FE-3042)", "S. Kim (FE-0925)"];
+const ACCOUNT_NAMES = ["GlobalTech Industries", "Acme Industries", "Nexus Corp", "Sterling & Co", "MetaSite Inc"];
+const CCC_REQUEST_TYPES = ["New Order", "Amendment", "Renewal", "Cancellation"];
+const CCC_REQUEST_SUBTYPES = ["Standard", "Expedite", "Credit Hold Release", "Price Correction"];
+const CCC_REQUEST_STATUSES = ["Open", "In Progress", "Pending Info", "Completed"];
+const AWAITING_REASONS = ["Awaiting Customer Response", "Awaiting Finance Approval", "Awaiting Legal Review", "—"];
+const SLA_REMAINING = ["2d 4h remaining", "6h remaining", "Overdue by 1d", "4d remaining"];
+const OPERATING_UNITS = ["US OU", "EMEA OU", "APAC OU", "LATAM OU"];
+const CURRENCIES = ["USD", "EUR", "GBP", "INR"];
+const AUTOMATION_STATUSES = ["Completed", "Running", "Failed", "Not Started"];
+const AUTOMATION_RESULTS = ["Success", "Success", "Error – Retry", "N/A"];
+const PREVIOUS_STATUSES = ["Flagged", "Under Review", "Cleared"];
+const PREVIOUS_STAGES = ["Intake", "Validation", "Fulfillment", "Closed"];
+const OA_STATUSES = ["Validated", "Pending", "Failed"];
+const STATUS_NOTES = [
+  "Reviewed by CSR, pending downstream sync.",
+  "Escalated to secondary approver for sign-off.",
+  "Customer confirmed details, proceeding with fulfillment.",
+  "Awaiting updated documentation from requester.",
+];
+
+// Fields shared by a CCC request and all of its thread replies — the request identity doesn't change reply to reply.
+function deriveRequestFields(i: number) {
+  return {
+    cccId: `CCC-${20000 + i * 11}`,
+    csrOwner: CSR_OWNERS[i % CSR_OWNERS.length],
+    businessGroup: BUSINESS_GROUPS[i % BUSINESS_GROUPS.length],
+    opportunityNumber: `OPP-${10500 + i * 7}`,
+    accountManager: ACCOUNT_MANAGERS[i % ACCOUNT_MANAGERS.length],
+    accountName: ACCOUNT_NAMES[i % ACCOUNT_NAMES.length],
+    cccRequestType: CCC_REQUEST_TYPES[i % CCC_REQUEST_TYPES.length],
+    cccRequestSubtype: CCC_REQUEST_SUBTYPES[i % CCC_REQUEST_SUBTYPES.length],
+    poNumber: `PO-${88000 + i * 13}`,
+    quoteNumber: `QT-${5000 + i * 3} v${1 + (i % 3)}`,
+    orderNumber: i % 3 === 0 ? "—" : `ORD-${77000 + i * 9}`,
+    operatingUnit: OPERATING_UNITS[i % OPERATING_UNITS.length],
+    poAmount: `$${(12000 + i * 3540).toLocaleString()}.00`,
+    currentMonthBookableAmount: `$${(8000 + i * 2110).toLocaleString()}.00`,
+    currency: CURRENCIES[i % CURRENCIES.length],
+  };
+}
+
+// Fields that evolve message to message within a thread — each reply gets its own seed so status/automation progress.
+function deriveStatusFields(email: Email, seed: number) {
+  return {
+    cccRequestStatus: CCC_REQUEST_STATUSES[seed % CCC_REQUEST_STATUSES.length],
+    awaitingReason: AWAITING_REASONS[seed % AWAITING_REASONS.length],
+    cccRequestReceivedDate: email.received,
+    slaTimeRemaining: SLA_REMAINING[seed % SLA_REMAINING.length],
+    statusNotes: STATUS_NOTES[seed % STATUS_NOTES.length],
+    currentStatusDate: email.received,
+    currentAutomationStatus: AUTOMATION_STATUSES[seed % AUTOMATION_STATUSES.length],
+    currentAutomationResult: AUTOMATION_RESULTS[seed % AUTOMATION_RESULTS.length],
+    automationDetailsLink: "View Details",
+    previousStatus: PREVIOUS_STATUSES[(seed + 1) % PREVIOUS_STATUSES.length],
+    previousStatusDate: email.received,
+    previousStage: PREVIOUS_STAGES[seed % PREVIOUS_STAGES.length],
+    previousAutomationStatus: AUTOMATION_STATUSES[(seed + 1) % AUTOMATION_STATUSES.length],
+    oaStatus: OA_STATUSES[seed % OA_STATUSES.length],
+    oaSummary: `${2 + (seed % 3)}/${3 + (seed % 2)} checks passed`,
+    oaValidationRecords: "View Records",
+  };
+}
+
+// Builds one CCC row (level 1) linked to a root email, carrying its own request identity plus a thread of correspondence (level 2).
+function makeCcc(rootEmail: Email, cccSeed: number, replyPool: Email[]): Email {
+  const request = deriveRequestFields(cccSeed);
+  return {
+    id: request.cccId,
+    subject: `${request.cccRequestType} — ${request.cccRequestSubtype}`,
+    sender: "",
+    category: rootEmail.category,
+    status: PREVIOUS_STATUSES[cccSeed % PREVIOUS_STATUSES.length],
+    received: rootEmail.received,
+    size: "",
+    rootEmailId: rootEmail.id,
+    ...request,
+    ...deriveStatusFields(rootEmail, cccSeed),
+    replies: replyPool.map((reply, ri) => enrichReply(reply, request, cccSeed, ri, rootEmail.id)),
+  };
+}
+
+// Enriches a raw correspondence email with its parent CCC's request identity (unchanged thread to thread) plus its own
+// evolving status/timeline fields. Recurses into any further nested replies so 3rd-level+ data still carries real values,
+// even though the grid only renders 2 nested tiers — deeper data is reached via a "+N more" link, not another row tier.
+function enrichReply(reply: Email, request: ReturnType<typeof deriveRequestFields>, parentSeed: number, ri: number, rootEmailId: string): Email {
+  const seed = parentSeed * 10 + ri + 1;
+  return {
+    ...reply,
+    ...request,
+    ...deriveStatusFields(reply, seed),
+    rootEmailId,
+    replies: reply.replies?.map((sub, si) => enrichReply(sub, request, seed, si, rootEmailId)),
+  };
+}
+
+// Splits a root email's raw replies into 1 or 2 linked CCCs (an email can reference a single CCC or several), each owning
+// its share of the correspondence as its own nested thread.
+function withCccHierarchy(email: Email, i: number): Email {
+  let rawReplies = email.replies ?? [];
+
+  // Demonstrates a reply carrying its own further nested replies (3rd level) — surfaced via a "+N more" link.
+  if (i === 1 && rawReplies.length > 1) {
+    rawReplies = rawReplies.map((r, ri) => ri === 1 ? {
+      ...r,
+      replies: [
+        { id: `${r.id}-N1`, subject: `Re: ${r.subject}`, sender: "legal@intellisight.io", category: r.category, status: "Cleared", received: r.received, size: "0.4 MB",
+          body: "Confirmed the redlines are final — no further changes needed on our end." },
+        { id: `${r.id}-N2`, subject: `Re: ${r.subject}`, sender: "legal@acmeindustries.com", category: r.category, status: "Cleared", received: r.received, size: "0.6 MB",
+          body: "Great, signing today. Thanks for the quick turnaround." },
+      ],
+    } : r);
+  }
+
+  // Threads with 2+ raw replies plausibly touch more than one CCC — split them so several emails demonstrate the 1-to-many link.
+  const multiCcc = rawReplies.length >= 2;
+  const groups: Email[][] = multiCcc
+    ? [rawReplies.slice(0, Math.ceil(rawReplies.length / 2)), rawReplies.slice(Math.ceil(rawReplies.length / 2))]
+    : [rawReplies];
+
+  const linkedCccs = groups.map((group, ci) => makeCcc(email, i * 2 + ci, group));
+  const [primaryCcc] = linkedCccs;
+
+  // The root row surfaces its primary (first) linked CCC's data directly, so the main grid is informative
+  // without expanding — expanding still reveals every linked CCC (including this one) and their own threads.
+  return {
+    ...primaryCcc,
+    id: email.id,
+    subject: email.subject,
+    sender: email.sender,
+    category: email.category,
+    status: email.status,
+    received: email.received,
+    size: email.size,
+    body: email.body,
+    linkedCccs,
+    rootEmailId: undefined,
+    replies: undefined,
+  };
+}
 
 const ALL_EMAILS: Email[] = [
   { id: "EML-10234", subject: "Q3 Invoice Approval Request",        sender: "vendor@globaltech.com",    category: "Finance",    status: "Flagged",      received: "Jan 18", size: "1.2 MB",
@@ -817,6 +998,10 @@ const ALL_EMAILS: Email[] = [
     body: "Critical security patch has been deployed across all production servers. No downtime reported." },
 ];
 
+// Shared CCC-enriched view of ALL_EMAILS — computed once so the Command Center overview grid and the email detail
+// page read the exact same linkedCccs/replies hierarchy instead of each re-deriving their own mock data.
+const ALL_EMAILS_WITH_CCC: Email[] = ALL_EMAILS.map((email, i) => withCccHierarchy(email, i));
+
 const EMAIL_STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
   Flagged:      { label: "Flagged",      color: "#d12e2e", bg: "rgba(209,46,46,0.1)" },
   "Under Review": { label: "Under Review", color: "#e08c00", bg: "rgba(224,140,0,0.1)" },
@@ -854,22 +1039,62 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
   ];
   const sparkHeights = [8, 14, 10, 18, 12, 20, 14, 16];
 
-  const columns: OrderListingColumn[] = [
-    { key: "status",   label: "Status" },
-    { key: "id",       label: "Email ID" },
-    { key: "subject",  label: "Subject" },
-    { key: "sender",   label: "Sender" },
-    { key: "category", label: "Category" },
-    { key: "received", label: "Received" },
-    { key: "size",     label: "Size" },
+  const cccRows = ALL_EMAILS_WITH_CCC;
+
+  // Lead columns — CCC ID first, Subject second. Visible by default.
+  const leadColumns: OrderListingColumn[] = [
+    { key: "cccId",  label: "CCC ID" },
+    { key: "subject", label: "Subject" },
+  ];
+  // Main grid columns — visible by default.
+  const mainGridIdentityColumns: OrderListingColumn[] = [
+    { key: "csrOwner",         label: "CSR Owner (SOO)" },
+    { key: "businessGroup",    label: "Business Group" },
+    { key: "opportunityNumber", label: "Opportunity Number" },
+    { key: "accountManager",   label: "Account Manager" },
+    { key: "accountName",      label: "Account Name" },
+  ];
+  const mainGridRequestColumns: OrderListingColumn[] = [
+    { key: "cccRequestType",    label: "CCC Request Type" },
+    { key: "cccRequestSubtype", label: "CCC Request Subtype" },
+    { key: "cccRequestStatus",  label: "CCC Request Status" },
+    { key: "awaitingReason",    label: "Awaiting Reason" },
+    { key: "cccRequestReceivedDate", label: "CCC Request Received Date" },
+    { key: "slaTimeRemaining",  label: "Time Remaining / SLA" },
+    { key: "poNumber",          label: "PO #" },
+    { key: "quoteNumber",       label: "Quote # + Version / Revision" },
+    { key: "orderNumber",       label: "Order #" },
+    { key: "operatingUnit",     label: "Operating Unit" },
+    { key: "poAmount",          label: "PO Amount" },
+    { key: "currentMonthBookableAmount", label: "Current Month Bookable Amount" },
+    { key: "currency",          label: "Currency" },
+    { key: "status",            label: "Current Status" },
+    { key: "statusNotes",       label: "Status Notes" },
+    { key: "currentStatusDate", label: "Current Status Date" },
+  ];
+  // On-expand columns — available in Column Mgmt, hidden until the user enables them.
+  const onExpandColumns: OrderListingColumn[] = [
+    { key: "currentAutomationStatus", label: "Current Automation Status" },
+    { key: "currentAutomationResult", label: "Current Automation Result" },
+    { key: "automationDetailsLink",   label: "Link to Automation Details" },
+    { key: "previousStatus",          label: "Previous Status" },
+    { key: "previousStatusDate",      label: "Previous Status Date" },
+    { key: "previousStage",           label: "Previous Stage" },
+    { key: "previousAutomationStatus", label: "Previous Automation Status" },
+    { key: "oaStatus",                label: "OA Status" },
+    { key: "oaSummary",               label: "OA Summary" },
+    { key: "oaValidationRecords",     label: "OA Validation Records" },
   ];
 
-  const fixedColumns = ["Status", "Email ID", "Subject", "Sender"];
-  const scrollableColumns = ["Category", "Received", "Size"];
+  const columns: OrderListingColumn[] = [...leadColumns, ...mainGridIdentityColumns, ...mainGridRequestColumns, ...onExpandColumns];
+
+  const fixedColumns = [...leadColumns.map(c => c.label), ...mainGridIdentityColumns.map(c => c.label)];
+  const scrollableColumns = [...mainGridRequestColumns.map(c => c.label), ...onExpandColumns.map(c => c.label)];
+  const defaultVisibleColumns = [...fixedColumns, ...mainGridRequestColumns.map(c => c.label)];
 
   const filterSections: OrderListingFilterSection<Email>[] = [
-    { key: "Category", label: "Category", getValue: (r) => r.category },
-    { key: "Sender",   label: "Sender",   getValue: (r) => r.sender },
+    { key: "Business Group",      label: "Business Group",      getValue: (r) => r.businessGroup ?? "" },
+    { key: "CCC Request Type",    label: "CCC Request Type",    getValue: (r) => r.cccRequestType ?? "" },
   ];
 
   const categoryDropdown: OrderListingDropdownFilter<Email> = {
@@ -886,29 +1111,98 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
     getValue: (r) => r.status,
   };
 
+  const plainCell = (text?: string) => <span className="text-[#333] text-[14px]">{text ?? "—"}</span>;
+  const linkCell = (text?: string) => <span className="text-[#c53e6c] text-[14px] cursor-pointer hover:underline">{text ?? "—"}</span>;
+  const noteCell = (text?: string) => <span className="text-[#686868] text-[13px] block max-w-[220px] truncate">{text ?? "—"}</span>;
+
   const renderCell = (label: string, row: Email) => {
     switch (label) {
-      case "Status":    return <EmailStatusBadge status={row.status} />;
-      case "Email ID":  return <span className="text-[#c53e6c] text-[14px]">{row.id}</span>;
-      case "Subject":   return <span className="text-[#333] text-[14px] block max-w-[280px] truncate">{row.subject}</span>;
-      case "Sender":    return <span className="text-[#333] text-[14px] block max-w-[220px] truncate">{row.sender}</span>;
-      case "Category":  return <span className="text-[#333] text-[14px]">{row.category}</span>;
-      case "Received":  return <span className="text-[#333] text-[14px]">{row.received}</span>;
-      case "Size":      return <span className="text-[#333] text-[14px]">{row.size}</span>;
-      default:          return null;
+      case "CCC ID": {
+        const extraCccs = (row.linkedCccs?.length ?? 1) - 1;
+        return (
+          <div className="flex items-center gap-1.5">
+            {linkCell(row.cccId)}
+            {extraCccs > 0 && (
+              <span className="text-[10px] text-[#9a9a9a] bg-[#f3f4f6] rounded-full px-[6px] py-[1px] shrink-0 whitespace-nowrap">
+                +{extraCccs} more
+              </span>
+            )}
+          </div>
+        );
+      }
+      case "CSR Owner (SOO)":               return plainCell(row.csrOwner);
+      case "Business Group":                return plainCell(row.businessGroup);
+      case "Opportunity Number":            return linkCell(row.opportunityNumber);
+      case "Account Manager":               return plainCell(row.accountManager);
+      case "Account Name":                  return plainCell(row.accountName);
+      case "CCC Request Type":              return plainCell(row.cccRequestType);
+      case "CCC Request Subtype":           return plainCell(row.cccRequestSubtype);
+      case "Subject":                       return <span className="text-[#333] text-[14px] block max-w-[260px] truncate">{row.subject}</span>;
+      case "CCC Request Status":            return plainCell(row.cccRequestStatus);
+      case "Awaiting Reason":               return plainCell(row.awaitingReason);
+      case "CCC Request Received Date":     return plainCell(row.cccRequestReceivedDate);
+      case "Time Remaining / SLA":          return plainCell(row.slaTimeRemaining);
+      case "PO #":                          return plainCell(row.poNumber);
+      case "Quote # + Version / Revision":  return linkCell(row.quoteNumber);
+      case "Order #":                       return plainCell(row.orderNumber);
+      case "Operating Unit":                return plainCell(row.operatingUnit);
+      case "PO Amount":                     return plainCell(row.poAmount);
+      case "Current Month Bookable Amount": return plainCell(row.currentMonthBookableAmount);
+      case "Currency":                      return plainCell(row.currency);
+      case "Current Status":                return <EmailStatusBadge status={row.status} />;
+      case "Status Notes":                  return noteCell(row.statusNotes);
+      case "Current Status Date":           return plainCell(row.currentStatusDate);
+      case "Current Automation Status":     return plainCell(row.currentAutomationStatus);
+      case "Current Automation Result":     return plainCell(row.currentAutomationResult);
+      case "Link to Automation Details":    return linkCell(row.automationDetailsLink);
+      case "Previous Status":               return plainCell(row.previousStatus);
+      case "Previous Status Date":          return plainCell(row.previousStatusDate);
+      case "Previous Stage":                return plainCell(row.previousStage);
+      case "Previous Automation Status":    return plainCell(row.previousAutomationStatus);
+      case "OA Status":                     return plainCell(row.oaStatus);
+      case "OA Summary":                    return noteCell(row.oaSummary);
+      case "OA Validation Records":         return linkCell(row.oaValidationRecords);
+      default:                              return null;
     }
   };
 
-  const renderChildCell = (label: string, child: Email) => {
+  // Level 1 rows — the CCC request(s) linked to an email.
+  const renderCccCell = (label: string, ccc: Email) => {
     if (label === "Subject") {
       return (
-        <span className="text-[#686868] text-[13px] flex items-center gap-1.5 max-w-[280px] truncate">
-          <CornerDownRight size={12} className="shrink-0 opacity-60" />
-          {child.subject}
+        <span className="text-[#90003b] text-[14px] font-medium flex items-center gap-1.5 max-w-[260px] truncate">
+          <FileText size={12} className="shrink-0 opacity-70" />
+          {ccc.subject}
         </span>
       );
     }
-    return renderCell(label, child);
+    return renderCell(label, ccc);
+  };
+
+  // Level 2 rows — a CCC's own correspondence thread. Any further nesting (level 3+) shows as a "+N more" link
+  // rather than a 3rd inline row tier, jumping into the full thread on the email detail page.
+  const renderReplyCell = (label: string, reply: Email) => {
+    if (label === "Subject") {
+      const moreCount = reply.replies?.length ?? 0;
+      return (
+        <div className="flex items-center gap-2 max-w-[280px]">
+          <span className="text-[#686868] text-[13px] flex items-center gap-1.5 truncate">
+            <CornerDownRight size={12} className="shrink-0 opacity-60" />
+            {reply.subject}
+          </span>
+          {moreCount > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onNavigateEmailDetail?.(reply.rootEmailId ?? reply.id); }}
+              className="inline-flex items-center gap-1 shrink-0 px-[8px] py-[3px] rounded-full bg-[#f3f4f6] text-[#686868] hover:bg-[#e5e7eb] hover:text-[#333] text-[11px] font-medium cursor-pointer transition-colors"
+              title={`Open the full thread to see ${moreCount} more ${moreCount === 1 ? "reply" : "replies"}`}
+            >
+              View {moreCount} more →
+            </button>
+          )}
+        </div>
+      );
+    }
+    return renderCell(label, reply);
   };
 
   return (
@@ -962,21 +1256,26 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
           {/* White content area: toolbar + table + pagination */}
           <div className="flex-1 bg-white mx-5 mb-5 rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col">
             <OrderListingTable
-              rows={ALL_EMAILS}
+              rows={cccRows}
               columns={columns}
               fixedColumns={fixedColumns}
               scrollableColumns={scrollableColumns}
+              maxFixedColumns={7}
+              defaultVisibleColumns={defaultVisibleColumns}
               filterSections={filterSections}
               categoryDropdown={categoryDropdown}
               typeDropdown={typeDropdown}
               renderCell={renderCell}
               getRowKey={(row) => row.id}
-              onRowClick={(row) => onNavigateEmailDetail?.(row.id)}
+              onRowClick={(row) => onNavigateEmailDetail?.(row.rootEmailId ?? row.id)}
               rowsPerPage={10}
               emptyMessage="No emails match your filters"
-              getChildren={(row) => row.replies}
-              renderChildCell={renderChildCell}
+              getChildren={(row) => row.linkedCccs}
+              renderChildCell={renderCccCell}
               childIndentColumnLabel="Subject"
+              getGrandchildren={(ccc) => ccc.replies}
+              renderGrandchildCell={renderReplyCell}
+              grandchildIndentColumnLabel="Subject"
             />
           </div>
         </main>
@@ -986,6 +1285,191 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
 }
 
 // ─── Command Center Email View ─────────────────────────────────────────────────
+
+function DetailField({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="px-6 py-3.5 min-w-0">
+      <p className="text-[10.5px] font-semibold text-[#9ca3af] uppercase tracking-wider mb-1">{label}</p>
+      <div className="text-[13px] font-semibold text-[#111827] truncate">{value || "—"}</div>
+    </div>
+  );
+}
+
+function DetailSection({ title, fields }: { title: string; fields: { label: string; value: ReactNode }[] }) {
+  return (
+    <div>
+      <div className="px-6 pt-4 pb-2">
+        <h4 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest">{title}</h4>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 divide-x divide-y divide-[#f3f4f6] border-t border-[#f3f4f6]">
+        {fields.map(f => <DetailField key={f.label} label={f.label} value={f.value} />)}
+      </div>
+    </div>
+  );
+}
+
+function DetailLink({ text, what }: { text?: string; what: string }) {
+  if (!text || text === "—") return <>—</>;
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); toast.info(`Opening ${what}: ${text}`); }}
+      className="text-[#c53e6c] hover:underline cursor-pointer text-left truncate"
+    >
+      {text}
+    </button>
+  );
+}
+
+// A CCC's own correspondence message. Recurses into any further nested replies (unlike the grid, the detail page
+// isn't capped at 2 tiers — deeper threads are reachable here via an in-place "Show N more" toggle).
+function ThreadMessage({ msg, depth = 0 }: { msg: Email; depth?: number }) {
+  const [showMore, setShowMore] = useState(false);
+  const subReplies = msg.replies ?? [];
+  return (
+    <div className={depth > 0 ? "mt-3 pl-4 border-l-2 border-[#f0d5dd]" : ""}>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <p className="text-[13px] font-semibold text-[#111827]">{msg.sender}</p>
+        <p className="text-[11px] text-[#9ca3af] shrink-0">{msg.received}</p>
+      </div>
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <p className="text-[12px] text-[#6b7280]">{msg.subject}</p>
+        <EmailStatusBadge status={msg.status} />
+      </div>
+      <p className="text-[13px] text-[#374151] leading-[1.6]">{msg.body ?? "No content preview available."}</p>
+      {subReplies.length > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={() => setShowMore(s => !s)}
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-[#c53e6c] hover:underline cursor-pointer"
+          >
+            {showMore ? "Hide" : "Show"} {subReplies.length} more {subReplies.length === 1 ? "reply" : "replies"}
+          </button>
+          {showMore && (
+            <div className="mt-3 space-y-3">
+              {subReplies.map(sub => <ThreadMessage key={sub.id} msg={sub} depth={depth + 1} />)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// One linked CCC request: Ownership / CCC Request Info / Order Info / Current Workflow Status are always visible
+// ("Main grid"); Automation Visibility / Previous State / OA sit behind an explicit expand toggle ("On Expand"),
+// mirroring the same main-grid-vs-on-expand split used for the overview grid's columns.
+function CccDetailCard({ ccc, expanded, onToggleExpand }: { ccc: Email; expanded: boolean; onToggleExpand: () => void }) {
+  const replies = ccc.replies ?? [];
+  return (
+    <div className="bg-white rounded-2xl border border-[#ebebeb] overflow-hidden shadow-sm mb-5">
+      {/* Header */}
+      <div className="px-7 py-5 border-b border-[#f3f4f6] flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="size-[34px] rounded-xl bg-[#fdf0f4] flex items-center justify-center shrink-0">
+            <FileText size={15} className="text-[#90003b]" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[14px] font-bold text-[#111827] truncate">{ccc.cccId}</p>
+            <p className="text-[12px] text-[#6b7280] truncate">{ccc.cccRequestType} — {ccc.cccRequestSubtype}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {ccc.slaTimeRemaining && (
+            <span className="text-[11px] font-medium text-[#6b7280] bg-[#f3f4f6] px-2.5 py-1 rounded-md whitespace-nowrap">{ccc.slaTimeRemaining}</span>
+          )}
+          <EmailStatusBadge status={ccc.status} />
+        </div>
+      </div>
+
+      <DetailSection title="Ownership" fields={[
+        { label: "CSR Owner (SOO)", value: ccc.csrOwner },
+        { label: "Business Group", value: ccc.businessGroup },
+        { label: "Opportunity Number", value: <DetailLink text={ccc.opportunityNumber} what="Opportunity" /> },
+        { label: "Account Manager", value: ccc.accountManager },
+        { label: "Account Name", value: ccc.accountName },
+      ]} />
+
+      <DetailSection title="CCC Request Info" fields={[
+        { label: "CCC Request Type", value: ccc.cccRequestType },
+        { label: "CCC Request Subtype", value: ccc.cccRequestSubtype },
+        { label: "CCC Request Status", value: ccc.cccRequestStatus },
+        { label: "Awaiting Reason", value: ccc.awaitingReason },
+        { label: "CCC Request Received Date", value: ccc.cccRequestReceivedDate },
+        { label: "Time Remaining / SLA", value: ccc.slaTimeRemaining },
+      ]} />
+
+      <DetailSection title="Order Info" fields={[
+        { label: "PO #", value: ccc.poNumber },
+        { label: "Quote # + Version / Revision", value: <DetailLink text={ccc.quoteNumber} what="Sales Quote" /> },
+        { label: "Order #", value: ccc.orderNumber },
+        { label: "Operating Unit", value: ccc.operatingUnit },
+        { label: "PO Amount", value: ccc.poAmount },
+        { label: "Current Month Bookable Amount", value: ccc.currentMonthBookableAmount },
+        { label: "Currency", value: ccc.currency },
+      ]} />
+
+      <DetailSection title="Current Workflow Status" fields={[
+        { label: "Current Status", value: <EmailStatusBadge status={ccc.status} /> },
+        { label: "Status Notes", value: ccc.statusNotes },
+        { label: "Current Status Date", value: ccc.currentStatusDate },
+      ]} />
+
+      {/* On Expand */}
+      <button
+        onClick={onToggleExpand}
+        className="w-full flex items-center justify-center gap-1.5 px-5 py-3 border-t border-[#f3f4f6] text-[12px] font-semibold text-[#c53e6c] hover:bg-[#fdf5f8] transition-colors cursor-pointer"
+      >
+        {expanded ? "Hide" : "Show"} automation & history details
+        <ChevronDown size={14} className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+      </button>
+
+      {expanded && (
+        <div className="border-t border-[#f3f4f6]">
+          <DetailSection title="Automation Visibility (Read-only)" fields={[
+            { label: "Current Automation Status", value: ccc.currentAutomationStatus },
+            { label: "Current Automation Result", value: ccc.currentAutomationResult },
+            { label: "Link to Automation Details", value: <DetailLink text={ccc.automationDetailsLink} what="Automation Details" /> },
+          ]} />
+          <DetailSection title="Previous State" fields={[
+            { label: "Previous Status", value: ccc.previousStatus },
+            { label: "Previous Status Date", value: ccc.previousStatusDate },
+            { label: "Previous Stage", value: ccc.previousStage },
+            { label: "Previous Automation Status", value: ccc.previousAutomationStatus },
+          ]} />
+          <DetailSection title="OA" fields={[
+            { label: "OA Status", value: ccc.oaStatus },
+            { label: "OA Summary", value: ccc.oaSummary },
+            { label: "OA Validation Records", value: <DetailLink text={ccc.oaValidationRecords} what="OA Records" /> },
+          ]} />
+        </div>
+      )}
+
+      {/* This CCC's own correspondence */}
+      {replies.length > 0 && (
+        <div className="border-t border-[#f3f4f6]">
+          <div className="px-7 py-4 flex items-center gap-2">
+            <h3 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest">Correspondence</h3>
+            <span className="bg-[#f3f4f6] text-[#6b7280] text-[10px] font-bold px-2 py-0.5 rounded-full">{replies.length}</span>
+          </div>
+          <div className="divide-y divide-[#f3f4f6]">
+            {replies.map((msg, idx) => (
+              <div key={msg.id} className="px-7 py-5 flex gap-4">
+                {/* Timeline connector */}
+                <div className="flex flex-col items-center shrink-0 pt-1 w-[8px]">
+                  <div className="size-[8px] rounded-full bg-[#c53e6c] shrink-0" />
+                  {idx < replies.length - 1 && <div className="w-[1.5px] flex-1 bg-[#f0d5dd] mt-1" />}
+                </div>
+                <div className="flex-1 min-w-0 pb-1">
+                  <ThreadMessage msg={msg} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, initialEmailId }: {
   onLogout: () => void;
@@ -1000,14 +1484,42 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("All");
-  const [selectedId, setSelectedId] = useState(initialEmailId ?? ALL_EMAILS[0].id);
+  const [selectedId, setSelectedId] = useState(initialEmailId ?? ALL_EMAILS_WITH_CCC[0].id);
+  const [expandedCccIds, setExpandedCccIds] = useState<Set<string>>(new Set());
 
-  const selected = ALL_EMAILS.find((e) => e.id === selectedId) ?? ALL_EMAILS[0];
-  const thread = selected.replies ?? [];
+  const selected = ALL_EMAILS_WITH_CCC.find((e) => e.id === selectedId) ?? ALL_EMAILS_WITH_CCC[0];
+  const linkedCccs = selected.linkedCccs ?? [];
 
   const tabs = ["All", "Flagged", "Under Review", "Cleared"];
-  const tabCount = (tab: string) => tab === "All" ? ALL_EMAILS.length : ALL_EMAILS.filter(e => e.status === tab).length;
-  const filtered = ALL_EMAILS.filter((e) => activeTab === "All" || e.status === activeTab);
+  const tabCount = (tab: string) => tab === "All" ? ALL_EMAILS_WITH_CCC.length : ALL_EMAILS_WITH_CCC.filter(e => e.status === tab).length;
+  const filtered = ALL_EMAILS_WITH_CCC.filter((e) => activeTab === "All" || e.status === activeTab);
+
+  const toggleCccExpanded = (cccId: string) => {
+    setExpandedCccIds(prev => {
+      const next = new Set(prev);
+      if (next.has(cccId)) next.delete(cccId); else next.add(cccId);
+      return next;
+    });
+  };
+
+  // Separate expand state for the sidebar list's own 2-level nesting (email → CCCs → replies) — independent of
+  // expandedCccIds above, which only controls the right panel's automation/history disclosure.
+  const [expandedSidebarEmailIds, setExpandedSidebarEmailIds] = useState<Set<string>>(new Set());
+  const [expandedSidebarCccIds, setExpandedSidebarCccIds] = useState<Set<string>>(new Set());
+  const toggleSidebarEmailExpanded = (id: string) => {
+    setExpandedSidebarEmailIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSidebarCccExpanded = (id: string) => {
+    setExpandedSidebarCccIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const statusIconColors: Record<string, string> = {
     Flagged: "text-rose-600",
@@ -1093,38 +1605,94 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
             )}
             {filtered.map((e) => {
               const isActive = selectedId === e.id;
-              const replyCount = e.replies?.length ?? 0;
+              const cccList = e.linkedCccs ?? [];
+              const emailExpanded = expandedSidebarEmailIds.has(e.id);
               return (
-                <div
-                  key={e.id}
-                  onClick={() => setSelectedId(e.id)}
-                  className={`group relative px-5 py-4 cursor-pointer transition-all ${
-                    isActive ? "bg-[#fff5f7] border-b border-b-[#f5e6ea]" : "border-b border-b-[#f3f4f6] hover:bg-[#fafafa]"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`shrink-0 size-[34px] rounded-xl flex items-center justify-center mt-0.5 ${statusIconBg[e.status] ?? "bg-emerald-50"}`}>
-                      <Mail size={15} className={statusIconColors[e.status] ?? "text-emerald-600"} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <p className={`text-[13px] leading-[1.3] truncate ${isActive ? "font-semibold text-[#111827]" : "font-medium text-[#1f2937]"}`}>
-                          {e.subject}
-                        </p>
-                        <p className="text-[10.5px] text-[#9ca3af] shrink-0 whitespace-nowrap">{e.received}</p>
+                <div key={e.id} className="border-b border-b-[#f3f4f6]">
+                  {/* Level 0 — the email itself */}
+                  <div
+                    onClick={() => setSelectedId(e.id)}
+                    className={`group relative px-5 py-4 cursor-pointer transition-all ${isActive ? "bg-[#fff5f7]" : "hover:bg-[#fafafa]"}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`shrink-0 size-[34px] rounded-xl flex items-center justify-center mt-0.5 ${statusIconBg[e.status] ?? "bg-emerald-50"}`}>
+                        <Mail size={15} className={statusIconColors[e.status] ?? "text-emerald-600"} />
                       </div>
-                      <p className="text-[11.5px] text-[#6b7280] leading-[1.5] truncate mb-2">{e.sender}</p>
-                      <div className="flex items-center justify-between">
-                        <EmailStatusBadge status={e.status} />
-                        {replyCount > 0 && (
-                          <span className="flex items-center gap-1 text-[10.5px] text-[#9ca3af]">
-                            <CornerDownRight size={10} />
-                            {replyCount} {replyCount === 1 ? "reply" : "replies"}
-                          </span>
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className={`text-[13px] leading-[1.3] truncate ${isActive ? "font-semibold text-[#111827]" : "font-medium text-[#1f2937]"}`}>
+                            {e.subject}
+                          </p>
+                          <p className="text-[10.5px] text-[#9ca3af] shrink-0 whitespace-nowrap">{e.received}</p>
+                        </div>
+                        <p className="text-[11.5px] text-[#6b7280] leading-[1.5] truncate mb-2">{e.sender}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <EmailStatusBadge status={e.status} />
+                          {cccList.length > 0 && (
+                            <button
+                              onClick={(ev) => { ev.stopPropagation(); toggleSidebarEmailExpanded(e.id); }}
+                              className="inline-flex items-center gap-1 shrink-0 px-2 py-[3px] rounded-full bg-[#fdf0f4] text-[#c53e6c] hover:bg-[#fbe1e9] text-[10.5px] font-medium cursor-pointer transition-colors"
+                              aria-label={emailExpanded ? "Hide linked CCCs" : "Show linked CCCs"}
+                            >
+                              <ChevronDown size={10} className={`transition-transform duration-200 ${emailExpanded ? "rotate-180" : ""}`} />
+                              {emailExpanded ? "Hide" : "Show"} {cccList.length} {cccList.length === 1 ? "CCC" : "CCCs"}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  {/* Level 1 — CCC requests linked to this email */}
+                  {emailExpanded && cccList.map((ccc) => {
+                    const cccExpanded = expandedSidebarCccIds.has(ccc.id);
+                    const cccReplies = ccc.replies ?? [];
+                    return (
+                      <div key={ccc.id}>
+                        <div
+                          onClick={() => setSelectedId(e.id)}
+                          className="pl-[52px] pr-5 py-2.5 cursor-pointer hover:bg-[#faf5f7] border-t border-t-[#f5eef1] bg-[#fbf8f9] transition-colors"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText size={11} className="text-[#90003b] shrink-0" />
+                            <p className="text-[12px] font-semibold text-[#333] truncate flex-1">{ccc.cccId}</p>
+                            <EmailStatusBadge status={ccc.status} />
+                          </div>
+                          <div className="flex items-center justify-between gap-2 mt-1 pl-[19px]">
+                            <p className="text-[11px] text-[#6b7280] truncate">{ccc.cccRequestType} — {ccc.cccRequestSubtype}</p>
+                            {cccReplies.length > 0 && (
+                              <button
+                                onClick={(ev) => { ev.stopPropagation(); toggleSidebarCccExpanded(ccc.id); }}
+                                className="inline-flex items-center gap-1 shrink-0 text-[10px] font-medium text-[#c53e6c] hover:underline cursor-pointer"
+                                aria-label={cccExpanded ? "Hide replies" : "Show replies"}
+                              >
+                                <ChevronDown size={9} className={`transition-transform duration-200 ${cccExpanded ? "rotate-180" : ""}`} />
+                                {cccExpanded ? "Hide" : "Show"} {cccReplies.length} {cccReplies.length === 1 ? "reply" : "replies"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Level 2 — this CCC's own correspondence */}
+                        {cccExpanded && cccReplies.map((reply) => (
+                          <div
+                            key={reply.id}
+                            onClick={() => setSelectedId(e.id)}
+                            className="pl-[76px] pr-5 py-2.5 cursor-pointer hover:bg-[#f5eef1] border-t border-t-[#f5eef1] bg-[#f8f2f4] transition-colors"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <CornerDownRight size={10} className="text-[#9ca3af] shrink-0" />
+                              <p className="text-[11px] text-[#374151] truncate flex-1">{reply.subject}</p>
+                              <EmailStatusBadge status={reply.status} />
+                            </div>
+                            {(reply.replies?.length ?? 0) > 0 && (
+                              <p className="text-[10px] text-[#9ca3af] pl-[16px] mt-0.5">+{reply.replies!.length} more in thread</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -1157,7 +1725,7 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
                   { label: "Email ID", value: selected.id },
                   { label: "Category", value: selected.category },
                   { label: "Size", value: selected.size },
-                  { label: "Messages", value: String(1 + thread.length) },
+                  { label: "Linked CCCs", value: String(linkedCccs.length) },
                 ].map(({ label, value }) => (
                   <div key={label} className="px-6 py-4">
                     <p className="text-[10.5px] font-semibold text-[#9ca3af] uppercase tracking-wider mb-1">{label}</p>
@@ -1172,37 +1740,21 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
               </div>
             </div>
 
-            {/* Threaded replies */}
-            {thread.length > 0 && (
-              <div className="bg-white rounded-2xl border border-[#ebebeb] overflow-hidden shadow-sm">
-                <div className="px-7 py-5 border-b border-[#f3f4f6] flex items-center gap-2">
-                  <h3 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest">Thread</h3>
-                  <span className="bg-[#f3f4f6] text-[#6b7280] text-[10px] font-bold px-2 py-0.5 rounded-full">{thread.length}</span>
-                </div>
-                <div className="divide-y divide-[#f3f4f6]">
-                  {thread.map((msg, idx) => (
-                    <div key={msg.id} className="px-7 py-5 flex gap-4">
-                      {/* Timeline connector */}
-                      <div className="flex flex-col items-center shrink-0 pt-1 w-[8px]">
-                        <div className="size-[8px] rounded-full bg-[#c53e6c] shrink-0" />
-                        {idx < thread.length - 1 && <div className="w-[1.5px] flex-1 bg-[#f0d5dd] mt-1" />}
-                      </div>
-                      <div className="flex-1 min-w-0 pb-1">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <p className="text-[13px] font-semibold text-[#111827]">{msg.sender}</p>
-                          <p className="text-[11px] text-[#9ca3af] shrink-0">{msg.received}</p>
-                        </div>
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <p className="text-[12px] text-[#6b7280]">{msg.subject}</p>
-                          <EmailStatusBadge status={msg.status} />
-                        </div>
-                        <p className="text-[13px] text-[#374151] leading-[1.6]">{msg.body ?? "No content preview available."}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {/* Linked CCC requests */}
+            {linkedCccs.length > 0 && (
+              <div className="flex items-center gap-2 mb-3 mt-6">
+                <h3 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest">Linked CCC Requests</h3>
+                <span className="bg-[#f3f4f6] text-[#6b7280] text-[10px] font-bold px-2 py-0.5 rounded-full">{linkedCccs.length}</span>
               </div>
             )}
+            {linkedCccs.map((ccc) => (
+              <CccDetailCard
+                key={ccc.id}
+                ccc={ccc}
+                expanded={expandedCccIds.has(ccc.id)}
+                onToggleExpand={() => toggleCccExpanded(ccc.id)}
+              />
+            ))}
 
           </div>
 
