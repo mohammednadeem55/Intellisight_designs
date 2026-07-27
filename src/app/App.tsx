@@ -1,8 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { toast, Toaster } from "sonner";
 import svgPaths from "@/imports/IntelliSightEmailLogin/svg-ghyavcwom4";
-import headerSvg from "@/imports/IntellisightHeader/svg-55fm8fp6rz";
-import menuSvg from "@/imports/NestedMenuExample/svg-bciw7c0072";
 import notifSvg from "@/imports/Notification/svg-ysaztztd8j";
 import holdSvg from "@/imports/HoldManagementDesktopV3/svg-5pa1ejxi9n";
 import listingSvg from "@/imports/HoldManagementListing/svg-u1kc727ptr";
@@ -11,21 +9,29 @@ import releasedSvg from "@/imports/HoldManagementListingColumn-2/svg-j76i53zjwx"
 import detailsSvg from "@/imports/HoldManagementOrderDetailsV2/svg-wic8forngq";
 import imgAvatar2 from "@/imports/HoldManagementOrderDetailsV2/046edf4ec7def23e149b10ee868f0a76f99ff441.png";
 import imgLeftPanel from "@/imports/IntelliSightEmailLogin/17e78b7b41621dd481ed133d49944eb83c5f8836.png";
-import imgAvatar from "@/imports/image.png";
 import {
   BarChart2,
+  ChevronDown,
+  CornerDownRight,
   FileText,
   Globe,
   LayoutDashboard,
-  LogOut,
+  Mail,
   Menu,
   Settings,
   Shield,
   TrendingUp,
   Users,
-  X,
   Zap,
 } from "lucide-react";
+import { AppHeader } from "./components/AppHeader";
+import { NavDrawer } from "./components/NavDrawer";
+import {
+  OrderListingTable,
+  type OrderListingColumn,
+  type OrderListingFilterSection,
+  type OrderListingDropdownFilter,
+} from "./components/OrderListingTable";
 import {
   BarChart,
   Bar,
@@ -250,396 +256,6 @@ function SeverityDot({ severity }: { severity: string }) {
   );
 }
 
-// ─── Nested Nav Menu (Figma import) ──────────────────────────────────────────
-
-const menuItems = [
-  {
-    label: "Dashboard",
-    color: "#686868",
-    icon: (
-      <svg fill="none" viewBox="0 0 16.6667 16.6667" className="size-[17px]">
-        <path d={menuSvg.p319ac000} fill="#686868" />
-      </svg>
-    ),
-  },
-  {
-    label: "Command Center",
-    color: "#686868",
-    icon: (
-      <svg fill="none" viewBox="0 0 16.667 16.667" className="size-[17px]">
-        <path d={menuSvg.p694ec70} fill="#686868" />
-      </svg>
-    ),
-  },
-  {
-    label: "Quote Ops",
-    color: "#686868",
-    icon: (
-      <svg fill="none" viewBox="0 0 16.6667 16.6667" className="size-[17px]">
-        <path clipRule="evenodd" d={menuSvg.p316cd440} fill="#686868" fillRule="evenodd" />
-        <path clipRule="evenodd" d={menuSvg.p20280170} fill="#686868" fillRule="evenodd" />
-        <path clipRule="evenodd" d={menuSvg.p1f1e2df8} fill="#686868" fillRule="evenodd" />
-        <path clipRule="evenodd" d={menuSvg.p223a3880} fill="#686868" fillRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    label: "Order Management",
-    color: "#686868",
-    icon: (
-      <svg fill="none" viewBox="0 0 16.6667 16.6667" className="size-[17px]">
-        <path clipRule="evenodd" d={menuSvg.p16f8200} fill="#686868" fillRule="evenodd" />
-        <path clipRule="evenodd" d={menuSvg.p29ca1580} fill="#686868" fillRule="evenodd" />
-      </svg>
-    ),
-    children: ["L3 Approvals", "L4 Autonomous", "Multi-Intent"],
-  },
-  {
-    label: "Hold Management",
-    color: "#686868",
-    icon: (
-      <svg fill="none" viewBox="0 0 17.5 17.5001" className="size-[17px]">
-        <path clipRule="evenodd" d={menuSvg.p21508700} fill="#686868" fillRule="evenodd" />
-      </svg>
-    ),
-    children: ["Overview", "Order Listing", "Released Orders"],
-  },
-  {
-    label: "Work Orders",
-    color: "#686868",
-    icon: (
-      <svg fill="none" viewBox="0 0 17.5 17.4999" className="size-[17px]">
-        <path clipRule="evenodd" d={menuSvg.p5c996f0} fill="#686868" fillRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    label: "Analytics",
-    color: "#686868",
-    icon: (
-      <svg fill="none" viewBox="0 0 16.6667 16.6667" className="size-[17px]">
-        <path clipRule="evenodd" d={menuSvg.p23d76ec0} fill="#686868" fillRule="evenodd" />
-        <path clipRule="evenodd" d={menuSvg.p28bc4500} fill="#9C9C9C" fillRule="evenodd" />
-        <path clipRule="evenodd" d={menuSvg.p29a36a00} fill="#686868" fillRule="evenodd" />
-        <path clipRule="evenodd" d={menuSvg.p1189ad80} fill="#9C9C9C" fillRule="evenodd" />
-        <path clipRule="evenodd" d={menuSvg.pb3d6380} fill="#9C9C9C" fillRule="evenodd" />
-        <path clipRule="evenodd" d={menuSvg.p30c3e400} fill="#686868" fillRule="evenodd" />
-        <path clipRule="evenodd" d={menuSvg.p1ad6c000} fill="#686868" fillRule="evenodd" />
-        <path clipRule="evenodd" d={menuSvg.p1560f200} fill="#686868" fillRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    label: "Translation",
-    color: "#686868",
-    icon: (
-      <svg fill="none" viewBox="0 0 17.5 17.5" className="size-[17px]">
-        <path clipRule="evenodd" d={menuSvg.p26c9080} fill="#686868" fillRule="evenodd" />
-      </svg>
-    ),
-  },
-];
-
-function NavDrawer({
-  open,
-  onClose,
-  onLogout,
-  onNavigateDashboard,
-  onNavigateHoldManagementOverview,
-  onNavigateOrderListing,
-  onNavigateReleasedOrders,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onLogout: () => void;
-  onNavigateDashboard?: () => void;
-  onNavigateHoldManagementOverview?: () => void;
-  onNavigateOrderListing?: () => void;
-  onNavigateReleasedOrders?: () => void;
-}) {
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  return (
-    <>
-      {/* Backdrop */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Drawer panel */}
-      <div
-        className={`fixed top-0 left-0 bottom-0 z-50 bg-white shadow-[2px_0_8px_rgba(0,0,0,0.12)] flex flex-col transition-transform duration-300 ease-in-out ${
-          open ? "translate-x-0" : "-translate-x-full"
-        }`}
-        style={{ width: 260 }}
-      >
-        {/* Drawer header */}
-        <div className="flex items-center justify-between px-4 h-[64px] border-b border-[#f2f2f2] shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="relative size-[32px]">
-              <svg className="absolute block inset-0 size-full" fill="none" viewBox="0 0 40 40">
-                <circle cx="20" cy="20" fill="#BA1C1C" r="20" />
-                <circle cx="20" cy="20" fill="white" r="8.88889" />
-              </svg>
-            </div>
-            <span className="font-semibold text-[15px] text-[#333]" style={{ fontFamily: "Inter, sans-serif" }}>
-              IntelliSight
-            </span>
-          </div>
-          <button onClick={onClose} className="text-[#686868] hover:text-[#333] cursor-pointer p-1">
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Nav items */}
-        <nav className="flex-1 overflow-y-auto py-2">
-          {menuItems.map((item) => (
-            <div key={item.label}>
-              <button
-                onClick={() => {
-                  if (item.children) {
-                    setExpanded(expanded === item.label ? null : item.label);
-                  } else if (item.label === "Dashboard" && onNavigateDashboard) {
-                    onClose();
-                    onNavigateDashboard();
-                  } else {
-                    onClose();
-                  }
-                }}
-                className="w-full flex items-center justify-between px-4 h-[44px] text-left transition-colors cursor-pointer hover:bg-[#f7f7f7]"
-              >
-                <div className="flex items-center gap-[10px]">
-                  <span className="shrink-0 flex items-center justify-center size-[20px]">
-                    {item.icon}
-                  </span>
-                  <span
-                    className="text-[14px] font-normal leading-[21px]"
-                    style={{ fontFamily: "Inter, sans-serif", color: item.color }}
-                  >
-                    {item.label}
-                  </span>
-                </div>
-                {item.children && (
-                  <svg
-                    fill="none"
-                    viewBox="0 0 12 12"
-                    className={`size-[12px] shrink-0 transition-transform duration-200 ${
-                      expanded === item.label ? "rotate-90" : "rotate-180"
-                    }`}
-                  >
-                    <path
-                      clipRule="evenodd"
-                      d={menuSvg.p250d4e00}
-                      fill="#90003B"
-                      fillRule="evenodd"
-                    />
-                  </svg>
-                )}
-              </button>
-
-              {/* Sub-items */}
-              {item.children && expanded === item.label && (
-                <div className="flex flex-col">
-                  {item.children.map((child) => (
-                    <button
-                      key={child}
-                      onClick={() => {
-                        if (item.label === "Hold Management" && child === "Overview" && onNavigateHoldManagementOverview) {
-                          onClose();
-                          onNavigateHoldManagementOverview();
-                        } else if (item.label === "Hold Management" && child === "Order Listing" && onNavigateOrderListing) {
-                          onClose();
-                          onNavigateOrderListing();
-                        } else if (item.label === "Hold Management" && child === "Released Orders" && onNavigateReleasedOrders) {
-                          onClose();
-                          onNavigateReleasedOrders();
-                        } else {
-                          onClose();
-                        }
-                      }}
-                      className="w-full flex items-center gap-[10px] pl-[44px] pr-4 h-[44px] text-left hover:bg-[#f7f7f7] cursor-pointer transition-colors"
-                    >
-                      <svg fill="none" viewBox="0 0 17.5 15" className="size-[16px] shrink-0">
-                        <path d={menuSvg.p39a94f80} fill="#686868" />
-                      </svg>
-                      <span
-                        className="text-[14px] font-normal text-[#686868] leading-[21px]"
-                        style={{ fontFamily: "Inter, sans-serif" }}
-                      >
-                        {child}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </nav>
-
-        {/* Sign out */}
-        <div className="px-4 py-4 border-t border-[#f2f2f2] shrink-0">
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium text-[#686868] hover:bg-[#f7f7f7] transition-colors w-full cursor-pointer"
-            style={{ fontFamily: "Inter, sans-serif" }}
-          >
-            <LogOut size={15} />
-            Sign out
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ─── Notification Panel (Figma import) ───────────────────────────────────────
-
-const initialNotifications = [
-  { id: 1, title: "Compliance Breach Detected", body: "Invoice #INV-2024-0892 exceeds the mandated spending limit for Department: R&D.", time: "10 mins ago", highlighted: false, status: "Breached" },
-  { id: 2, title: "Risk Level Increase", body: "Project 'Stellar' has missing security documentation for the past two quarters.", time: "45 mins ago", highlighted: true, status: "At Risk" },
-  { id: 3, title: "Vendor Audit Complete", body: "Global Logistics Inc has successfully submitted all required tax compliance forms.", time: "2 hours ago", highlighted: false, status: "Resolved" },
-  { id: 4, title: "Policy Update Alert", body: "New GDPR guidelines require immediate update to customer data handling procedures.", time: "3 hours ago", highlighted: false, status: "At Risk" },
-  { id: 5, title: "System Outage Notification", body: "The compliance engine was down for maintenance but is now fully operational.", time: "5 hours ago", highlighted: false, status: "Resolved" },
-];
-
-const statusPillColor: Record<string, string> = {
-  Breached: "bg-[#fdecea] text-[#ba1c1c]",
-  "At Risk": "bg-[#fff8e1] text-[#b45309]",
-  Resolved: "bg-[#e8f5e9] text-[#2e7d32]",
-};
-
-const unreadBorderColor: Record<string, string> = {
-  Breached: "border-l-[#ba1c1c]",
-  "At Risk": "border-l-amber-400",
-  Resolved: "border-l-emerald-500",
-};
-
-function NotificationPanel({
-  onClose,
-  onViewAll,
-}: {
-  onClose: () => void;
-  onViewAll: () => void;
-}) {
-  const [items, setItems] = useState(initialNotifications);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [onClose]);
-
-  const dismiss = (id: number) => setItems((prev) => prev.filter((n) => n.id !== id));
-  const accept = (id: number) => setItems((prev) => prev.map((n) => n.id === id ? { ...n, highlighted: false, status: "Resolved" } : n));
-
-  return (
-    <div
-      ref={panelRef}
-      className="absolute right-0 top-[calc(100%+10px)] w-[360px] bg-white rounded-xl border border-black/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.12)] flex flex-col z-50 overflow-hidden"
-      style={{ fontFamily: "Inter, sans-serif" }}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#f2f2f2]">
-        <div className="flex items-center gap-2">
-          <p className="font-semibold text-[14px] text-[#111827]">Notifications</p>
-          <span className="bg-[#ba1c1c] text-white text-[11px] font-bold px-[6px] py-[1px] rounded-full leading-[16px]">
-            {items.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="text-[11px] font-medium text-[#6b7380] hover:text-[#111827] transition-colors cursor-pointer whitespace-nowrap">
-            Mark all read
-          </button>
-          <button onClick={onClose} className="size-[24px] flex items-center justify-center rounded-md hover:bg-[#f3f3f5] transition-colors cursor-pointer">
-            <svg fill="none" viewBox="0 0 12 12" className="size-[10px]">
-              <path d={notifSvg.p25e81000} fill="#6b7380" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Scrollable list */}
-      <div className="overflow-y-auto" style={{ maxHeight: 400 }}>
-        {items.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-10 gap-2">
-            <svg fill="none" viewBox="0 0 20 20" className="size-[32px] opacity-20">
-              <path d={notifSvg.p1033e080} stroke="#111827" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            </svg>
-            <p className="text-[13px] text-[#9ca3b0]">All caught up</p>
-          </div>
-        )}
-        {items.map((n, i) => (
-          <div
-            key={n.id}
-            className={`group relative flex gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-[#f7f8fa] ${i < items.length - 1 ? "border-b border-b-[#f2f2f2]" : ""}`}
-          >
-            {/* Unread dot */}
-            {n.highlighted && (
-              <span className="absolute top-4 right-4 size-[6px] rounded-full bg-[#ba1c1c]" />
-            )}
-
-            {/* Icon */}
-            <div className="shrink-0 size-[32px] rounded-lg bg-[#f3f3f5] flex items-center justify-center mt-0.5">
-              <svg fill="none" viewBox="0 0 20 20" className="size-[16px]">
-                <path d={notifSvg.p1033e080} stroke={n.status === "Breached" ? "#ba1c1c" : n.status === "At Risk" ? "#b45309" : "#2e7d32"} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              </svg>
-            </div>
-
-            {/* Content */}
-            <div className="flex flex-col gap-1 flex-1 min-w-0 pr-4">
-              <div className="flex items-start justify-between gap-2">
-                <p className={`text-[13px] leading-[1.4] truncate ${n.highlighted ? "font-semibold text-[#111827]" : "font-medium text-[#374151]"}`}>
-                  {n.title}
-                </p>
-                <p className="text-[10px] text-[#9ca3b0] shrink-0 whitespace-nowrap mt-0.5">{n.time}</p>
-              </div>
-              <p className="text-[11.5px] text-[#6b7380] leading-[1.5] line-clamp-2">{n.body}</p>
-              <div className="flex items-center justify-between mt-1">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${statusPillColor[n.status]}`}>
-                  {n.status}
-                </span>
-                <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); dismiss(n.id); }}
-                    className="text-[11px] text-[#6b7380] hover:text-[#111827] cursor-pointer transition-colors"
-                  >
-                    Dismiss
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); accept(n.id); }}
-                    className="text-[11px] font-semibold text-[#cd1453] hover:text-[#a01040] cursor-pointer transition-colors"
-                  >
-                    Accept/View
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Footer — full width clickable */}
-      <button
-        onClick={() => { onClose(); onViewAll(); }}
-        className="w-full flex items-center justify-center gap-1.5 py-3 border-t border-[#f2f2f2] text-[12px] font-semibold text-[#cd1453] hover:bg-[#fff0f5] transition-colors cursor-pointer"
-      >
-        View All Notifications
-        <svg fill="none" viewBox="0 0 12 12" className="size-[10px]">
-          <path clipRule="evenodd" d="M3.90525 1.125L3.375 1.65525L7.71975 6L3.375 10.3448L3.90525 10.875L8.78025 6L3.90525 1.125Z" fill="#cd1453" fillRule="evenodd" />
-        </svg>
-      </button>
-    </div>
-  );
-}
-
 // ─── Notifications Page ───────────────────────────────────────────────────────
 
 const fullNotifications = [
@@ -686,7 +302,7 @@ const statusDot: Record<string, string> = {
   Resolved: "bg-emerald-500",
 };
 
-function NotificationsPage({ onBack, onViewAllNotifications }: { onBack: () => void; onViewAllNotifications: () => void }) {
+function NotificationsPage({ onBack, onViewAllNotifications, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onBack: () => void; onViewAllNotifications: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("All");
   const [selectedId, setSelectedId] = useState(1);
@@ -719,7 +335,17 @@ function NotificationsPage({ onBack, onViewAllNotifications }: { onBack: () => v
 
   return (
     <div className="bg-[#f4f5f7] flex flex-col size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
-      <NavDrawer open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={onBack} onNavigateDashboard={onBack} />
+      <NavDrawer
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onLogout={onBack}
+        onNavigateDashboard={onBack}
+        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+        onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
+        onNavigateOrderListing={onNavigateOrderListing}
+        onNavigateReleasedOrders={onNavigateReleasedOrders}
+      />
       <AppHeader onMenuClick={() => setSidebarOpen(true)} activeNav="Notifications" onViewAllNotifications={onViewAllNotifications} onNavigateDashboard={onBack} />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -976,169 +602,7 @@ function NotificationsPage({ onBack, onViewAllNotifications }: { onBack: () => v
   );
 }
 
-// ─── App Header (Figma import) ────────────────────────────────────────────────
-
-function AppHeader({
-  onMenuClick,
-  activeNav,
-  activeSub,
-  onViewAllNotifications,
-  onNavigateDashboard,
-}: {
-  onMenuClick: () => void;
-  activeNav: string;
-  activeSub?: string;
-  onViewAllNotifications: () => void;
-  onNavigateDashboard?: () => void;
-}) {
-  const [searchCategory, setSearchCategory] = useState("Emails & Products");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
-
-  const categories = ["Emails & Products", "Users", "Threat Intel", "Reports", "Analytics"];
-
-  return (
-    <header className="bg-white border-b border-[#f2f2f2] flex items-center h-[64px] shrink-0 px-0 relative z-20">
-      {/* Logo */}
-      <div className="flex items-center shrink-0 pl-4 pr-3">
-        <div className="relative size-[40px]">
-          <svg className="absolute block inset-0 size-full" fill="none" viewBox="0 0 40 40">
-            <circle cx="20" cy="20" fill="#BA1C1C" r="20" />
-            <circle cx="20" cy="20" fill="white" r="8.88889" />
-          </svg>
-        </div>
-      </div>
-
-      {/* Hamburger + Page title — visible on mobile, also on desktop when sidebar present */}
-      <div className="flex items-center gap-2 min-w-0 shrink-0 mr-4">
-        <button
-          className="p-0.5 cursor-pointer"
-          onClick={onMenuClick}
-          aria-label="Open menu"
-        >
-          <svg fill="none" viewBox="0 0 24 24" className="size-[24px]">
-            <path clipRule="evenodd" d="M3 6H21V4.5H3V6Z" fill="#686868" fillRule="evenodd" />
-            <path clipRule="evenodd" d="M3 12.75H21V11.25H3V12.75Z" fill="#686868" fillRule="evenodd" />
-            <path clipRule="evenodd" d="M3 19.5H21V18H3V19.5Z" fill="#686868" fillRule="evenodd" />
-          </svg>
-        </button>
-        <div className="flex flex-col justify-center leading-none">
-          <p className="text-[16px] font-normal text-[#333] whitespace-nowrap leading-[21px]">{activeNav}</p>
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-[5px]">
-            {/* Home icon */}
-            <span
-              className="flex items-center cursor-pointer text-[#c53e6c] hover:opacity-75 transition-opacity"
-              onClick={onNavigateDashboard}
-              title="Go to Dashboard"
-            >
-              <svg fill="none" viewBox="0 0 14 14" className="size-[12px]">
-                <path d="M1 5.5L7 1l6 4.5V13a.5.5 0 01-.5.5H9v-4H5v4H1.5A.5.5 0 011 13V5.5z" stroke="#c53e6c" strokeWidth="1.2" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <svg fill="none" viewBox="0 0 12 12" className="size-[12px] shrink-0">
-              <path clipRule="evenodd" d={headerSvg.p39b4900} fill="#C53E6C" fillRule="evenodd" />
-            </svg>
-            <span className="text-[12px] text-[#333] leading-[12px] whitespace-nowrap">{activeSub ?? activeNav}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Search bar — hidden on small screens */}
-      <div className="hidden md:flex items-center rounded-[4px] flex-1 max-w-[515px] mx-auto">
-        {/* Category dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setSearchOpen(!searchOpen)}
-            className="bg-[#f2f2f2] flex items-center justify-between px-3 h-[40px] w-[165px] rounded-tl-[4px] rounded-bl-[4px] cursor-pointer"
-          >
-            <span className="text-[12px] text-[#686868] truncate">{searchCategory}</span>
-            <svg fill="none" viewBox="0 0 12 12" className="size-[12px] shrink-0 ml-1 opacity-50">
-              <path clipRule="evenodd" d={headerSvg.p31a26f00} fill="#686868" fillRule="evenodd" />
-            </svg>
-          </button>
-          {searchOpen && (
-            <div className="absolute top-full left-0 mt-1 bg-white border border-[#f2f2f2] rounded-lg shadow-lg z-30 w-[165px]">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => { setSearchCategory(cat); setSearchOpen(false); }}
-                  className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#f7f7f7] cursor-pointer ${cat === searchCategory ? "text-[#ba1c1c] font-medium" : "text-[#686868]"}`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {/* Search input */}
-        <div className="bg-[#f7f7f7] flex items-center justify-between px-3 h-[40px] flex-1 rounded-tr-[3px] rounded-br-[3px] border border-[#f7f7f7]">
-          <input
-            className="bg-transparent text-[13px] text-[#9c9c9c] outline-none placeholder:text-[#9c9c9c] w-full"
-            placeholder="Search by email, category etc..."
-          />
-          <svg fill="none" viewBox="0 0 14 14" className="size-[14px] shrink-0">
-            <path d={headerSvg.pe1e7a70} fill="#9C9C9C" />
-          </svg>
-        </div>
-      </div>
-
-      {/* Right actions */}
-      <div className="flex items-center gap-5 ml-auto pr-4 sm:pr-6">
-        {/* AI Chat */}
-        <button className="hidden sm:flex items-center gap-[7px] cursor-pointer hover:opacity-80 transition-opacity">
-          <svg fill="none" viewBox="0 0 17.5 17.5021" className="size-[17.5px] shrink-0">
-            <path clipRule="evenodd" d={headerSvg.p7bbbb0} fill="#BA1C1C" fillRule="evenodd" />
-          </svg>
-          <span className="text-[14px] font-medium text-[#bf0000] whitespace-nowrap">AI Chat</span>
-        </button>
-
-        {/* Person / Lina icon */}
-        <button className="hidden sm:flex cursor-pointer hover:opacity-70 transition-opacity">
-          <svg fill="none" viewBox="0 0 16.2475 17.5" className="size-[18px]">
-            <path d={headerSvg.p1ab4280} fill="#686868" />
-          </svg>
-        </button>
-
-        {/* Divider */}
-        <div className="hidden sm:block w-px h-[20px] bg-[#d1d1d1] opacity-50" />
-
-        {/* Notification bell */}
-        <div className="relative">
-          <button
-            className="flex cursor-pointer hover:opacity-70 transition-opacity"
-            onClick={() => setNotifOpen((v) => !v)}
-          >
-            <svg fill="none" viewBox="0 0 20 20" className="size-[20px]">
-              <path clipRule="evenodd" d={headerSvg.p36a4ea00} fill="#686868" fillRule="evenodd" />
-              <path clipRule="evenodd" d={headerSvg.p30c2f600} fill="#686868" fillRule="evenodd" />
-            </svg>
-          </button>
-          <div className="absolute -top-1 -right-1.5 bg-[#bf0000] rounded-[40px] px-[4px] flex items-center justify-center min-w-[16px] h-[16px] pointer-events-none">
-            <span className="text-[10px] font-bold text-white leading-none">8</span>
-          </div>
-          {notifOpen && (
-            <NotificationPanel
-              onClose={() => setNotifOpen(false)}
-              onViewAll={onViewAllNotifications}
-            />
-          )}
-        </div>
-
-        {/* Avatar */}
-        <div className="size-[40px] rounded-full overflow-hidden shrink-0 cursor-pointer">
-          <img
-            src={imgAvatar}
-            alt="User avatar"
-            className="size-full object-cover"
-          />
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function Dashboard({ onLogout, onViewAllNotifications, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onLogout: () => void; onViewAllNotifications: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void }) {
+function Dashboard({ onLogout, onViewAllNotifications, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onLogout: () => void; onViewAllNotifications: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void }) {
   const [activeNav, setActiveNav] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -1151,6 +615,8 @@ function Dashboard({ onLogout, onViewAllNotifications, onNavigateHoldManagementO
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
+        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
         onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
@@ -1275,14 +741,1054 @@ function Dashboard({ onLogout, onViewAllNotifications, onNavigateHoldManagementO
   );
 }
 
+// ─── Command Center Overview ───────────────────────────────────────────────────
+
+type Email = {
+  id: string;
+  subject: string;
+  sender: string;
+  category: string;
+  status: string;
+  received: string;
+  size: string;
+  body?: string;
+  /** Nested correspondence — under a CCC row this is that CCC's own thread (level 2); under a reply this is its further replies (level 3+, surfaced via a "+N more" link rather than a 3rd inline row tier). */
+  replies?: Email[];
+  /** CCC requests linked to this email (level 1 nested rows). Only ever set on root email rows. */
+  linkedCccs?: Email[];
+  /** Set on CCC/reply rows so clicking through navigates to the root email's detail/thread view rather than a synthetic nested id. */
+  rootEmailId?: string;
+  // CCC request fields (Command Center listing columns)
+  cccId?: string;
+  csrOwner?: string;
+  businessGroup?: string;
+  opportunityNumber?: string;
+  accountManager?: string;
+  accountName?: string;
+  cccRequestType?: string;
+  cccRequestSubtype?: string;
+  cccRequestStatus?: string;
+  awaitingReason?: string;
+  cccRequestReceivedDate?: string;
+  slaTimeRemaining?: string;
+  poNumber?: string;
+  quoteNumber?: string;
+  orderNumber?: string;
+  operatingUnit?: string;
+  poAmount?: string;
+  currentMonthBookableAmount?: string;
+  currency?: string;
+  statusNotes?: string;
+  currentStatusDate?: string;
+  currentAutomationStatus?: string;
+  currentAutomationResult?: string;
+  automationDetailsLink?: string;
+  previousStatus?: string;
+  previousStatusDate?: string;
+  previousStage?: string;
+  previousAutomationStatus?: string;
+  oaStatus?: string;
+  oaSummary?: string;
+  oaValidationRecords?: string;
+};
+
+const CSR_OWNERS = ["A. Sharma", "M. Chen", "R. Okafor", "L. Novak", "T. Reyes"];
+const BUSINESS_GROUPS = ["Enterprise", "Mid-Market", "Public Sector", "SMB"];
+const ACCOUNT_MANAGERS = ["J. Patel (FE-2201)", "K. Summers (FE-1187)", "D. Alvarez (FE-3042)", "S. Kim (FE-0925)"];
+const ACCOUNT_NAMES = ["GlobalTech Industries", "Acme Industries", "Nexus Corp", "Sterling & Co", "MetaSite Inc"];
+const CCC_REQUEST_TYPES = ["New Order", "Amendment", "Renewal", "Cancellation"];
+const CCC_REQUEST_SUBTYPES = ["Standard", "Expedite", "Credit Hold Release", "Price Correction"];
+const CCC_REQUEST_STATUSES = ["Open", "In Progress", "Pending Info", "Completed"];
+const AWAITING_REASONS = ["Awaiting Customer Response", "Awaiting Finance Approval", "Awaiting Legal Review", "—"];
+const SLA_REMAINING = ["2d 4h remaining", "6h remaining", "Overdue by 1d", "4d remaining"];
+const OPERATING_UNITS = ["US OU", "EMEA OU", "APAC OU", "LATAM OU"];
+const CURRENCIES = ["USD", "EUR", "GBP", "INR"];
+const AUTOMATION_STATUSES = ["Completed", "Running", "Failed", "Not Started"];
+const AUTOMATION_RESULTS = ["Success", "Success", "Error – Retry", "N/A"];
+const PREVIOUS_STATUSES = ["Flagged", "Under Review", "Cleared"];
+const PREVIOUS_STAGES = ["Intake", "Validation", "Fulfillment", "Closed"];
+const OA_STATUSES = ["Validated", "Pending", "Failed"];
+const STATUS_NOTES = [
+  "Reviewed by CSR, pending downstream sync.",
+  "Escalated to secondary approver for sign-off.",
+  "Customer confirmed details, proceeding with fulfillment.",
+  "Awaiting updated documentation from requester.",
+];
+
+// Fields shared by a CCC request and all of its thread replies — the request identity doesn't change reply to reply.
+function deriveRequestFields(i: number) {
+  return {
+    cccId: `CCC-${20000 + i * 11}`,
+    csrOwner: CSR_OWNERS[i % CSR_OWNERS.length],
+    businessGroup: BUSINESS_GROUPS[i % BUSINESS_GROUPS.length],
+    opportunityNumber: `OPP-${10500 + i * 7}`,
+    accountManager: ACCOUNT_MANAGERS[i % ACCOUNT_MANAGERS.length],
+    accountName: ACCOUNT_NAMES[i % ACCOUNT_NAMES.length],
+    cccRequestType: CCC_REQUEST_TYPES[i % CCC_REQUEST_TYPES.length],
+    cccRequestSubtype: CCC_REQUEST_SUBTYPES[i % CCC_REQUEST_SUBTYPES.length],
+    poNumber: `PO-${88000 + i * 13}`,
+    quoteNumber: `QT-${5000 + i * 3} v${1 + (i % 3)}`,
+    orderNumber: i % 3 === 0 ? "—" : `ORD-${77000 + i * 9}`,
+    operatingUnit: OPERATING_UNITS[i % OPERATING_UNITS.length],
+    poAmount: `$${(12000 + i * 3540).toLocaleString()}.00`,
+    currentMonthBookableAmount: `$${(8000 + i * 2110).toLocaleString()}.00`,
+    currency: CURRENCIES[i % CURRENCIES.length],
+  };
+}
+
+// Fields that evolve message to message within a thread — each reply gets its own seed so status/automation progress.
+function deriveStatusFields(email: Email, seed: number) {
+  return {
+    cccRequestStatus: CCC_REQUEST_STATUSES[seed % CCC_REQUEST_STATUSES.length],
+    awaitingReason: AWAITING_REASONS[seed % AWAITING_REASONS.length],
+    cccRequestReceivedDate: email.received,
+    slaTimeRemaining: SLA_REMAINING[seed % SLA_REMAINING.length],
+    statusNotes: STATUS_NOTES[seed % STATUS_NOTES.length],
+    currentStatusDate: email.received,
+    currentAutomationStatus: AUTOMATION_STATUSES[seed % AUTOMATION_STATUSES.length],
+    currentAutomationResult: AUTOMATION_RESULTS[seed % AUTOMATION_RESULTS.length],
+    automationDetailsLink: "View Details",
+    previousStatus: PREVIOUS_STATUSES[(seed + 1) % PREVIOUS_STATUSES.length],
+    previousStatusDate: email.received,
+    previousStage: PREVIOUS_STAGES[seed % PREVIOUS_STAGES.length],
+    previousAutomationStatus: AUTOMATION_STATUSES[(seed + 1) % AUTOMATION_STATUSES.length],
+    oaStatus: OA_STATUSES[seed % OA_STATUSES.length],
+    oaSummary: `${2 + (seed % 3)}/${3 + (seed % 2)} checks passed`,
+    oaValidationRecords: "View Records",
+  };
+}
+
+// Builds one CCC row (level 1) linked to a root email, carrying its own request identity plus a thread of correspondence (level 2).
+function makeCcc(rootEmail: Email, cccSeed: number, replyPool: Email[]): Email {
+  const request = deriveRequestFields(cccSeed);
+  return {
+    id: request.cccId,
+    subject: `${request.cccRequestType} — ${request.cccRequestSubtype}`,
+    sender: "",
+    category: rootEmail.category,
+    status: PREVIOUS_STATUSES[cccSeed % PREVIOUS_STATUSES.length],
+    received: rootEmail.received,
+    size: "",
+    rootEmailId: rootEmail.id,
+    ...request,
+    ...deriveStatusFields(rootEmail, cccSeed),
+    replies: replyPool.map((reply, ri) => enrichReply(reply, request, cccSeed, ri, rootEmail.id)),
+  };
+}
+
+// Enriches a raw correspondence email with its parent CCC's request identity (unchanged thread to thread) plus its own
+// evolving status/timeline fields. Recurses into any further nested replies so 3rd-level+ data still carries real values,
+// even though the grid only renders 2 nested tiers — deeper data is reached via a "+N more" link, not another row tier.
+function enrichReply(reply: Email, request: ReturnType<typeof deriveRequestFields>, parentSeed: number, ri: number, rootEmailId: string): Email {
+  const seed = parentSeed * 10 + ri + 1;
+  return {
+    ...reply,
+    ...request,
+    ...deriveStatusFields(reply, seed),
+    rootEmailId,
+    replies: reply.replies?.map((sub, si) => enrichReply(sub, request, seed, si, rootEmailId)),
+  };
+}
+
+// Splits a root email's raw replies into 1 or 2 linked CCCs (an email can reference a single CCC or several), each owning
+// its share of the correspondence as its own nested thread.
+function withCccHierarchy(email: Email, i: number): Email {
+  let rawReplies = email.replies ?? [];
+
+  // Demonstrates a reply carrying its own further nested replies (3rd level) — surfaced via a "+N more" link.
+  if (i === 1 && rawReplies.length > 1) {
+    rawReplies = rawReplies.map((r, ri) => ri === 1 ? {
+      ...r,
+      replies: [
+        { id: `${r.id}-N1`, subject: `Re: ${r.subject}`, sender: "legal@intellisight.io", category: r.category, status: "Cleared", received: r.received, size: "0.4 MB",
+          body: "Confirmed the redlines are final — no further changes needed on our end." },
+        { id: `${r.id}-N2`, subject: `Re: ${r.subject}`, sender: "legal@acmeindustries.com", category: r.category, status: "Cleared", received: r.received, size: "0.6 MB",
+          body: "Great, signing today. Thanks for the quick turnaround." },
+      ],
+    } : r);
+  }
+
+  // Threads with 2+ raw replies plausibly touch more than one CCC — split them so several emails demonstrate the 1-to-many link.
+  const multiCcc = rawReplies.length >= 2;
+  const groups: Email[][] = multiCcc
+    ? [rawReplies.slice(0, Math.ceil(rawReplies.length / 2)), rawReplies.slice(Math.ceil(rawReplies.length / 2))]
+    : [rawReplies];
+
+  const linkedCccs = groups.map((group, ci) => makeCcc(email, i * 2 + ci, group));
+  const [primaryCcc] = linkedCccs;
+
+  // The root row surfaces its primary (first) linked CCC's data directly, so the main grid is informative
+  // without expanding — expanding still reveals every linked CCC (including this one) and their own threads.
+  return {
+    ...primaryCcc,
+    id: email.id,
+    subject: email.subject,
+    sender: email.sender,
+    category: email.category,
+    status: email.status,
+    received: email.received,
+    size: email.size,
+    body: email.body,
+    linkedCccs,
+    rootEmailId: undefined,
+    replies: undefined,
+  };
+}
+
+const ALL_EMAILS: Email[] = [
+  { id: "EML-10234", subject: "Q3 Invoice Approval Request",        sender: "vendor@globaltech.com",    category: "Finance",    status: "Flagged",      received: "Jan 18", size: "1.2 MB",
+    body: "Please find attached the Q3 invoice for licensing services totaling $124,500. This transaction exceeds the standard department spending threshold and requires secondary approval before processing.",
+    replies: [
+    { id: "EML-10234-R1", subject: "Re: Q3 Invoice Approval Request", sender: "finance@intellisight.io", category: "Finance", status: "Under Review", received: "Jan 18", size: "0.3 MB",
+      body: "Flagged for review — this invoice amount exceeds the $50,000 auto-approval limit. Routing to VP Finance for secondary sign-off." },
+    { id: "EML-10234-R2", subject: "Re: Q3 Invoice Approval Request", sender: "vendor@globaltech.com",    category: "Finance", status: "Flagged",      received: "Jan 18", size: "0.9 MB",
+      body: "Following up — the original PO and signed SOW are attached to support the invoiced amount. Let us know if anything else is needed." },
+  ] },
+  { id: "EML-10235", subject: "Contract Renewal — Acme Industries", sender: "legal@acmeindustries.com", category: "Legal",      status: "Under Review", received: "Jan 18", size: "3.4 MB",
+    body: "Attached is the renewal agreement for the annual services contract, effective next quarter. Please review the updated liability clause in Section 7 before countersigning.",
+    replies: [
+    { id: "EML-10235-R1", subject: "Re: Contract Renewal — Acme Industries", sender: "legal@intellisight.io",    category: "Legal", status: "Under Review", received: "Jan 18", size: "1.1 MB",
+      body: "Reviewing the updated liability clause now — will circle back with redlines by end of week." },
+    { id: "EML-10235-R2", subject: "Re: Contract Renewal — Acme Industries", sender: "legal@acmeindustries.com", category: "Legal", status: "Cleared",      received: "Jan 18", size: "2.0 MB",
+      body: "Redlines accepted, updated version attached. Ready for signature." },
+    { id: "EML-10235-R3", subject: "Fwd: Contract Renewal — Acme Industries", sender: "cfo@acmeindustries.com",  category: "Legal", status: "Cleared",      received: "Jan 18", size: "3.4 MB",
+      body: "Forwarding for final visibility — approved on our end, no objections to the renewal terms." },
+  ] },
+  { id: "EML-10236", subject: "Shipment Delay Notification",        sender: "ops@nexuscorp.com",        category: "Logistics",  status: "Cleared",      received: "Jan 17", size: "0.4 MB",
+    body: "Customs clearance for shipment #NX-88213 was delayed by two days but has now cleared. Updated delivery ETA is Thursday." },
+  { id: "EML-10237", subject: "Vendor Tax Documentation",           sender: "finance@sterlingco.com",   category: "Finance",    status: "Cleared",      received: "Jan 17", size: "2.1 MB",
+    body: "Attached are the completed W-9 and annual tax compliance forms as requested for our vendor file update." },
+  { id: "EML-10238", subject: "Unusual Login Attempt Report",       sender: "security@intellisight.io", category: "Security",   status: "Flagged",      received: "Jan 17", size: "0.1 MB",
+    body: "Automated monitoring detected a login attempt from an unrecognized device and IP range on an admin account. Account has been temporarily locked pending review.",
+    replies: [
+    { id: "EML-10238-R1", subject: "Re: Unusual Login Attempt Report", sender: "it-admin@intellisight.io", category: "Security", status: "Cleared", received: "Jan 17", size: "0.2 MB",
+      body: "Confirmed with the account owner — attempt was from a new work laptop, expected. Account unlocked and device allowlisted." },
+  ] },
+  { id: "EML-10239", subject: "GDPR Data Request Follow-up",        sender: "privacy@metasiteinc.com",  category: "Privacy",    status: "Under Review", received: "Jan 16", size: "0.8 MB",
+    body: "Following up on the data subject access request submitted last week. Please confirm the export is on track for the 30-day statutory deadline." },
+  { id: "EML-10240", subject: "Purchase Order #PO-88213",           sender: "procurement@globaltech.com", category: "Finance",  status: "Cleared",      received: "Jan 16", size: "1.5 MB",
+    body: "PO #PO-88213 has been fully executed and approved. Copy attached for your records." },
+  { id: "EML-10241", subject: "Audit Trail Missing — TX-9920",      sender: "audit@intellisight.io",    category: "Audit",      status: "Flagged",      received: "Jan 16", size: "0.6 MB",
+    body: "Transaction TX-9920 has no associated proof of purchase or approval record in the audit trail. Escalating for manual reconciliation." },
+  { id: "EML-10242", subject: "Vendor Onboarding Checklist",        sender: "vendors@nexuscorp.com",    category: "Legal",      status: "Cleared",      received: "Jan 15", size: "2.8 MB",
+    body: "All onboarding documentation — NDA, W-9, and banking details — has been submitted and verified. Vendor record is now active." },
+  { id: "EML-10243", subject: "SLA Breach Escalation",              sender: "support@acmeindustries.com", category: "Support",  status: "Under Review", received: "Jan 15", size: "0.3 MB",
+    body: "Ticket #4471 has exceeded the 24-hour SLA response window. Requesting immediate escalation to a senior CSR.",
+    replies: [
+    { id: "EML-10243-R1", subject: "Re: SLA Breach Escalation", sender: "csr@intellisight.io",           category: "Support", status: "Under Review", received: "Jan 15", size: "0.2 MB",
+      body: "Apologies for the delay — picking this up now. Will have a resolution plan within the hour." },
+    { id: "EML-10243-R2", subject: "Re: SLA Breach Escalation", sender: "support@acmeindustries.com",    category: "Support", status: "Cleared",      received: "Jan 15", size: "0.4 MB",
+      body: "Issue resolved, thank you for the quick turnaround. Closing the ticket." },
+  ] },
+  { id: "EML-10244", subject: "Quarterly Compliance Summary",       sender: "compliance@intellisight.io", category: "Audit",    status: "Cleared",      received: "Jan 15", size: "4.2 MB",
+    body: "Q3 compliance summary attached — 97% of flagged items resolved within SLA, no open critical findings." },
+  { id: "EML-10245", subject: "Policy Update — Data Retention",     sender: "legal@sterlingco.com",     category: "Privacy",    status: "Under Review", received: "Jan 14", size: "0.9 MB",
+    body: "New data retention policy requires customer records to be purged after 7 years unless under active litigation hold. Please confirm systems are updated accordingly." },
+  { id: "EML-10246", subject: "Invoice Dispute — INV-2024-0892",    sender: "billing@globaltech.com",   category: "Finance",    status: "Flagged",      received: "Jan 14", size: "1.1 MB",
+    body: "We're disputing invoice INV-2024-0892 — the billed amount does not match the agreed contract rate. Requesting a corrected invoice.",
+    replies: [
+    { id: "EML-10246-R1", subject: "Re: Invoice Dispute — INV-2024-0892", sender: "ap@intellisight.io",     category: "Finance", status: "Under Review", received: "Jan 14", size: "0.5 MB",
+      body: "Reviewing the contract rate against the billed line items now — will confirm discrepancy within 2 business days." },
+    { id: "EML-10246-R2", subject: "Re: Invoice Dispute — INV-2024-0892", sender: "billing@globaltech.com", category: "Finance", status: "Flagged",      received: "Jan 14", size: "0.6 MB",
+      body: "Appreciate the quick response — attaching the original signed rate card for reference." },
+  ] },
+  { id: "EML-10247", subject: "Shipment Customs Clearance",         sender: "ops@metasiteinc.com",      category: "Logistics",  status: "Cleared",      received: "Jan 14", size: "0.5 MB",
+    body: "Shipment cleared customs without incident. Delivery tracking updated, ETA unchanged." },
+  { id: "EML-10248", subject: "Security Patch Notification",        sender: "security@intellisight.io", category: "Security",   status: "Cleared",      received: "Jan 13", size: "0.2 MB",
+    body: "Critical security patch has been deployed across all production servers. No downtime reported." },
+];
+
+// Shared CCC-enriched view of ALL_EMAILS — computed once so the Command Center overview grid and the email detail
+// page read the exact same linkedCccs/replies hierarchy instead of each re-deriving their own mock data.
+const ALL_EMAILS_WITH_CCC: Email[] = ALL_EMAILS.map((email, i) => withCccHierarchy(email, i));
+
+const EMAIL_STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
+  Flagged:      { label: "Flagged",      color: "#d12e2e", bg: "rgba(209,46,46,0.1)" },
+  "Under Review": { label: "Under Review", color: "#e08c00", bg: "rgba(224,140,0,0.1)" },
+  Cleared:      { label: "Cleared",      color: "#1fa161", bg: "rgba(31,161,97,0.1)" },
+};
+
+function EmailStatusBadge({ status }: { status: string }) {
+  const s = EMAIL_STATUS_STYLE[status] ?? EMAIL_STATUS_STYLE.Cleared;
+  return (
+    <span className="inline-flex items-center justify-center px-2 py-1 rounded-[4px] text-[12px] font-medium whitespace-nowrap" style={{ color: s.color, backgroundColor: s.bg }}>
+      {s.label}
+    </span>
+  );
+}
+
+function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateEmailDetail, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+  onLogout: () => void;
+  onViewAllNotifications: () => void;
+  onNavigateDashboard: () => void;
+  onNavigateCommandCenterOverview?: () => void;
+  onNavigateCommandCenterEmailView?: () => void;
+  onNavigateEmailDetail?: (emailId: string) => void;
+  onNavigateHoldManagementOverview?: () => void;
+  onNavigateOrderListing?: () => void;
+  onNavigateReleasedOrders?: () => void;
+}) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const kpis = [
+    { label: "TOTAL EMAILS", value: String(ALL_EMAILS.length).padStart(2, "0"), delta: "↑ 4.2%", up: true, sparkColor: "#cbd5e1" },
+    { label: "FLAGGED",      value: String(ALL_EMAILS.filter(e => e.status === "Flagged").length).padStart(2, "0"), delta: "↑ 2.1%", up: false, sparkColor: "#fecbcb" },
+    { label: "UNDER REVIEW", value: String(ALL_EMAILS.filter(e => e.status === "Under Review").length).padStart(2, "0"), delta: "↓ 1.4%", up: true, sparkColor: "#fde7a0" },
+    { label: "CLEARED",      value: String(ALL_EMAILS.filter(e => e.status === "Cleared").length).padStart(2, "0"), delta: "↑ 3.6%", up: true, sparkColor: "#bbf7d0" },
+    { label: "CATEGORIES",   value: String(new Set(ALL_EMAILS.map(e => e.category)).size).padStart(2, "0"), delta: "↑ 0.8%", up: true, sparkColor: "#bfdafe" },
+  ];
+  const sparkHeights = [8, 14, 10, 18, 12, 20, 14, 16];
+
+  const cccRows = ALL_EMAILS_WITH_CCC;
+
+  // Lead columns — CCC ID first, Subject second. Visible by default.
+  const leadColumns: OrderListingColumn[] = [
+    { key: "cccId",  label: "CCC ID" },
+    { key: "subject", label: "Subject" },
+  ];
+  // Main grid columns — visible by default.
+  const mainGridIdentityColumns: OrderListingColumn[] = [
+    { key: "csrOwner",         label: "CSR Owner (SOO)" },
+    { key: "businessGroup",    label: "Business Group" },
+    { key: "opportunityNumber", label: "Opportunity Number" },
+    { key: "accountManager",   label: "Account Manager" },
+    { key: "accountName",      label: "Account Name" },
+  ];
+  const mainGridRequestColumns: OrderListingColumn[] = [
+    { key: "cccRequestType",    label: "CCC Request Type" },
+    { key: "cccRequestSubtype", label: "CCC Request Subtype" },
+    { key: "cccRequestStatus",  label: "CCC Request Status" },
+    { key: "awaitingReason",    label: "Awaiting Reason" },
+    { key: "cccRequestReceivedDate", label: "CCC Request Received Date" },
+    { key: "slaTimeRemaining",  label: "Time Remaining / SLA" },
+    { key: "poNumber",          label: "PO #" },
+    { key: "quoteNumber",       label: "Quote # + Version / Revision" },
+    { key: "orderNumber",       label: "Order #" },
+    { key: "operatingUnit",     label: "Operating Unit" },
+    { key: "poAmount",          label: "PO Amount" },
+    { key: "currentMonthBookableAmount", label: "Current Month Bookable Amount" },
+    { key: "currency",          label: "Currency" },
+    { key: "status",            label: "Current Status" },
+    { key: "statusNotes",       label: "Status Notes" },
+    { key: "currentStatusDate", label: "Current Status Date" },
+  ];
+  // On-expand columns — available in Column Mgmt, hidden until the user enables them.
+  const onExpandColumns: OrderListingColumn[] = [
+    { key: "currentAutomationStatus", label: "Current Automation Status" },
+    { key: "currentAutomationResult", label: "Current Automation Result" },
+    { key: "automationDetailsLink",   label: "Link to Automation Details" },
+    { key: "previousStatus",          label: "Previous Status" },
+    { key: "previousStatusDate",      label: "Previous Status Date" },
+    { key: "previousStage",           label: "Previous Stage" },
+    { key: "previousAutomationStatus", label: "Previous Automation Status" },
+    { key: "oaStatus",                label: "OA Status" },
+    { key: "oaSummary",               label: "OA Summary" },
+    { key: "oaValidationRecords",     label: "OA Validation Records" },
+  ];
+
+  const columns: OrderListingColumn[] = [...leadColumns, ...mainGridIdentityColumns, ...mainGridRequestColumns, ...onExpandColumns];
+
+  const fixedColumns = [...leadColumns.map(c => c.label), ...mainGridIdentityColumns.map(c => c.label)];
+  const scrollableColumns = [...mainGridRequestColumns.map(c => c.label), ...onExpandColumns.map(c => c.label)];
+  const defaultVisibleColumns = [...fixedColumns, ...mainGridRequestColumns.map(c => c.label)];
+
+  const filterSections: OrderListingFilterSection<Email>[] = [
+    { key: "Business Group",      label: "Business Group",      getValue: (r) => r.businessGroup ?? "" },
+    { key: "CCC Request Type",    label: "CCC Request Type",    getValue: (r) => r.cccRequestType ?? "" },
+  ];
+
+  const categoryDropdown: OrderListingDropdownFilter<Email> = {
+    placeholder: "Category",
+    allLabel: "All Categories",
+    options: ["All Categories", ...Array.from(new Set(ALL_EMAILS.map(e => e.category)))],
+    getValue: (r) => r.category,
+  };
+
+  const typeDropdown: OrderListingDropdownFilter<Email> = {
+    placeholder: "Status",
+    allLabel: "All Statuses",
+    options: ["All Statuses", "Flagged", "Under Review", "Cleared"],
+    getValue: (r) => r.status,
+  };
+
+  const plainCell = (text?: string) => <span className="text-[#333] text-[14px]">{text ?? "—"}</span>;
+  const linkCell = (text?: string) => <span className="text-[#c53e6c] text-[14px] cursor-pointer hover:underline">{text ?? "—"}</span>;
+  const noteCell = (text?: string) => <span className="text-[#686868] text-[13px] block max-w-[220px] truncate">{text ?? "—"}</span>;
+
+  const renderCell = (label: string, row: Email) => {
+    switch (label) {
+      case "CCC ID": {
+        const extraCccs = (row.linkedCccs?.length ?? 1) - 1;
+        return (
+          <div className="flex items-center gap-1.5">
+            {linkCell(row.cccId)}
+            {extraCccs > 0 && (
+              <span className="text-[10px] text-[#9a9a9a] bg-[#f3f4f6] rounded-full px-[6px] py-[1px] shrink-0 whitespace-nowrap">
+                +{extraCccs} more
+              </span>
+            )}
+          </div>
+        );
+      }
+      case "CSR Owner (SOO)":               return plainCell(row.csrOwner);
+      case "Business Group":                return plainCell(row.businessGroup);
+      case "Opportunity Number":            return linkCell(row.opportunityNumber);
+      case "Account Manager":               return plainCell(row.accountManager);
+      case "Account Name":                  return plainCell(row.accountName);
+      case "CCC Request Type":              return plainCell(row.cccRequestType);
+      case "CCC Request Subtype":           return plainCell(row.cccRequestSubtype);
+      case "Subject":                       return <span className="text-[#333] text-[14px] block max-w-[260px] truncate">{row.subject}</span>;
+      case "CCC Request Status":            return plainCell(row.cccRequestStatus);
+      case "Awaiting Reason":               return plainCell(row.awaitingReason);
+      case "CCC Request Received Date":     return plainCell(row.cccRequestReceivedDate);
+      case "Time Remaining / SLA":          return plainCell(row.slaTimeRemaining);
+      case "PO #":                          return plainCell(row.poNumber);
+      case "Quote # + Version / Revision":  return linkCell(row.quoteNumber);
+      case "Order #":                       return plainCell(row.orderNumber);
+      case "Operating Unit":                return plainCell(row.operatingUnit);
+      case "PO Amount":                     return plainCell(row.poAmount);
+      case "Current Month Bookable Amount": return plainCell(row.currentMonthBookableAmount);
+      case "Currency":                      return plainCell(row.currency);
+      case "Current Status":                return <EmailStatusBadge status={row.status} />;
+      case "Status Notes":                  return noteCell(row.statusNotes);
+      case "Current Status Date":           return plainCell(row.currentStatusDate);
+      case "Current Automation Status":     return plainCell(row.currentAutomationStatus);
+      case "Current Automation Result":     return plainCell(row.currentAutomationResult);
+      case "Link to Automation Details":    return linkCell(row.automationDetailsLink);
+      case "Previous Status":               return plainCell(row.previousStatus);
+      case "Previous Status Date":          return plainCell(row.previousStatusDate);
+      case "Previous Stage":                return plainCell(row.previousStage);
+      case "Previous Automation Status":    return plainCell(row.previousAutomationStatus);
+      case "OA Status":                     return plainCell(row.oaStatus);
+      case "OA Summary":                    return noteCell(row.oaSummary);
+      case "OA Validation Records":         return linkCell(row.oaValidationRecords);
+      default:                              return null;
+    }
+  };
+
+  // Level 1 rows — the CCC request(s) linked to an email.
+  const renderCccCell = (label: string, ccc: Email) => {
+    if (label === "Subject") {
+      return (
+        <span className="text-[#90003b] text-[14px] font-medium flex items-center gap-1.5 max-w-[260px] truncate">
+          <FileText size={12} className="shrink-0 opacity-70" />
+          {ccc.subject}
+        </span>
+      );
+    }
+    return renderCell(label, ccc);
+  };
+
+  // Level 2 rows — a CCC's own correspondence thread. Any further nesting (level 3+) shows as a "+N more" link
+  // rather than a 3rd inline row tier, jumping into the full thread on the email detail page.
+  const renderReplyCell = (label: string, reply: Email) => {
+    if (label === "Subject") {
+      const moreCount = reply.replies?.length ?? 0;
+      return (
+        <div className="flex items-center gap-2 max-w-[280px]">
+          <span className="text-[#686868] text-[13px] flex items-center gap-1.5 truncate">
+            <CornerDownRight size={12} className="shrink-0 opacity-60" />
+            {reply.subject}
+          </span>
+          {moreCount > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onNavigateEmailDetail?.(reply.rootEmailId ?? reply.id); }}
+              className="inline-flex items-center gap-1 shrink-0 px-[8px] py-[3px] rounded-full bg-[#f3f4f6] text-[#686868] hover:bg-[#e5e7eb] hover:text-[#333] text-[11px] font-medium cursor-pointer transition-colors"
+              title={`Open the full thread to see ${moreCount} more ${moreCount === 1 ? "reply" : "replies"}`}
+            >
+              View {moreCount} more →
+            </button>
+          )}
+        </div>
+      );
+    }
+    return renderCell(label, reply);
+  };
+
+  return (
+    <div className="bg-[#f5f6fa] flex size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
+      <NavDrawer
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onLogout={onLogout}
+        onNavigateDashboard={onNavigateDashboard}
+        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+        onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
+        onNavigateOrderListing={onNavigateOrderListing}
+        onNavigateReleasedOrders={onNavigateReleasedOrders}
+      />
+
+      <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-auto">
+        <AppHeader
+          onMenuClick={() => setSidebarOpen(true)}
+          activeNav="Command Center"
+          activeSub="Overview"
+          onViewAllNotifications={onViewAllNotifications}
+          onNavigateDashboard={onNavigateDashboard}
+        />
+
+        <main className="flex-1 flex flex-col">
+
+          {/* KPI strip */}
+          <div className="flex gap-4 px-5 py-4 bg-[#f5f6fa]">
+            {kpis.map((kpi) => (
+              <div key={kpi.label} className="bg-white flex-1 min-w-0 rounded-xl border border-black/[0.08] p-3 sm:p-4 flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[12px] font-medium text-[#6b7380]">{kpi.label}</p>
+                  <div className="rounded-lg p-1 shrink-0">
+                    <div className="flex items-end gap-[2px] h-[11px]">
+                      {sparkHeights.map((h, i) => (
+                        <div key={i} className="w-[3px] rounded-[1px]" style={{ height: h * 0.55, backgroundColor: kpi.sparkColor }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[18px] sm:text-[22px] font-bold text-[#111827] leading-none">{kpi.value}</p>
+                <div className={`flex items-center gap-1 text-[11px] font-medium ${kpi.up ? "text-emerald-600" : "text-rose-500"}`}>
+                  <TrendingUp size={10} />
+                  <span>{kpi.delta} vs last week</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* White content area: toolbar + table + pagination */}
+          <div className="flex-1 bg-white mx-5 mb-5 rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col">
+            <OrderListingTable
+              rows={cccRows}
+              columns={columns}
+              fixedColumns={fixedColumns}
+              scrollableColumns={scrollableColumns}
+              maxFixedColumns={7}
+              defaultVisibleColumns={defaultVisibleColumns}
+              filterSections={filterSections}
+              categoryDropdown={categoryDropdown}
+              typeDropdown={typeDropdown}
+              renderCell={renderCell}
+              getRowKey={(row) => row.id}
+              onRowClick={(row) => onNavigateEmailDetail?.(row.rootEmailId ?? row.id)}
+              rowsPerPage={10}
+              emptyMessage="No emails match your filters"
+              getChildren={(row) => row.linkedCccs}
+              renderChildCell={renderCccCell}
+              childIndentColumnLabel="Subject"
+              getGrandchildren={(ccc) => ccc.replies}
+              renderGrandchildCell={renderReplyCell}
+              grandchildIndentColumnLabel="Subject"
+            />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+// ─── Command Center Email View ─────────────────────────────────────────────────
+
+function DetailField({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="px-6 py-3.5 min-w-0">
+      <p className="text-[10.5px] font-semibold text-[#9ca3af] uppercase tracking-wider mb-1">{label}</p>
+      <div className="text-[13px] font-semibold text-[#111827] truncate">{value || "—"}</div>
+    </div>
+  );
+}
+
+function DetailSection({ title, fields }: { title: string; fields: { label: string; value: ReactNode }[] }) {
+  return (
+    <div>
+      <div className="px-6 pt-4 pb-2">
+        <h4 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest">{title}</h4>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 divide-x divide-y divide-[#f3f4f6] border-t border-[#f3f4f6]">
+        {fields.map(f => <DetailField key={f.label} label={f.label} value={f.value} />)}
+      </div>
+    </div>
+  );
+}
+
+function DetailLink({ text, what }: { text?: string; what: string }) {
+  if (!text || text === "—") return <>—</>;
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); toast.info(`Opening ${what}: ${text}`); }}
+      className="text-[#c53e6c] hover:underline cursor-pointer text-left truncate"
+    >
+      {text}
+    </button>
+  );
+}
+
+// A CCC's own correspondence message. Recurses into any further nested replies (unlike the grid, the detail page
+// isn't capped at 2 tiers — deeper threads are reachable here via an in-place "Show N more" toggle).
+function ThreadMessage({ msg, depth = 0 }: { msg: Email; depth?: number }) {
+  const [showMore, setShowMore] = useState(false);
+  const subReplies = msg.replies ?? [];
+  return (
+    <div className={depth > 0 ? "mt-3 pl-4 border-l-2 border-[#f0d5dd]" : ""}>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <p className="text-[13px] font-semibold text-[#111827]">{msg.sender}</p>
+        <p className="text-[11px] text-[#9ca3af] shrink-0">{msg.received}</p>
+      </div>
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <p className="text-[12px] text-[#6b7280]">{msg.subject}</p>
+        <EmailStatusBadge status={msg.status} />
+      </div>
+      <p className="text-[13px] text-[#374151] leading-[1.6]">{msg.body ?? "No content preview available."}</p>
+      {subReplies.length > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={() => setShowMore(s => !s)}
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-[#c53e6c] hover:underline cursor-pointer"
+          >
+            {showMore ? "Hide" : "Show"} {subReplies.length} more {subReplies.length === 1 ? "reply" : "replies"}
+          </button>
+          {showMore && (
+            <div className="mt-3 space-y-3">
+              {subReplies.map(sub => <ThreadMessage key={sub.id} msg={sub} depth={depth + 1} />)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// One linked CCC request: Ownership / CCC Request Info / Order Info / Current Workflow Status are always visible
+// ("Main grid"); Automation Visibility / Previous State / OA sit behind an explicit expand toggle ("On Expand"),
+// mirroring the same main-grid-vs-on-expand split used for the overview grid's columns.
+function CccDetailCard({ ccc, expanded, onToggleExpand }: { ccc: Email; expanded: boolean; onToggleExpand: () => void }) {
+  const replies = ccc.replies ?? [];
+  return (
+    <div className="bg-white rounded-2xl border border-[#ebebeb] overflow-hidden shadow-sm mb-5">
+      {/* Header */}
+      <div className="px-7 py-5 border-b border-[#f3f4f6] flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="size-[34px] rounded-xl bg-[#fdf0f4] flex items-center justify-center shrink-0">
+            <FileText size={15} className="text-[#90003b]" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[14px] font-bold text-[#111827] truncate">{ccc.cccId}</p>
+            <p className="text-[12px] text-[#6b7280] truncate">{ccc.cccRequestType} — {ccc.cccRequestSubtype}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {ccc.slaTimeRemaining && (
+            <span className="text-[11px] font-medium text-[#6b7280] bg-[#f3f4f6] px-2.5 py-1 rounded-md whitespace-nowrap">{ccc.slaTimeRemaining}</span>
+          )}
+          <EmailStatusBadge status={ccc.status} />
+        </div>
+      </div>
+
+      <DetailSection title="Ownership" fields={[
+        { label: "CSR Owner (SOO)", value: ccc.csrOwner },
+        { label: "Business Group", value: ccc.businessGroup },
+        { label: "Opportunity Number", value: <DetailLink text={ccc.opportunityNumber} what="Opportunity" /> },
+        { label: "Account Manager", value: ccc.accountManager },
+        { label: "Account Name", value: ccc.accountName },
+      ]} />
+
+      <DetailSection title="CCC Request Info" fields={[
+        { label: "CCC Request Type", value: ccc.cccRequestType },
+        { label: "CCC Request Subtype", value: ccc.cccRequestSubtype },
+        { label: "CCC Request Status", value: ccc.cccRequestStatus },
+        { label: "Awaiting Reason", value: ccc.awaitingReason },
+        { label: "CCC Request Received Date", value: ccc.cccRequestReceivedDate },
+        { label: "Time Remaining / SLA", value: ccc.slaTimeRemaining },
+      ]} />
+
+      <DetailSection title="Order Info" fields={[
+        { label: "PO #", value: ccc.poNumber },
+        { label: "Quote # + Version / Revision", value: <DetailLink text={ccc.quoteNumber} what="Sales Quote" /> },
+        { label: "Order #", value: ccc.orderNumber },
+        { label: "Operating Unit", value: ccc.operatingUnit },
+        { label: "PO Amount", value: ccc.poAmount },
+        { label: "Current Month Bookable Amount", value: ccc.currentMonthBookableAmount },
+        { label: "Currency", value: ccc.currency },
+      ]} />
+
+      <DetailSection title="Current Workflow Status" fields={[
+        { label: "Current Status", value: <EmailStatusBadge status={ccc.status} /> },
+        { label: "Status Notes", value: ccc.statusNotes },
+        { label: "Current Status Date", value: ccc.currentStatusDate },
+      ]} />
+
+      {/* On Expand */}
+      <button
+        onClick={onToggleExpand}
+        className="w-full flex items-center justify-center gap-1.5 px-5 py-3 border-t border-[#f3f4f6] text-[12px] font-semibold text-[#c53e6c] hover:bg-[#fdf5f8] transition-colors cursor-pointer"
+      >
+        {expanded ? "Hide" : "Show"} automation & history details
+        <ChevronDown size={14} className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+      </button>
+
+      {expanded && (
+        <div className="border-t border-[#f3f4f6]">
+          <DetailSection title="Automation Visibility (Read-only)" fields={[
+            { label: "Current Automation Status", value: ccc.currentAutomationStatus },
+            { label: "Current Automation Result", value: ccc.currentAutomationResult },
+            { label: "Link to Automation Details", value: <DetailLink text={ccc.automationDetailsLink} what="Automation Details" /> },
+          ]} />
+          <DetailSection title="Previous State" fields={[
+            { label: "Previous Status", value: ccc.previousStatus },
+            { label: "Previous Status Date", value: ccc.previousStatusDate },
+            { label: "Previous Stage", value: ccc.previousStage },
+            { label: "Previous Automation Status", value: ccc.previousAutomationStatus },
+          ]} />
+          <DetailSection title="OA" fields={[
+            { label: "OA Status", value: ccc.oaStatus },
+            { label: "OA Summary", value: ccc.oaSummary },
+            { label: "OA Validation Records", value: <DetailLink text={ccc.oaValidationRecords} what="OA Records" /> },
+          ]} />
+        </div>
+      )}
+
+      {/* This CCC's own correspondence */}
+      {replies.length > 0 && (
+        <div className="border-t border-[#f3f4f6]">
+          <div className="px-7 py-4 flex items-center gap-2">
+            <h3 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest">Correspondence</h3>
+            <span className="bg-[#f3f4f6] text-[#6b7280] text-[10px] font-bold px-2 py-0.5 rounded-full">{replies.length}</span>
+          </div>
+          <div className="divide-y divide-[#f3f4f6]">
+            {replies.map((msg, idx) => (
+              <div key={msg.id} className="px-7 py-5 flex gap-4">
+                {/* Timeline connector */}
+                <div className="flex flex-col items-center shrink-0 pt-1 w-[8px]">
+                  <div className="size-[8px] rounded-full bg-[#c53e6c] shrink-0" />
+                  {idx < replies.length - 1 && <div className="w-[1.5px] flex-1 bg-[#f0d5dd] mt-1" />}
+                </div>
+                <div className="flex-1 min-w-0 pb-1">
+                  <ThreadMessage msg={msg} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, initialEmailId }: {
+  onLogout: () => void;
+  onViewAllNotifications: () => void;
+  onNavigateDashboard: () => void;
+  onNavigateCommandCenterOverview?: () => void;
+  onNavigateCommandCenterEmailView?: () => void;
+  onNavigateHoldManagementOverview?: () => void;
+  onNavigateOrderListing?: () => void;
+  onNavigateReleasedOrders?: () => void;
+  initialEmailId?: string;
+}) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("All");
+  const [selectedId, setSelectedId] = useState(initialEmailId ?? ALL_EMAILS_WITH_CCC[0].id);
+  const [expandedCccIds, setExpandedCccIds] = useState<Set<string>>(new Set());
+
+  const selected = ALL_EMAILS_WITH_CCC.find((e) => e.id === selectedId) ?? ALL_EMAILS_WITH_CCC[0];
+  const linkedCccs = selected.linkedCccs ?? [];
+
+  const tabs = ["All", "Flagged", "Under Review", "Cleared"];
+  const tabCount = (tab: string) => tab === "All" ? ALL_EMAILS_WITH_CCC.length : ALL_EMAILS_WITH_CCC.filter(e => e.status === tab).length;
+  const filtered = ALL_EMAILS_WITH_CCC.filter((e) => activeTab === "All" || e.status === activeTab);
+
+  const toggleCccExpanded = (cccId: string) => {
+    setExpandedCccIds(prev => {
+      const next = new Set(prev);
+      if (next.has(cccId)) next.delete(cccId); else next.add(cccId);
+      return next;
+    });
+  };
+
+  // Separate expand state for the sidebar list's own 2-level nesting (email → CCCs → replies) — independent of
+  // expandedCccIds above, which only controls the right panel's automation/history disclosure.
+  const [expandedSidebarEmailIds, setExpandedSidebarEmailIds] = useState<Set<string>>(new Set());
+  const [expandedSidebarCccIds, setExpandedSidebarCccIds] = useState<Set<string>>(new Set());
+  const toggleSidebarEmailExpanded = (id: string) => {
+    setExpandedSidebarEmailIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSidebarCccExpanded = (id: string) => {
+    setExpandedSidebarCccIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const statusIconColors: Record<string, string> = {
+    Flagged: "text-rose-600",
+    "Under Review": "text-amber-600",
+    Cleared: "text-emerald-600",
+  };
+  const statusIconBg: Record<string, string> = {
+    Flagged: "bg-rose-50",
+    "Under Review": "bg-amber-50",
+    Cleared: "bg-emerald-50",
+  };
+
+  return (
+    <div className="bg-[#f4f5f7] flex flex-col size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
+      <NavDrawer
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onLogout={onLogout}
+        onNavigateDashboard={onNavigateDashboard}
+        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+        onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
+        onNavigateOrderListing={onNavigateOrderListing}
+        onNavigateReleasedOrders={onNavigateReleasedOrders}
+      />
+      <AppHeader onMenuClick={() => setSidebarOpen(true)} activeNav="Command Center" activeSub="Email View" onViewAllNotifications={onViewAllNotifications} onNavigateDashboard={onNavigateDashboard} />
+
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+
+        {/* ── Left sidebar ── */}
+        <div className="bg-white border-r border-[#ebebeb] flex flex-col w-[420px] shrink-0 overflow-hidden">
+
+          {/* Sidebar header */}
+          <div className="px-5 pt-5 pb-4 space-y-4">
+            <div className="flex items-center gap-2.5">
+              <h2 className="font-semibold text-[15px] text-[#111827]">Emails</h2>
+              <span className="bg-[#c53e6c] text-white text-[10px] font-bold px-[7px] py-[2px] rounded-full leading-none">
+                {tabCount("All")}
+              </span>
+            </div>
+
+            {/* Status tabs */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {tabs.map((tab) => {
+                const count = tabCount(tab);
+                const active = activeTab === tab;
+                const activeColors: Record<string, string> = {
+                  All: "bg-[#111827] text-white",
+                  Flagged: "bg-rose-600 text-white",
+                  "Under Review": "bg-amber-500 text-white",
+                  Cleared: "bg-emerald-600 text-white",
+                };
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all cursor-pointer ${
+                      active ? activeColors[tab] : "bg-[#f3f4f6] text-[#6b7280] hover:bg-[#e9eaec]"
+                    }`}
+                  >
+                    {tab}
+                    <span className={`text-[10px] font-bold leading-none ${active ? "opacity-80" : "opacity-60"}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-[#f0f0f0]" />
+
+          {/* Email list */}
+          <div className="flex-1 overflow-y-auto">
+            {filtered.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full gap-3 py-16 px-6">
+                <div className="size-[48px] rounded-full bg-[#f3f4f6] flex items-center justify-center">
+                  <Mail size={20} className="opacity-30" />
+                </div>
+                <p className="text-[13px] text-[#9ca3af] text-center">No emails in this category</p>
+              </div>
+            )}
+            {filtered.map((e) => {
+              const isActive = selectedId === e.id;
+              const cccList = e.linkedCccs ?? [];
+              const emailExpanded = expandedSidebarEmailIds.has(e.id);
+              return (
+                <div key={e.id} className="border-b border-b-[#f3f4f6]">
+                  {/* Level 0 — the email itself */}
+                  <div
+                    onClick={() => setSelectedId(e.id)}
+                    className={`group relative px-5 py-4 cursor-pointer transition-all ${isActive ? "bg-[#fff5f7]" : "hover:bg-[#fafafa]"}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`shrink-0 size-[34px] rounded-xl flex items-center justify-center mt-0.5 ${statusIconBg[e.status] ?? "bg-emerald-50"}`}>
+                        <Mail size={15} className={statusIconColors[e.status] ?? "text-emerald-600"} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className={`text-[13px] leading-[1.3] truncate ${isActive ? "font-semibold text-[#111827]" : "font-medium text-[#1f2937]"}`}>
+                            {e.subject}
+                          </p>
+                          <p className="text-[10.5px] text-[#9ca3af] shrink-0 whitespace-nowrap">{e.received}</p>
+                        </div>
+                        <p className="text-[11.5px] text-[#6b7280] leading-[1.5] truncate mb-2">{e.sender}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <EmailStatusBadge status={e.status} />
+                          {cccList.length > 0 && (
+                            <button
+                              onClick={(ev) => { ev.stopPropagation(); toggleSidebarEmailExpanded(e.id); }}
+                              className="inline-flex items-center gap-1 shrink-0 px-2 py-[3px] rounded-full bg-[#fdf0f4] text-[#c53e6c] hover:bg-[#fbe1e9] text-[10.5px] font-medium cursor-pointer transition-colors"
+                              aria-label={emailExpanded ? "Hide linked CCCs" : "Show linked CCCs"}
+                            >
+                              <ChevronDown size={10} className={`transition-transform duration-200 ${emailExpanded ? "rotate-180" : ""}`} />
+                              {emailExpanded ? "Hide" : "Show"} {cccList.length} {cccList.length === 1 ? "CCC" : "CCCs"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Level 1 — CCC requests linked to this email */}
+                  {emailExpanded && cccList.map((ccc) => {
+                    const cccExpanded = expandedSidebarCccIds.has(ccc.id);
+                    const cccReplies = ccc.replies ?? [];
+                    return (
+                      <div key={ccc.id}>
+                        <div
+                          onClick={() => setSelectedId(e.id)}
+                          className="pl-[52px] pr-5 py-2.5 cursor-pointer hover:bg-[#faf5f7] border-t border-t-[#f5eef1] bg-[#fbf8f9] transition-colors"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText size={11} className="text-[#90003b] shrink-0" />
+                            <p className="text-[12px] font-semibold text-[#333] truncate flex-1">{ccc.cccId}</p>
+                            <EmailStatusBadge status={ccc.status} />
+                          </div>
+                          <div className="flex items-center justify-between gap-2 mt-1 pl-[19px]">
+                            <p className="text-[11px] text-[#6b7280] truncate">{ccc.cccRequestType} — {ccc.cccRequestSubtype}</p>
+                            {cccReplies.length > 0 && (
+                              <button
+                                onClick={(ev) => { ev.stopPropagation(); toggleSidebarCccExpanded(ccc.id); }}
+                                className="inline-flex items-center gap-1 shrink-0 text-[10px] font-medium text-[#c53e6c] hover:underline cursor-pointer"
+                                aria-label={cccExpanded ? "Hide replies" : "Show replies"}
+                              >
+                                <ChevronDown size={9} className={`transition-transform duration-200 ${cccExpanded ? "rotate-180" : ""}`} />
+                                {cccExpanded ? "Hide" : "Show"} {cccReplies.length} {cccReplies.length === 1 ? "reply" : "replies"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Level 2 — this CCC's own correspondence */}
+                        {cccExpanded && cccReplies.map((reply) => (
+                          <div
+                            key={reply.id}
+                            onClick={() => setSelectedId(e.id)}
+                            className="pl-[76px] pr-5 py-2.5 cursor-pointer hover:bg-[#f5eef1] border-t border-t-[#f5eef1] bg-[#f8f2f4] transition-colors"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <CornerDownRight size={10} className="text-[#9ca3af] shrink-0" />
+                              <p className="text-[11px] text-[#374151] truncate flex-1">{reply.subject}</p>
+                              <EmailStatusBadge status={reply.status} />
+                            </div>
+                            {(reply.replies?.length ?? 0) > 0 && (
+                              <p className="text-[10px] text-[#9ca3af] pl-[16px] mt-0.5">+{reply.replies!.length} more in thread</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Right detail panel ── */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#f4f5f7]">
+          <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+
+            {/* Primary email card */}
+            <div className="bg-white rounded-2xl border border-[#ebebeb] overflow-hidden mb-5 shadow-sm">
+              <div className="px-7 py-6 border-b border-[#f3f4f6]">
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <h1 className="text-[18px] font-bold text-[#111827] leading-[1.35]">{selected.subject}</h1>
+                  <span className="shrink-0 mt-0.5"><EmailStatusBadge status={selected.status} /></span>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-[12px] text-[#9ca3af]">From: <span className="text-[#374151] font-medium">{selected.sender}</span></span>
+                  <span className="w-px h-3 bg-[#e5e7eb]" />
+                  <span className="text-[12px] text-[#9ca3af]">Received: <span className="text-[#374151] font-medium">{selected.received}</span></span>
+                  <span className="w-px h-3 bg-[#e5e7eb]" />
+                  <span className="bg-[#f3f4f6] text-[#374151] text-[11px] font-semibold px-2.5 py-1 rounded-md tracking-wide uppercase">{selected.category}</span>
+                </div>
+              </div>
+
+              {/* Meta grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y divide-[#f3f4f6]">
+                {[
+                  { label: "Email ID", value: selected.id },
+                  { label: "Category", value: selected.category },
+                  { label: "Size", value: selected.size },
+                  { label: "Linked CCCs", value: String(linkedCccs.length) },
+                ].map(({ label, value }) => (
+                  <div key={label} className="px-6 py-4">
+                    <p className="text-[10.5px] font-semibold text-[#9ca3af] uppercase tracking-wider mb-1">{label}</p>
+                    <p className="text-[13px] font-semibold text-[#111827]">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Body */}
+              <div className="px-7 py-6">
+                <p className="text-[13.5px] text-[#374151] leading-[1.7]">{selected.body ?? "No content preview available."}</p>
+              </div>
+            </div>
+
+            {/* Linked CCC requests */}
+            {linkedCccs.length > 0 && (
+              <div className="flex items-center gap-2 mb-3 mt-6">
+                <h3 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest">Linked CCC Requests</h3>
+                <span className="bg-[#f3f4f6] text-[#6b7280] text-[10px] font-bold px-2 py-0.5 rounded-full">{linkedCccs.length}</span>
+              </div>
+            )}
+            {linkedCccs.map((ccc) => (
+              <CccDetailCard
+                key={ccc.id}
+                ccc={ccc}
+                expanded={expandedCccIds.has(ccc.id)}
+                onToggleExpand={() => toggleCccExpanded(ccc.id)}
+              />
+            ))}
+
+          </div>
+
+          {/* Sticky footer */}
+          <div className="bg-white border-t border-[#ebebeb] px-8 py-4 flex items-center justify-between shrink-0">
+            <p className="text-[12px] text-[#9ca3af]">
+              Last updated: <span className="text-[#374151] font-medium">{selected.received}</span>
+            </p>
+            <div className="flex items-center gap-3">
+              <button onClick={() => toast.info(`Escalated ${selected.id}`)} className="px-5 py-2.5 border border-[#e5e7eb] rounded-xl text-[13px] font-medium text-[#374151] hover:bg-[#f9f9fb] cursor-pointer transition-colors">
+                Escalate
+              </button>
+              <button onClick={() => toast.success(`Marked ${selected.id} as reviewed`)} className="px-5 py-2.5 bg-[#c53e6c] rounded-xl text-[13px] font-semibold text-white hover:opacity-90 cursor-pointer transition-opacity shadow-sm">
+                Mark Reviewed
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 // ─── Hold Management Overview ─────────────────────────────────────────────────
 
 const CARDS_PER_PAGE = 4;
 
-function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateDashboard, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateDashboard: () => void;
+  onNavigateCommandCenterOverview?: () => void;
+  onNavigateCommandCenterEmailView?: () => void;
   onViewAllOrders?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
@@ -1392,6 +1898,8 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateDa
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
         onNavigateDashboard={onNavigateDashboard}
+        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
         onNavigateHoldManagementOverview={() => {}}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
@@ -1461,20 +1969,20 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateDa
           {/* ── KPI strip ── */}
           <div className="flex gap-4">
             {kpis.map((kpi) => (
-              <div key={kpi.label} className="bg-white flex-1 min-w-0 rounded-xl border border-black/[0.08] p-4 sm:p-5 flex flex-col gap-3">
+              <div key={kpi.label} className="bg-white flex-1 min-w-0 rounded-xl border border-black/[0.08] p-3 sm:p-4 flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <p className="text-[12px] font-medium text-[#6b7380]">{kpi.label}</p>
-                  <div className="rounded-lg p-2 shrink-0">
-                    <div className="flex items-end gap-[2px] h-[15px]">
+                  <div className="rounded-lg p-1 shrink-0">
+                    <div className="flex items-end gap-[2px] h-[11px]">
                       {sparkHeights.map((h, i) => (
-                        <div key={i} className="w-[3px] rounded-[1px]" style={{ height: h * 0.7, backgroundColor: kpi.sparkColor }} />
+                        <div key={i} className="w-[3px] rounded-[1px]" style={{ height: h * 0.55, backgroundColor: kpi.sparkColor }} />
                       ))}
                     </div>
                   </div>
                 </div>
-                <p className="text-[22px] sm:text-[28px] font-bold text-[#111827] leading-none">{kpi.value}</p>
-                <div className={`flex items-center gap-1 text-[11px] sm:text-[12px] font-medium ${kpi.up ? "text-emerald-600" : "text-rose-500"}`}>
-                  <TrendingUp size={11} />
+                <p className="text-[18px] sm:text-[22px] font-bold text-[#111827] leading-none">{kpi.value}</p>
+                <div className={`flex items-center gap-1 text-[11px] font-medium ${kpi.up ? "text-emerald-600" : "text-rose-500"}`}>
+                  <TrendingUp size={10} />
                   <span>{kpi.delta} vs last week</span>
                 </div>
               </div>
@@ -1831,101 +2339,18 @@ function SortIcon() {
   );
 }
 
-function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateOrderDetails }: {
+function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateOrderDetails }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateDashboard: () => void;
+  onNavigateCommandCenterOverview?: () => void;
+  onNavigateCommandCenterEmailView?: () => void;
   onNavigateOverview: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateOrderDetails?: (orderId: string) => void;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [page, setPage] = useState(1);
-  const [categoryFilter, setCategoryFilter] = useState("All Categories");
-  const [typeFilter, setTypeFilter] = useState("All Types");
-  const [categoryOpen, setCategoryOpen] = useState(false);
-  const [typeOpen, setTypeOpen] = useState(false);
-  const [sortCol, setSortCol] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const [colMgmtOpen, setColMgmtOpen] = useState(false);
-  const [activeColTab, setActiveColTab] = useState<"fixed" | "scrollable" | "sort">("fixed");
-  const fixedCols = ["Status", "Order Id", "Hold Type", "Customer Name"];
-  const scrollableCols = ["Customer PO ID", "OCN", "Operating Unit (OU)", "SSD", "Country"];
-  const allSortCols = [...fixedCols, ...scrollableCols];
-  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(allSortCols));
-  const [tempVisibleCols, setTempVisibleCols] = useState<Set<string>>(new Set(allSortCols));
-  const [colSortOrder, setColSortOrder] = useState<string[]>(allSortCols);
-  const [tempColSortOrder, setTempColSortOrder] = useState<string[]>(allSortCols);
-  const [dragColIdx, setDragColIdx] = useState<number | null>(null);
-  const [dragOverColIdx, setDragOverColIdx] = useState<number | null>(null);
-  const [expandedSection, setExpandedSection] = useState<string | null>("Status");
-  const [checkedFilters, setCheckedFilters] = useState<Record<string, Set<string>>>({});
-  const [sectionSearch, setSectionSearch] = useState<Record<string, string>>({});
-  const categoryRef = useRef<HTMLDivElement>(null);
-  const typeRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (categoryRef.current && !categoryRef.current.contains(e.target as Node)) setCategoryOpen(false);
-      if (typeRef.current && !typeRef.current.contains(e.target as Node)) setTypeOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const toggleFilterItem = (section: string, value: string) => {
-    setCheckedFilters(prev => {
-      const next = { ...prev };
-      const set = new Set(next[section] ?? []);
-      if (set.has(value)) set.delete(value); else set.add(value);
-      next[section] = set;
-      return next;
-    });
-    setPage(1);
-  };
-
-  const resetFilters = () => { setCheckedFilters({}); setSectionSearch({}); setPage(1); };
-
-  const FILTER_SECTIONS = [
-    { key: "Status",    label: "Status",    total: 37, options: ALL_ORDERS.reduce((acc, r) => { acc[r.status] = (acc[r.status] ?? 0) + 1; return acc; }, {} as Record<string, number>) },
-    { key: "Country",   label: "Country",   total: 18, options: ALL_ORDERS.reduce((acc, r) => { acc[r.country] = (acc[r.country] ?? 0) + 1; return acc; }, {} as Record<string, number>) },
-    { key: "HoldType",  label: "Hold Type", total: 23, options: ALL_ORDERS.reduce((acc, r) => { acc[r.holdType] = (acc[r.holdType] ?? 0) + 1; return acc; }, {} as Record<string, number>) },
-    { key: "Customer",  label: "Customer",  total: 0,  options: {} as Record<string, number> },
-    { key: "OCN",       label: "OCN",       total: 5,  options: ALL_ORDERS.reduce((acc, r) => { acc[r.ocn] = (acc[r.ocn] ?? 0) + 1; return acc; }, {} as Record<string, number>) },
-    { key: "OU",        label: "Operating Unit", total: 7, options: ALL_ORDERS.reduce((acc, r) => { acc[r.ou] = (acc[r.ou] ?? 0) + 1; return acc; }, {} as Record<string, number>) },
-  ];
-
-
-  const filtered = ALL_ORDERS.filter(r => {
-    const matchCat = categoryFilter === "All Categories" || r.holdType === categoryFilter;
-    const matchType = typeFilter === "All Types" || r.status === typeFilter;
-    const matchPanel = FILTER_SECTIONS.every(sec => {
-      const sel = checkedFilters[sec.key];
-      if (!sel || sel.size === 0) return true;
-      const val = sec.key === "Status" ? r.status : sec.key === "Country" ? r.country : sec.key === "HoldType" ? r.holdType : sec.key === "OCN" ? r.ocn : sec.key === "OU" ? r.ou : null;
-      return val ? sel.has(val) : true;
-    });
-    return matchCat && matchType && matchPanel;
-  });
-
-  const sorted = sortCol ? [...filtered].sort((a, b) => {
-    const av = (a as Record<string, string>)[sortCol] ?? "";
-    const bv = (b as Record<string, string>)[sortCol] ?? "";
-    return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
-  }) : filtered;
-
-  const totalPages = Math.max(1, Math.ceil(sorted.length / ROWS_PER_PAGE));
-  const visibleRows = sorted.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
-
-  const handleSort = (col: string) => {
-    if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortCol(col); setSortDir("asc"); }
-  };
-
-  const holdTypes = ["All Categories", ...Array.from(new Set(ALL_ORDERS.map(o => o.holdType)))];
-  const statusTypes = ["All Types", "On Track", "At Risk", "Breached"];
 
   const kpis = [
     { label: "Open Holds",   value: "05",         highlight: false },
@@ -1935,22 +2360,43 @@ function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateDashboar
     { label: "On Track",     value: "05",         highlight: false },
   ];
 
-  const columns = [
-    { key: "status",   label: "Status",               w: "w-[110px]" },
-    { key: "id",       label: "Order Id",             w: "w-[110px]" },
-    { key: "holdType", label: "Hold Type",            w: "w-[180px]" },
-    { key: "customer", label: "Customer Name",        w: "flex-1"    },
-    { key: "poId",     label: "Customer PO ID",       w: "w-[160px]" },
-    { key: "ocn",      label: "OCN",                  w: "w-[90px]"  },
-    { key: "ou",       label: "Operating Unit (OU)",  w: "w-[160px]" },
-    { key: "ssd",      label: "SSD",                  w: "w-[110px]" },
-    { key: "country",  label: "Country",              w: "w-[90px]"  },
+  const columns: OrderListingColumn[] = [
+    { key: "status",   label: "Status" },
+    { key: "id",       label: "Order Id" },
+    { key: "holdType", label: "Hold Type" },
+    { key: "customer", label: "Customer Name" },
+    { key: "poId",     label: "Customer PO ID" },
+    { key: "ocn",      label: "OCN" },
+    { key: "ou",       label: "Operating Unit (OU)" },
+    { key: "ssd",      label: "SSD" },
+    { key: "country",  label: "Country" },
   ];
 
-  const visibleColumns = colSortOrder
-    .filter(label => visibleCols.has(label))
-    .map(label => columns.find(c => c.label === label))
-    .filter((c): c is typeof columns[0] => Boolean(c));
+  const fixedColumns = ["Status", "Order Id", "Hold Type", "Customer Name"];
+  const scrollableColumns = ["Customer PO ID", "OCN", "Operating Unit (OU)", "SSD", "Country"];
+
+  const filterSections: OrderListingFilterSection<typeof ALL_ORDERS[0]>[] = [
+    { key: "Status",    label: "Status",    total: 37, getValue: (r) => r.status },
+    { key: "Country",   label: "Country",   total: 18, getValue: (r) => r.country },
+    { key: "HoldType",  label: "Hold Type", total: 23, getValue: (r) => r.holdType },
+    { key: "Customer",  label: "Customer",  total: 0 },
+    { key: "OCN",       label: "OCN",       total: 5,  getValue: (r) => r.ocn },
+    { key: "OU",        label: "Operating Unit", total: 7, getValue: (r) => r.ou },
+  ];
+
+  const categoryDropdown: OrderListingDropdownFilter<typeof ALL_ORDERS[0]> = {
+    placeholder: "Hold Category",
+    allLabel: "All Categories",
+    options: ["All Categories", ...Array.from(new Set(ALL_ORDERS.map(o => o.holdType)))],
+    getValue: (r) => r.holdType,
+  };
+
+  const typeDropdown: OrderListingDropdownFilter<typeof ALL_ORDERS[0]> = {
+    placeholder: "Hold Type",
+    allLabel: "All Types",
+    options: ["All Types", "On Track", "At Risk", "Breached"],
+    getValue: (r) => r.status,
+  };
 
   const renderCell = (label: string, row: typeof ALL_ORDERS[0]) => {
     switch (label) {
@@ -1967,19 +2413,6 @@ function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateDashboar
     }
   };
 
-  const paginationPages = () => {
-    const pages: (number | "...")[] = [];
-    if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) pages.push(i); }
-    else {
-      pages.push(1);
-      if (page > 3) pages.push("...");
-      for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
-      if (page < totalPages - 2) pages.push("...");
-      pages.push(totalPages);
-    }
-    return pages;
-  };
-
   return (
     <div className="bg-[#f5f6fa] flex size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
       <NavDrawer
@@ -1987,6 +2420,8 @@ function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateDashboar
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
         onNavigateDashboard={onNavigateDashboard}
+        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
         onNavigateHoldManagementOverview={onNavigateOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
@@ -2018,498 +2453,20 @@ function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateDashboar
 
           {/* White content area: toolbar + table + pagination */}
           <div className="flex-1 bg-white mx-5 mb-5 rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col">
-
-            {/* Toolbar — matches Frame8729 Figma import */}
-            <div className="content-stretch flex items-center justify-between relative w-full px-5 py-[10px] border-b border-[#f2f2f2] shrink-0 bg-white">
-              {/* Grid / Displaying text */}
-              <div className="content-stretch flex h-[36px] items-center overflow-clip relative shrink-0">
-                <div className="content-stretch flex items-center overflow-clip relative shrink-0">
-                  <div className="flex flex-col font-normal justify-center leading-[0] not-italic relative shrink-0 text-[#686868] text-[14px] whitespace-nowrap">
-                    <p className="leading-[18px] text-[12px]">Displaying {visibleRows.length} of {sorted.length} (Name)</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Empty spacer — matches RcpActionsItems */}
-              <div className="content-stretch flex gap-[16px] h-[36px] items-center relative shrink-0 w-[88px]" />
-
-              {/* Right controls — matches Frame3 */}
-              <div className="content-stretch flex gap-[16px] items-center relative shrink-0">
-
-                {/* Hold Category — matches Input */}
-                <div className="relative" ref={categoryRef}>
-                  <div className="h-[36px] relative shrink-0 w-[187px]">
-                    <button
-                      onClick={() => setCategoryOpen(o => !o)}
-                      className="absolute bg-white border border-[#d1d1d1] border-solid h-[36px] left-0 right-0 rounded-[4px] top-0 w-full cursor-pointer hover:bg-[#f8fafc] transition-colors z-10"
-                    />
-                    <div className="absolute content-stretch flex items-center justify-between left-[9px] right-[8px] top-[8px] pointer-events-none z-20">
-                      <div className="flex flex-col font-normal justify-center leading-[0] not-italic relative shrink-0 text-[#333] text-[14px] whitespace-nowrap">
-                        <p className="leading-[20px]">{categoryFilter === "All Categories" ? "Hold Category" : categoryFilter}</p>
-                      </div>
-                      <div className="relative shrink-0 size-[16px]">
-                        <div className="absolute bottom-1/4 flex items-center justify-center left-[18.75%] right-[18.75%] top-[12.5%]" style={{ containerType: "size" }}>
-                          <div className="-rotate-180 -scale-x-100 flex-none h-[100cqh] w-[100cqw]">
-                            <div className="relative size-full">
-                              <div className="absolute bottom-1/4 left-[6.7%] right-[6.7%] top-0">
-                                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 8.66026 7.5">
-                                  <path d={listingSvg.p2c884700} fill="#686868" />
-                                </svg>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {categoryOpen && (
-                    <div className="absolute right-0 top-[calc(100%+4px)] bg-white rounded-lg border border-[#e2e8f0] shadow-lg z-30 py-1 min-w-full max-h-[220px] overflow-y-auto">
-                      {holdTypes.map(t => (
-                        <button key={t} onClick={() => { setCategoryFilter(t); setCategoryOpen(false); setPage(1); }}
-                          className={`w-full text-left px-3 py-[7px] text-[13px] cursor-pointer transition-colors truncate ${categoryFilter === t ? "bg-[#f8f0f4] text-[#90003b] font-semibold" : "text-[#374151] hover:bg-[#f8fafc]"}`}
-                        >{t}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Hold Type — matches Input1 */}
-                <div className="relative" ref={typeRef}>
-                  <div className="h-[36px] relative shrink-0 w-[187px]">
-                    <button
-                      onClick={() => setTypeOpen(o => !o)}
-                      className="absolute bg-white border border-[#d1d1d1] border-solid h-[36px] left-0 right-0 rounded-[4px] top-0 w-full cursor-pointer hover:bg-[#f8fafc] transition-colors z-10"
-                    />
-                    <div className="absolute content-stretch flex items-center justify-between left-[9px] right-[8px] top-[8px] pointer-events-none z-20">
-                      <div className="flex flex-col font-normal justify-center leading-[0] not-italic relative shrink-0 text-[#333] text-[14px] whitespace-nowrap">
-                        <p className="leading-[20px]">{typeFilter === "All Types" ? "Hold Type" : typeFilter}</p>
-                      </div>
-                      <div className="relative shrink-0 size-[16px]">
-                        <div className="absolute bottom-1/4 flex items-center justify-center left-[18.75%] right-[18.75%] top-[12.5%]" style={{ containerType: "size" }}>
-                          <div className="-rotate-180 -scale-x-100 flex-none h-[100cqh] w-[100cqw]">
-                            <div className="relative size-full">
-                              <div className="absolute bottom-1/4 left-[6.7%] right-[6.7%] top-0">
-                                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 8.66026 7.5">
-                                  <path d={listingSvg.p2c884700} fill="#686868" />
-                                </svg>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {typeOpen && (
-                    <div className="absolute right-0 top-[calc(100%+4px)] bg-white rounded-lg border border-[#e2e8f0] shadow-lg z-30 py-1 min-w-full">
-                      {statusTypes.map(t => (
-                        <button key={t} onClick={() => { setTypeFilter(t); setTypeOpen(false); setPage(1); }}
-                          className={`w-full text-left px-3 py-[7px] text-[13px] cursor-pointer transition-colors ${typeFilter === t ? "bg-[#f8f0f4] text-[#90003b] font-semibold" : "text-[#374151] hover:bg-[#f8fafc]"}`}
-                        >{t}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Filter icon — matches Group */}
-                <div className="content-stretch flex items-center relative shrink-0">
-                  <div className="grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0">
-                    <button onClick={() => setFilterPanelOpen(o => !o)}
-                      className="bg-white border border-[#d1d1d1] border-solid col-start-1 ml-0 mt-0 relative rounded-[4px] row-start-1 size-[36px] cursor-pointer hover:bg-[#f8fafc] transition-colors" />
-                    <div className="col-start-1 ml-[8px] mt-[8px] relative row-start-1 size-[20px] pointer-events-none">
-                      <div className="absolute inset-[9.38%_6.17%]">
-                        <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 17.5332 16.25">
-                          <path d={listingSvg.pa7c72c0} fill="#686868" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Slider icon — matches Group1 */}
-                <div className="content-stretch flex items-center relative shrink-0">
-                  <div className="grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0">
-                    <button onClick={() => { const opening = !colMgmtOpen; setColMgmtOpen(opening); if (opening) { setTempVisibleCols(new Set(visibleCols)); setTempColSortOrder([...colSortOrder]); if (filterPanelOpen) setFilterPanelOpen(false); } }}
-                      className={`border border-solid col-start-1 ml-0 mt-0 relative rounded-[4px] row-start-1 size-[36px] cursor-pointer transition-colors ${colMgmtOpen ? "bg-[#c53e6c] border-[#c53e6c] hover:bg-[#a0334f]" : "bg-white border-[#d1d1d1] hover:bg-[#f8fafc]"}`} />
-                    <div className="col-start-1 ml-[8px] mt-[8px] relative row-start-1 size-[20px] pointer-events-none">
-                      <div className="absolute inset-[12.5%_9.38%_68.75%_9.38%]">
-                        <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16.25 3.75">
-                          <path clipRule="evenodd" d={listingSvg.p3a37c600} fill={colMgmtOpen ? "white" : "#686868"} fillRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="absolute inset-[68.75%_9.38%_12.5%_9.38%]">
-                        <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16.25 3.75">
-                          <path clipRule="evenodd" d={listingSvg.p1f91c200} fill={colMgmtOpen ? "white" : "#686868"} fillRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="absolute inset-[40.63%_9.38%]">
-                        <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16.25 3.75">
-                          <path clipRule="evenodd" d={listingSvg.p1cea6fc0} fill={colMgmtOpen ? "white" : "#686868"} fillRule="evenodd" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            {/* Table + slide-in panels — contained between toolbar and pagination */}
-            <div className="flex-1 relative overflow-hidden">
-              <div className="absolute inset-0 overflow-x-auto overflow-y-auto">
-                <table className="w-full min-w-[900px] border-collapse">
-                  <thead>
-                    <tr className="border-b border-[#f2f2f2]">
-                      {visibleColumns.map(col => (
-                        <th key={col.key} onClick={() => handleSort(col.key)}
-                          className="px-4 h-[44px] text-left cursor-pointer select-none whitespace-nowrap bg-white">
-                          <div className="flex items-center gap-[5px]">
-                            <span className="text-[14px] font-medium text-[#333]">{col.label}</span>
-                            <svg width="7" height="7" viewBox="0 0 7 7" className="shrink-0">
-                              <circle cx="3.5" cy="3.5" r="3.5" fill="#C53E6C" />
-                            </svg>
-                            <svg fill="none" viewBox="0 0 20 20" className="size-[13px] shrink-0">
-                              <path d={listingSvg.p22cdbb20} fill={sortCol === col.key && sortDir === "asc" ? "#c53e6c" : "#d1d5db"} />
-                              <path d={listingSvg.p12f4dc00} fill={sortCol === col.key && sortDir === "desc" ? "#c53e6c" : "#d1d5db"} />
-                            </svg>
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={visibleColumns.length || 1} className="text-center py-16 text-[#9ca3af] text-[14px]">No orders match your filters</td>
-                      </tr>
-                    ) : visibleRows.map((row) => (
-                      <tr key={row.id}
-                        className="border-b border-[#f2f2f2] hover:bg-[#fdf5f8] cursor-pointer transition-colors bg-white"
-                        onClick={() => toast.info(`Order ${row.id} — ${row.holdType}`)}>
-                        {visibleColumns.map(col => (
-                          <td key={col.key} className="px-4 h-[40px]">
-                            {renderCell(col.label, row)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Filter Panel — contained between toolbar and pagination */}
-              <div className={`absolute top-0 right-0 bottom-0 w-[340px] bg-white border-l border-[#f2f2f2] z-20 flex flex-col transition-transform duration-300 ease-in-out ${filterPanelOpen ? "translate-x-0" : "translate-x-full"}`}>
-                {/* Header */}
-                <div className="h-[48px] relative shrink-0 border-b border-[#f2f2f2] flex items-center">
-                  <p className="absolute font-bold leading-[21px] left-[16px] text-[#333] text-[16px]">Filters</p>
-                  <div className="absolute flex gap-[12px] items-center right-[16px]">
-                    <button className="relative shrink-0 size-[20px] cursor-pointer hover:opacity-70 transition-opacity">
-                      <svg className="absolute block inset-0 size-full" fill="none" viewBox="0 0 16.667 16.667">
-                        <path d={filterSvg.p694ec70} fill="#686868" />
-                      </svg>
-                    </button>
-                    <button onClick={resetFilters} className="relative shrink-0 size-[20px] cursor-pointer hover:opacity-70 transition-opacity" title="Reset filters">
-                      <svg className="absolute block inset-0 size-full" fill="none" viewBox="0 0 16.25 16.25">
-                        <path d={filterSvg.p27f29300} fill="#686868" />
-                      </svg>
-                    </button>
-                    <div className="w-px h-[16px] bg-[#d1d1d1] shrink-0" />
-                    <button onClick={() => setFilterPanelOpen(false)} className="relative shrink-0 size-[20px] cursor-pointer hover:opacity-70 transition-opacity">
-                      <div className="absolute inset-[15.63%_15.63%_15.62%_15.63%]">
-                        <svg className="absolute block inset-0 size-full" fill="none" viewBox="0 0 13.75 13.75">
-                          <path d={filterSvg.p34eead00} fill="#686868" />
-                        </svg>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-                {/* Accordion sections */}
-                <div className="flex-1 overflow-y-auto">
-                  {FILTER_SECTIONS.map(sec => {
-                    const isOpen = expandedSection === sec.key;
-                    const selected = checkedFilters[sec.key];
-                    const selCount = selected?.size ?? 0;
-                    const opts = Object.entries(sec.options).sort((a, b) => b[1] - a[1]);
-                    const q = (sectionSearch[sec.key] ?? "").toLowerCase();
-                    const visOpts = q ? opts.filter(([k]) => k.toLowerCase().includes(q)) : opts;
-                    const hasSelections = selCount > 0;
-                    return (
-                      <div key={sec.key}>
-                        <div
-                          className={`h-[48px] overflow-clip relative shrink-0 w-full border-b border-[#f2f2f2] cursor-pointer flex items-center px-[16px] ${hasSelections ? "bg-[#fff0f3]" : "bg-white"}`}
-                          onClick={() => setExpandedSection(isOpen ? null : sec.key)}>
-                          <div className="flex-1 overflow-hidden pr-[8px]">
-                            {hasSelections ? (
-                              <p className="text-[14px] leading-[20px] whitespace-nowrap overflow-hidden text-ellipsis">
-                                <span className="text-[#90003b]">{sec.label} (</span>
-                                <span className="text-[#90003b] font-bold">{selCount}</span>
-                                <span className="text-[#686868]">/{sec.total || opts.length})</span>
-                              </p>
-                            ) : (
-                              <p className="text-[14px] leading-[20px] whitespace-nowrap overflow-hidden text-ellipsis">
-                                <span className={isOpen ? "text-[#90003b]" : "text-[#333]"}>{sec.label} </span>
-                                <span className="text-[#686868]">({sec.total || opts.length})</span>
-                              </p>
-                            )}
-                          </div>
-                          <div className="shrink-0 size-[16px] flex items-center justify-center">
-                            <svg className={`transition-transform duration-200 ${isOpen ? "rotate-90" : "rotate-0"}`} width="7" height="13" viewBox="0 0 7.207 13" fill="none">
-                              <path d={filterSvg.p374d42f0} fill={hasSelections || isOpen ? "#90003B" : "#686868"} />
-                            </svg>
-                          </div>
-                        </div>
-                        {isOpen && opts.length > 0 && (
-                          <div>
-                            {selCount > 0 && (
-                              <div className="flex items-center justify-between px-[16px] py-[7px] border-b border-[#f2f2f2] min-h-[32px]">
-                                <div className="bg-[#f2f2f2] flex gap-[4px] items-center px-[6px] py-[3px] rounded-[4px] shrink-0">
-                                  <p className="font-normal leading-[16px] text-[#686868] text-[10px] whitespace-nowrap">{String(selCount).padStart(2,"0")} Selected</p>
-                                  <button onClick={e => { e.stopPropagation(); setCheckedFilters(p => ({...p, [sec.key]: new Set()})); }}
-                                    className="relative size-[12px] shrink-0 cursor-pointer flex items-center justify-center">
-                                    <svg width="8.25" height="8.25" viewBox="0 0 8.25 8.25" fill="none">
-                                      <path d={filterSvg.p1ac2d400} fill="#686868" />
-                                    </svg>
-                                  </button>
-                                </div>
-                                {opts.length - selCount > 0 && (
-                                  <p className="font-normal leading-[13px] text-[#c53e6c] text-[10px] whitespace-nowrap">{opts.length - selCount} More</p>
-                                )}
-                              </div>
-                            )}
-                            {opts.length > 3 && (
-                              <div className="px-[16px] py-[10px] border-b border-[#f2f2f2]">
-                                <div className="relative flex h-[36px] rounded-[4px] border border-[#90003b] overflow-hidden">
-                                  <input
-                                    value={sectionSearch[sec.key] ?? ""}
-                                    onChange={e => setSectionSearch(p => ({...p, [sec.key]: e.target.value}))}
-                                    placeholder={`Search ${sec.label.toLowerCase()}...`}
-                                    className="flex-1 min-w-0 pl-[12px] pr-[8px] text-[13px] text-[#333] bg-transparent outline-none placeholder:text-[#aaa]"
-                                  />
-                                  {(sectionSearch[sec.key] ?? "") && (
-                                    <button onClick={() => setSectionSearch(p => ({...p, [sec.key]: ""}))}
-                                      className="absolute right-[40px] top-1/2 -translate-y-1/2 size-[16px] flex items-center justify-center cursor-pointer">
-                                      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-                                        <path d={filterSvg.p3d064140} fill="#686868" />
-                                      </svg>
-                                    </button>
-                                  )}
-                                  <div className="shrink-0 w-[40px] bg-[#90003b] flex items-center justify-center cursor-pointer">
-                                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-                                      <path clipRule="evenodd" d={filterSvg.pc14aa00} fill="white" fillRule="evenodd" />
-                                    </svg>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-[8px] px-[16px] py-[10px] border-b border-[#f2f2f2] cursor-pointer bg-white hover:bg-[#f8fafc]"
-                              onClick={() => {
-                                const allKeys = opts.map(([k]) => k);
-                                const allSelected = allKeys.every(k => selected?.has(k));
-                                setCheckedFilters(p => ({...p, [sec.key]: allSelected ? new Set() : new Set(allKeys)}));
-                              }}>
-                              <div className="relative shrink-0 size-[20px]">
-                                <svg className="absolute block inset-0 size-full" fill="none" viewBox="0 0 20 20">
-                                  <path d={filterSvg.p20ccab72} fill="white" stroke="#686868" strokeWidth="2" />
-                                </svg>
-                              </div>
-                              <p className="font-normal leading-[20px] text-[#686868] text-[14px]">Select All</p>
-                            </div>
-                            {visOpts.map(([optVal, count]) => {
-                              const checked = selected?.has(optVal) ?? false;
-                              return (
-                                <div key={optVal}
-                                  className={`flex items-center justify-between px-[16px] py-[10px] border-b border-[#f2f2f2] cursor-pointer ${checked ? "bg-[#ffe8e8]" : "bg-white hover:bg-[#f8fafc]"}`}
-                                  onClick={() => toggleFilterItem(sec.key, optVal)}>
-                                  <div className="flex gap-[8px] items-center min-w-0">
-                                    <div className="inline-grid place-items-start relative shrink-0 size-[20px]">
-                                      <div className="col-start-1 row-start-1 relative size-[20px]">
-                                        <svg className="absolute block inset-0 size-full" fill="none" viewBox="0 0 20 20">
-                                          <path d={filterSvg.p20ccab72} fill={checked ? "#90003B" : "white"} stroke={checked ? "#90003B" : "#686868"} strokeWidth="2" />
-                                        </svg>
-                                      </div>
-                                      {checked && (
-                                        <div className="col-start-1 row-start-1 ml-[5px] mt-[6px] relative size-[10px]">
-                                          <svg className="absolute block inset-0 size-full" fill="none" viewBox="0 0 8.75 6.37937">
-                                            <path clipRule="evenodd" d={filterSvg.p19f1000} fill="white" fillRule="evenodd" />
-                                          </svg>
-                                        </div>
-                                      )}
-                                    </div>
-                                    <p className={`font-normal leading-[20px] text-[14px] truncate ${checked ? "text-[#333]" : "text-[#686868]"}`}>{optVal}</p>
-                                  </div>
-                                  <div className="bg-[#ebebeb] flex h-[18px] items-center px-[8px] rounded-[40px] shrink-0 ml-[8px]">
-                                    <p className="font-normal leading-[18px] text-[#686868] text-[12px]">{String(count).padStart(2,"0")}</p>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Column Management Panel — contained between toolbar and pagination */}
-              <div className={`absolute top-0 right-0 bottom-0 w-[420px] bg-white border-l border-[#f2f2f2] z-30 flex flex-col transition-transform duration-300 ease-in-out ${colMgmtOpen ? "translate-x-0" : "translate-x-full"}`}>
-                {/* Header */}
-                <div className="h-[48px] shrink-0 border-b border-[#f2f2f2] flex items-center px-[16px]">
-                  <p className="font-bold leading-[21px] text-[#333] text-[16px] flex-1">Column Mgmt</p>
-                  <button onClick={() => setColMgmtOpen(false)} className="relative shrink-0 size-[20px] cursor-pointer hover:opacity-70 transition-opacity">
-                    <svg className="absolute block inset-0 size-full" fill="none" viewBox="0 0 13.75 13.75">
-                      <path d={filterSvg.p34eead00} fill="#686868" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Tab bar — flex-1 tabs fill the full width */}
-                <div className="flex shrink-0 border-b border-[#f2f2f2]">
-                  {(["fixed", "scrollable", "sort"] as const).map((tab) => {
-                    const labels = { fixed: "Fixed Columns", scrollable: "Scrollable Columns", sort: "Sort Columns" };
-                    const active = activeColTab === tab;
-                    return (
-                      <button key={tab} onClick={() => setActiveColTab(tab)}
-                        className="flex-1 flex flex-col items-center pt-[10px] pb-0 cursor-pointer transition-colors">
-                        <span className={`text-[12px] font-medium pb-[8px] whitespace-nowrap ${active ? "text-[#90003b]" : "text-[#686868]"}`}>{labels[tab]}</span>
-                        <div className={`h-[2px] w-full ${active ? "bg-[#90003b]" : "bg-transparent"}`} />
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Tab content */}
-                <div className="flex-1 overflow-y-auto">
-                  {activeColTab !== "sort" && (
-                    <div className="w-full">
-                      {activeColTab === "fixed" && (
-                        <div className="px-[16px] py-[8px] border-b border-[#f2f2f2] bg-[#fdf5f8]">
-                          <p className="text-[11px] text-[#90003b]">
-                            {fixedCols.filter(c => tempVisibleCols.has(c)).length}/4 fixed columns selected (max 4)
-                          </p>
-                        </div>
-                      )}
-                      {(activeColTab === "fixed" ? fixedCols : scrollableCols).map((col) => {
-                        const checked = tempVisibleCols.has(col);
-                        const fixedCheckedCount = fixedCols.filter(c => tempVisibleCols.has(c)).length;
-                        const atMax = activeColTab === "fixed" && !checked && fixedCheckedCount >= 4;
-                        return (
-                          <button key={col} onClick={() => {
-                            if (atMax) { toast.warning("Maximum 4 fixed columns allowed"); return; }
-                            setTempVisibleCols(prev => {
-                              const next = new Set(prev);
-                              checked ? next.delete(col) : next.add(col);
-                              return next;
-                            });
-                          }} className={`flex gap-[12px] items-center w-full px-[16px] py-[10px] transition-colors cursor-pointer text-left border-b border-[#f2f2f2] ${atMax ? "opacity-50" : "hover:bg-[#faf5f7]"}`}>
-                            {/* Checkbox — uses correct viewBox=20×20 for border path, centered checkmark */}
-                            <div className="relative shrink-0 size-[18px]">
-                              <svg className="absolute block inset-0 size-full" fill="none" viewBox="0 0 20 20">
-                                <path d={filterSvg.p20ccab72} fill={checked ? "#90003B" : "white"} stroke={checked ? "#90003B" : "#686868"} strokeWidth="1.5" />
-                              </svg>
-                              {checked && (
-                                <svg className="absolute block inset-0 size-full" fill="none" viewBox="0 0 20 20">
-                                  <path d={filterSvg.p19f1000} fill="white" transform="translate(5.6, 6.8)" />
-                                </svg>
-                              )}
-                            </div>
-                            <span className={`text-[14px] leading-[20px] ${checked ? "text-[#333] font-medium" : "text-[#686868]"}`}>{col}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {activeColTab === "sort" && (
-                    <div className="w-full">
-                      <div className="px-[16px] py-[8px] border-b border-[#f2f2f2] bg-[#fdf5f8]">
-                        <p className="text-[11px] text-[#686868]">Drag rows to reorder columns in the table</p>
-                      </div>
-                      {tempColSortOrder.map((col, idx) => (
-                        <div key={col}
-                          draggable
-                          onDragStart={() => setDragColIdx(idx)}
-                          onDragOver={(e) => { e.preventDefault(); setDragOverColIdx(idx); }}
-                          onDrop={() => {
-                            if (dragColIdx === null || dragColIdx === idx) return;
-                            const next = [...tempColSortOrder];
-                            const [moved] = next.splice(dragColIdx, 1);
-                            next.splice(idx, 0, moved);
-                            setTempColSortOrder(next);
-                            setDragColIdx(null);
-                            setDragOverColIdx(null);
-                          }}
-                          onDragEnd={() => { setDragColIdx(null); setDragOverColIdx(null); }}
-                          className={`flex gap-[11px] items-center px-[16px] py-[10px] cursor-grab active:cursor-grabbing transition-colors border-b border-[#f2f2f2] ${dragOverColIdx === idx && dragColIdx !== idx ? "bg-[#faf5f7] border-t-2 border-t-[#c53e6c]" : "hover:bg-[#faf5f7]"}`}>
-                          {/* Drag handle — exact 2×3 dot grid from Figma */}
-                          <div className="grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0">
-                            <div className="bg-[#d9d9d9] col-start-1 ml-0 mt-0 relative rounded-[2px] row-start-1 size-[3px]" />
-                            <div className="bg-[#d9d9d9] col-start-1 ml-0 mt-[5px] relative rounded-[2px] row-start-1 size-[3px]" />
-                            <div className="bg-[#d9d9d9] col-start-1 ml-0 mt-[10px] relative rounded-[2px] row-start-1 size-[3px]" />
-                            <div className="bg-[#d9d9d9] col-start-1 ml-[5px] mt-[10px] relative rounded-[2px] row-start-1 size-[3px]" />
-                            <div className="bg-[#d9d9d9] col-start-1 ml-[5px] mt-[5px] relative rounded-[2px] row-start-1 size-[3px]" />
-                            <div className="bg-[#d9d9d9] col-start-1 ml-[5px] mt-0 relative rounded-[2px] row-start-1 size-[3px]" />
-                          </div>
-                          <span className="text-[14px] text-[#333] leading-[20px] flex-1">{col}</span>
-                          <span className="text-[11px] text-[#aaa]">{idx + 1}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer */}
-                <div className="shrink-0 border-t border-[#f2f2f2] flex justify-end gap-[8px] px-[16px] py-[12px]">
-                  <button onClick={() => {
-                    setTempVisibleCols(new Set(visibleCols));
-                    setTempColSortOrder([...colSortOrder]);
-                    setColMgmtOpen(false);
-                  }} className="px-[14px] py-[6px] rounded-[4px] border border-[#c53e6c] text-[#c53e6c] text-[13px] font-medium cursor-pointer hover:bg-[#fdf2f6] transition-colors">
-                    Cancel
-                  </button>
-                  <button onClick={() => {
-                    setVisibleCols(new Set(tempVisibleCols));
-                    setColSortOrder([...tempColSortOrder]);
-                    setColMgmtOpen(false);
-                    toast.success("Column settings saved");
-                  }} className="px-[14px] py-[6px] rounded-[4px] bg-[#c53e6c] text-white text-[13px] font-medium cursor-pointer hover:bg-[#a0334f] transition-colors">
-                    Save
-                  </button>
-                </div>
-              </div>
-            </div>{/* end flex-1 relative overflow-hidden */}
-
-            {/* Pagination */}
-            <div className="flex items-center justify-end gap-[4px] px-5 py-3 border-t border-[#f2f2f2] shrink-0">
-              <button onClick={() => setPage(1)} disabled={page === 1}
-                className="h-[30px] px-2 rounded-[4px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
-                «
-              </button>
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="h-[30px] px-2 rounded-[4px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
-                ‹
-              </button>
-              {paginationPages().map((p, i) =>
-                p === "..." ? (
-                  <span key={`e${i}`} className="h-[30px] px-2 flex items-center text-[12px] text-[#686868]">…</span>
-                ) : (
-                  <button key={p} onClick={() => setPage(p as number)}
-                    className={`h-[30px] min-w-[30px] px-2 rounded-[4px] border text-[12px] cursor-pointer transition-colors ${
-                      page === p ? "bg-[#90003b] border-[#90003b] text-white font-semibold" : "border-[#d1d1d1] text-[#686868] hover:bg-[#f8fafc]"
-                    }`}>
-                    {p}
-                  </button>
-                )
-              )}
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="h-[30px] px-2 rounded-[4px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
-                ›
-              </button>
-              <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
-                className="h-[30px] px-2 rounded-[4px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
-                »
-              </button>
-            </div>
-
+            <OrderListingTable
+              rows={ALL_ORDERS}
+              columns={columns}
+              fixedColumns={fixedColumns}
+              scrollableColumns={scrollableColumns}
+              filterSections={filterSections}
+              categoryDropdown={categoryDropdown}
+              typeDropdown={typeDropdown}
+              renderCell={renderCell}
+              getRowKey={(row) => row.id}
+              onRowClick={(row) => toast.info(`Order ${row.id} — ${row.holdType}`)}
+              rowsPerPage={ROWS_PER_PAGE}
+              emptyMessage="No orders match your filters"
+            />
           </div>
         </main>
       </div>
@@ -2550,57 +2507,108 @@ const ALL_RELEASED = [
 
 const RELEASED_ROWS_PER_PAGE = 17;
 
-function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateDashboard: () => void;
+  onNavigateCommandCenterOverview?: () => void;
+  onNavigateCommandCenterEmailView?: () => void;
   onNavigateOverview: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [page, setPage] = useState(1);
-  const [categoryFilter, setCategoryFilter] = useState("All Categories");
-  const [typeFilter, setTypeFilter] = useState("All Types");
-  const [categoryOpen, setCategoryOpen] = useState(false);
-  const [typeOpen, setTypeOpen] = useState(false);
-  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const [colMgmtOpen, setColMgmtOpen] = useState(false);
-  const categoryRef = useRef<HTMLDivElement>(null);
-  const typeRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (categoryRef.current && !categoryRef.current.contains(e.target as Node)) setCategoryOpen(false);
-      if (typeRef.current && !typeRef.current.contains(e.target as Node)) setTypeOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  const columns: OrderListingColumn[] = [
+    { key: "releasedDays", label: "Status" },
+    { key: "id",           label: "Order Id" },
+    { key: "holdType",     label: "Hold Type" },
+    { key: "customer",     label: "Customer Name" },
+    { key: "poId",         label: "Customer PO ID" },
+    { key: "value",        label: "Value" },
+    { key: "title",        label: "Title" },
+  ];
 
-  const holdCategories = ["All Categories", ...Array.from(new Set(ALL_RELEASED.map(o => o.holdType)))];
-  const holdTypes = ["All Types", ...Array.from(new Set(ALL_RELEASED.map(o => o.title)))];
+  const fixedColumns = ["Status", "Order Id", "Hold Type", "Customer Name"];
+  const scrollableColumns = ["Customer PO ID", "Value", "Title"];
 
-  const filtered = ALL_RELEASED.filter(r => {
-    if (categoryFilter !== "All Categories" && r.holdType !== categoryFilter) return false;
-    if (typeFilter !== "All Types" && r.title !== typeFilter) return false;
-    return true;
-  });
+  const filterSections: OrderListingFilterSection<typeof ALL_RELEASED[0]>[] = [
+    { key: "HoldType", label: "Hold Type", getValue: (r) => r.holdType },
+    { key: "Customer", label: "Customer",  getValue: (r) => r.customer },
+    { key: "Title",    label: "Title",     getValue: (r) => r.title },
+  ];
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / RELEASED_ROWS_PER_PAGE));
-  const pageItems = filtered.slice((page - 1) * RELEASED_ROWS_PER_PAGE, page * RELEASED_ROWS_PER_PAGE);
+  const categoryDropdown: OrderListingDropdownFilter<typeof ALL_RELEASED[0]> = {
+    placeholder: "Hold Category",
+    allLabel: "All Categories",
+    options: ["All Categories", ...Array.from(new Set(ALL_RELEASED.map(o => o.holdType)))],
+    getValue: (r) => r.holdType,
+  };
 
-  const paginationPages: (number | "…")[] = [];
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) paginationPages.push(i);
-  } else {
-    paginationPages.push(1);
-    if (page > 3) paginationPages.push("…");
-    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) paginationPages.push(i);
-    if (page < totalPages - 2) paginationPages.push("…");
-    paginationPages.push(totalPages);
-  }
+  const typeDropdown: OrderListingDropdownFilter<typeof ALL_RELEASED[0]> = {
+    placeholder: "Hold Type",
+    allLabel: "All Types",
+    options: ["All Types", ...Array.from(new Set(ALL_RELEASED.map(o => o.title)))],
+    getValue: (r) => r.title,
+  };
+
+  const renderCell = (label: string, row: typeof ALL_RELEASED[0]) => {
+    switch (label) {
+      case "Status":
+        return (
+          <span className="inline-flex items-center justify-center px-2 py-1 rounded-[4px] text-[11px] font-medium whitespace-nowrap"
+            style={{ color: "#10a957", backgroundColor: "rgba(16,169,87,0.1)" }}>
+            Released {row.releasedDays}
+          </span>
+        );
+      case "Order Id":        return <span className="text-[#c53e6c] text-[14px] hover:underline cursor-pointer">{row.id}</span>;
+      case "Hold Type":       return <span className="text-[#333] text-[14px]">{row.holdType}</span>;
+      case "Customer Name":   return <span className="text-[#333] text-[14px]">{row.customer}</span>;
+      case "Customer PO ID":  return <span className="text-[#333] text-[14px] block max-w-[160px] truncate">{row.poId}</span>;
+      case "Value":           return <span className="text-[#333] text-[14px] font-semibold">{row.value}</span>;
+      case "Title":           return <span className="text-[#333] text-[14px]">{row.title}</span>;
+      default:                return null;
+    }
+  };
+
+  const renderGridItem = (row: typeof ALL_RELEASED[0]) => (
+    <div className="bg-white border border-[#f2f2f2] rounded-[4px] p-4 flex flex-col gap-4 hover:shadow-md transition-shadow cursor-pointer">
+      {/* Row 1: icon + id + menu */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="shrink-0 size-[18px]">
+            <svg fill="none" viewBox="0 0 18 15" className="size-full">
+              <path d={releasedSvg.p3924ac80} fill="#686868" />
+            </svg>
+          </div>
+          <span className="text-[#c53e6c] text-[14px] font-semibold hover:underline">{row.id}</span>
+        </div>
+        <button className="flex flex-col items-center gap-[3px] p-1 rounded hover:bg-[#f5f5f5] cursor-pointer transition-colors"
+          onClick={e => { e.stopPropagation(); toast.info("Order actions"); }}>
+          {[0, 1, 2].map(i => (
+            <svg key={i} fill="none" viewBox="0 0 4 4" className="size-[4px]">
+              <path d={releasedSvg.p20a3a900} fill="#686868" />
+            </svg>
+          ))}
+        </button>
+      </div>
+
+      {/* Row 2: company + value */}
+      <div className="flex items-center justify-between">
+        <span className="text-[#686868] text-[13px] truncate max-w-[65%]">{row.customer}</span>
+        <span className="text-[#333] text-[14px] font-bold">{row.value}</span>
+      </div>
+
+      {/* Row 3: hold type + released badge */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[#686868] text-[12px] font-medium truncate">{row.holdType}</span>
+        <span className="shrink-0 px-2 py-1 rounded-[4px] text-[11px] font-medium whitespace-nowrap"
+          style={{ color: "#10a957", backgroundColor: "rgba(16,169,87,0.1)" }}>
+          Released {row.releasedDays}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-[#f5f6fa] flex size-full min-h-screen">
@@ -2609,6 +2617,8 @@ function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateDashbo
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
         onNavigateDashboard={onNavigateDashboard}
+        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
         onNavigateHoldManagementOverview={onNavigateOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
@@ -2626,103 +2636,26 @@ function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateDashbo
         <main className="flex-1 px-5 py-5 flex flex-col">
           {/* Page header */}
           <div className="flex items-center gap-3 mb-4">
-            
+
           </div>
 
           {/* White card containing toolbar + content + pagination */}
           <div className="flex-1 bg-white mx-0 mb-0 rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col">
-
-            {/* Toolbar */}
-            {/* Toolbar — matches Order Listing design */}
-            <div className="content-stretch flex items-center justify-between relative w-full px-5 py-[10px] border-b border-[#f2f2f2] shrink-0 bg-white">
-
-              {/* Displaying text */}
-              <div className="content-stretch flex h-[36px] items-center overflow-clip relative shrink-0">
-                <div className="flex flex-col font-normal justify-center leading-[0] not-italic relative shrink-0 text-[#686868] text-[14px] whitespace-nowrap">
-                  <p className="leading-[18px] text-[12px]">Displaying {pageItems.length} of {filtered.length} (Name)</p>
-                </div>
-              </div>
-
-              {/* Right controls */}
-              <div className="content-stretch flex gap-[16px] items-center relative shrink-0">
-
-                {/* Hold Category dropdown */}
-                <div className="relative" ref={categoryRef}>
-                  <div className="h-[36px] relative shrink-0 w-[187px]">
-                    <button
-                      onClick={() => { setCategoryOpen(o => !o); setTypeOpen(false); }}
-                      className="absolute bg-white border border-[#d1d1d1] border-solid h-[36px] left-0 right-0 rounded-[4px] top-0 w-full cursor-pointer hover:bg-[#f8fafc] transition-colors z-10"
-                    />
-                    <div className="absolute content-stretch flex items-center justify-between left-[9px] right-[8px] top-[8px] pointer-events-none z-20">
-                      <div className="flex flex-col font-normal justify-center leading-[0] not-italic relative shrink-0 text-[#333] text-[14px] whitespace-nowrap">
-                        <p className="leading-[20px]">{categoryFilter === "All Categories" ? "Hold Category" : categoryFilter}</p>
-                      </div>
-                      <div className="relative shrink-0 size-[16px]">
-                        <div className="absolute bottom-1/4 flex items-center justify-center left-[18.75%] right-[18.75%] top-[12.5%]" style={{ containerType: "size" }}>
-                          <div className="-rotate-180 -scale-x-100 flex-none h-[100cqh] w-[100cqw]">
-                            <div className="relative size-full">
-                              <div className="absolute bottom-1/4 left-[6.7%] right-[6.7%] top-0">
-                                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 8.66026 7.5">
-                                  <path d={listingSvg.p2c884700} fill="#686868" />
-                                </svg>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {categoryOpen && (
-                    <div className="absolute right-0 top-[calc(100%+4px)] bg-white rounded-lg border border-[#e2e8f0] shadow-lg z-30 py-1 min-w-full max-h-[220px] overflow-y-auto">
-                      {holdCategories.map(c => (
-                        <button key={c} onClick={() => { setCategoryFilter(c); setCategoryOpen(false); setPage(1); }}
-                          className={`w-full text-left px-3 py-[7px] text-[13px] cursor-pointer transition-colors truncate ${categoryFilter === c ? "bg-[#f8f0f4] text-[#90003b] font-semibold" : "text-[#374151] hover:bg-[#f8fafc]"}`}>
-                          {c}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Hold Type dropdown */}
-                <div className="relative" ref={typeRef}>
-                  <div className="h-[36px] relative shrink-0 w-[187px]">
-                    <button
-                      onClick={() => { setTypeOpen(o => !o); setCategoryOpen(false); }}
-                      className="absolute bg-white border border-[#d1d1d1] border-solid h-[36px] left-0 right-0 rounded-[4px] top-0 w-full cursor-pointer hover:bg-[#f8fafc] transition-colors z-10"
-                    />
-                    <div className="absolute content-stretch flex items-center justify-between left-[9px] right-[8px] top-[8px] pointer-events-none z-20">
-                      <div className="flex flex-col font-normal justify-center leading-[0] not-italic relative shrink-0 text-[#333] text-[14px] whitespace-nowrap">
-                        <p className="leading-[20px]">{typeFilter === "All Types" ? "Hold Type" : typeFilter}</p>
-                      </div>
-                      <div className="relative shrink-0 size-[16px]">
-                        <div className="absolute bottom-1/4 flex items-center justify-center left-[18.75%] right-[18.75%] top-[12.5%]" style={{ containerType: "size" }}>
-                          <div className="-rotate-180 -scale-x-100 flex-none h-[100cqh] w-[100cqw]">
-                            <div className="relative size-full">
-                              <div className="absolute bottom-1/4 left-[6.7%] right-[6.7%] top-0">
-                                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 8.66026 7.5">
-                                  <path d={listingSvg.p2c884700} fill="#686868" />
-                                </svg>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {typeOpen && (
-                    <div className="absolute right-0 top-[calc(100%+4px)] bg-white rounded-lg border border-[#e2e8f0] shadow-lg z-30 py-1 min-w-full">
-                      {holdTypes.map(t => (
-                        <button key={t} onClick={() => { setTypeFilter(t); setTypeOpen(false); setPage(1); }}
-                          className={`w-full text-left px-3 py-[7px] text-[13px] cursor-pointer transition-colors ${typeFilter === t ? "bg-[#f8f0f4] text-[#90003b] font-semibold" : "text-[#374151] hover:bg-[#f8fafc]"}`}>
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Download All — icon-only 36×36 button */}
+            <OrderListingTable
+              rows={ALL_RELEASED}
+              columns={columns}
+              fixedColumns={fixedColumns}
+              scrollableColumns={scrollableColumns}
+              filterSections={filterSections}
+              categoryDropdown={categoryDropdown}
+              typeDropdown={typeDropdown}
+              renderCell={renderCell}
+              getRowKey={(row) => row.id}
+              rowsPerPage={RELEASED_ROWS_PER_PAGE}
+              showSpacer={false}
+              renderGridItem={renderGridItem}
+              defaultView="grid"
+              toolbarExtra={(
                 <div className="content-stretch flex items-center relative shrink-0">
                   <div className="grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0">
                     <button onClick={() => toast.success("Download started")}
@@ -2734,237 +2667,18 @@ function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateDashbo
                     </div>
                   </div>
                 </div>
-
-                {/* View toggle: Grid / List — paired 36×36 buttons */}
-                <div className="flex items-center border border-[#d1d1d1] rounded-[4px] overflow-hidden h-[36px]">
-                  <button
-                    onClick={() => setViewMode("grid")}
-                    className={`flex items-center justify-center w-[36px] h-full transition-colors cursor-pointer relative ${viewMode === "grid" ? "bg-white" : "bg-[#f8f8f8] hover:bg-[#f0f0f0]"}`}
-                  >
-                    <svg fill="none" viewBox="0 0 17 17" className="size-[18px]">
-                      <path d={releasedSvg.p2868a700} fill={viewMode === "grid" ? "#90003b" : "#686868"} />
-                    </svg>
-                    {viewMode === "grid" && (
-                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[20px] h-[2px] bg-[#90003b] rounded-full" />
-                    )}
-                  </button>
-                  <div className="w-px h-5 bg-[#d1d1d1]" />
-                  <button
-                    onClick={() => setViewMode("list")}
-                    className={`flex items-center justify-center w-[36px] h-full transition-colors cursor-pointer relative ${viewMode === "list" ? "bg-white" : "bg-[#f8f8f8] hover:bg-[#f0f0f0]"}`}
-                  >
-                    <svg fill="none" viewBox="0 0 17 12" className="size-[18px]">
-                      <path d={releasedSvg.p1baef080} fill={viewMode === "list" ? "#90003b" : "#686868"} />
-                    </svg>
-                    {viewMode === "list" && (
-                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[20px] h-[2px] bg-[#90003b] rounded-full" />
-                    )}
-                  </button>
-                </div>
-
-                {/* Filter icon — matches Order Listing */}
-                <div className="content-stretch flex items-center relative shrink-0">
-                  <div className="grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0">
-                    <button onClick={() => { setFilterPanelOpen(o => !o); if (colMgmtOpen) setColMgmtOpen(false); }}
-                      className={`border border-solid col-start-1 ml-0 mt-0 relative rounded-[4px] row-start-1 size-[36px] cursor-pointer transition-colors ${filterPanelOpen ? "bg-[#c53e6c] border-[#c53e6c] hover:bg-[#a0334f]" : "bg-white border-[#d1d1d1] hover:bg-[#f8fafc]"}`} />
-                    <div className="col-start-1 ml-[8px] mt-[8px] relative row-start-1 size-[20px] pointer-events-none">
-                      <div className="absolute inset-[9.38%_6.17%]">
-                        <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 17.5332 16.25">
-                          <path d={listingSvg.pa7c72c0} fill={filterPanelOpen ? "white" : "#686868"} />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Slider/Columns icon — matches Order Listing */}
-                <div className="content-stretch flex items-center relative shrink-0">
-                  <div className="grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0">
-                    <button onClick={() => { setColMgmtOpen(o => !o); if (filterPanelOpen) setFilterPanelOpen(false); }}
-                      className={`border border-solid col-start-1 ml-0 mt-0 relative rounded-[4px] row-start-1 size-[36px] cursor-pointer transition-colors ${colMgmtOpen ? "bg-[#c53e6c] border-[#c53e6c] hover:bg-[#a0334f]" : "bg-white border-[#d1d1d1] hover:bg-[#f8fafc]"}`} />
-                    <div className="col-start-1 ml-[8px] mt-[8px] relative row-start-1 size-[20px] pointer-events-none">
-                      <div className="absolute inset-[12.5%_9.38%_68.75%_9.38%]">
-                        <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16.25 3.75">
-                          <path clipRule="evenodd" d={listingSvg.p3a37c600} fill={colMgmtOpen ? "white" : "#686868"} fillRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="absolute inset-[68.75%_9.38%_12.5%_9.38%]">
-                        <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16.25 3.75">
-                          <path clipRule="evenodd" d={listingSvg.p1f91c200} fill={colMgmtOpen ? "white" : "#686868"} fillRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="absolute inset-[40.63%_9.38%]">
-                        <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16.25 3.75">
-                          <path clipRule="evenodd" d={listingSvg.p1cea6fc0} fill={colMgmtOpen ? "white" : "#686868"} fillRule="evenodd" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            {/* Content + slide-in panels wrapper */}
-            <div className="flex-1 relative overflow-hidden">
-
-              {/* Grid view */}
-              {viewMode === "grid" && (
-                <div className="absolute inset-0 overflow-y-auto p-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {pageItems.map(order => (
-                      <div key={order.id} className="bg-white border border-[#f2f2f2] rounded-[4px] p-4 flex flex-col gap-4 hover:shadow-md transition-shadow cursor-pointer">
-                        {/* Row 1: icon + id + menu */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="shrink-0 size-[18px]">
-                              <svg fill="none" viewBox="0 0 18 15" className="size-full">
-                                <path d={releasedSvg.p3924ac80} fill="#686868" />
-                              </svg>
-                            </div>
-                            <span className="text-[#c53e6c] text-[14px] font-semibold hover:underline">{order.id}</span>
-                          </div>
-                          <button className="flex flex-col items-center gap-[3px] p-1 rounded hover:bg-[#f5f5f5] cursor-pointer transition-colors"
-                            onClick={e => { e.stopPropagation(); toast.info("Order actions"); }}>
-                            {[0, 1, 2].map(i => (
-                              <svg key={i} fill="none" viewBox="0 0 4 4" className="size-[4px]">
-                                <path d={releasedSvg.p20a3a900} fill="#686868" />
-                              </svg>
-                            ))}
-                          </button>
-                        </div>
-
-                        {/* Row 2: company + value */}
-                        <div className="flex items-center justify-between">
-                          <span className="text-[#686868] text-[13px] truncate max-w-[65%]">{order.customer}</span>
-                          <span className="text-[#333] text-[14px] font-bold">{order.value}</span>
-                        </div>
-
-                        {/* Row 3: hold type + released badge */}
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[#686868] text-[12px] font-medium truncate">{order.holdType}</span>
-                          <span className="shrink-0 px-2 py-1 rounded-[4px] text-[11px] font-medium whitespace-nowrap"
-                            style={{ color: "#10a957", backgroundColor: "rgba(16,169,87,0.1)" }}>
-                            Released {order.releasedDays}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               )}
-
-              {/* List view */}
-              {viewMode === "list" && (
-                <div className="absolute inset-0 overflow-x-auto overflow-y-auto">
-                  <table className="w-full border-collapse" style={{ minWidth: 900 }}>
-                    <thead>
-                      <tr className="bg-[#fafafa] border-b border-[#f2f2f2]">
-                        {["Status", "Order Id", "Hold Type", "Customer Name", "Customer PO ID", "Value", "Title"].map(col => (
-                          <th key={col} className="text-left px-4 py-3 text-[12px] font-semibold text-[#686868] whitespace-nowrap select-none">
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pageItems.map((row, idx) => (
-                        <tr key={row.id} className={`border-b border-[#f8f8f8] hover:bg-[#fafafa] transition-colors ${idx % 2 === 1 ? "bg-[#fafcff]" : ""}`}>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex items-center justify-center px-2 py-1 rounded-[4px] text-[11px] font-medium whitespace-nowrap"
-                              style={{ color: "#10a957", backgroundColor: "rgba(16,169,87,0.1)" }}>
-                              Released {row.releasedDays}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-[#c53e6c] text-[14px] hover:underline cursor-pointer">{row.id}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-[#333] text-[14px]">{row.holdType}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-[#333] text-[14px]">{row.customer}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-[#333] text-[14px] block max-w-[160px] truncate">{row.poId}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-[#333] text-[14px] font-semibold">{row.value}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-[#333] text-[14px]">{row.title}</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              gridViewIcon={(active) => (
+                <svg fill="none" viewBox="0 0 17 17" className="size-[18px]">
+                  <path d={releasedSvg.p2868a700} fill={active ? "#90003b" : "#686868"} />
+                </svg>
               )}
-
-              {/* Filter slide-in panel */}
-              <div className={`absolute top-0 right-0 bottom-0 w-[340px] bg-white border-l border-[#ebebeb] shadow-[-4px_0_16px_rgba(0,0,0,0.06)] z-20 flex flex-col transition-transform duration-300 ease-in-out ${filterPanelOpen ? "translate-x-0" : "translate-x-full"}`}>
-                <div className="flex items-center justify-between px-4 py-3 border-b border-[#f2f2f2] shrink-0">
-                  <span className="text-[14px] font-semibold text-[#333]">Filters</span>
-                  <button onClick={() => setFilterPanelOpen(false)} className="text-[#686868] hover:text-[#333] cursor-pointer p-1">
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4">
-                  <p className="text-[13px] text-[#686868]">Filter options coming soon.</p>
-                </div>
-              </div>
-
-              {/* Column management slide-in panel */}
-              <div className={`absolute top-0 right-0 bottom-0 w-[340px] bg-white border-l border-[#ebebeb] shadow-[-4px_0_16px_rgba(0,0,0,0.06)] z-30 flex flex-col transition-transform duration-300 ease-in-out ${colMgmtOpen ? "translate-x-0" : "translate-x-full"}`}>
-                <div className="flex items-center justify-between px-4 py-3 border-b border-[#f2f2f2] shrink-0">
-                  <span className="text-[14px] font-semibold text-[#333]">Column Management</span>
-                  <button onClick={() => setColMgmtOpen(false)} className="text-[#686868] hover:text-[#333] cursor-pointer p-1">
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4">
-                  <p className="text-[13px] text-[#686868]">Column settings coming soon.</p>
-                </div>
-              </div>
-
-            </div>{/* end relative overflow-hidden */}
-
-            {/* Pagination */}
-            <div className="flex items-center justify-between px-4 py-3 border-t border-[#f2f2f2] shrink-0">
-              <span className="text-[13px] text-[#686868]">
-                Page <span className="font-medium text-[#333]">{page}</span> of{" "}
-                <span className="font-medium text-[#333]">{totalPages}</span>
-              </span>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setPage(1)} disabled={page === 1}
-                  className="h-[30px] px-2 rounded-[4px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
-                  «
-                </button>
-                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                  className="h-[30px] px-2 rounded-[4px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
-                  ‹
-                </button>
-                {paginationPages.map((p, i) =>
-                  p === "…" ? (
-                    <span key={`ellipsis-${i}`} className="h-[30px] px-2 flex items-center text-[12px] text-[#686868]">…</span>
-                  ) : (
-                    <button key={p} onClick={() => setPage(p as number)}
-                      className={`h-[30px] min-w-[30px] px-2 rounded-[4px] border text-[12px] cursor-pointer transition-colors ${page === p ? "bg-[#90003b] border-[#90003b] text-white font-semibold" : "border-[#d1d1d1] text-[#686868] hover:bg-[#f8fafc]"}`}>
-                      {p}
-                    </button>
-                  )
-                )}
-                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                  className="h-[30px] px-2 rounded-[4px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
-                  ›
-                </button>
-                <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
-                  className="h-[30px] px-2 rounded-[4px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
-                  »
-                </button>
-              </div>
-            </div>
-
+              listViewIcon={(active) => (
+                <svg fill="none" viewBox="0 0 17 12" className="size-[18px]">
+                  <path d={releasedSvg.p1baef080} fill={active ? "#90003b" : "#686868"} />
+                </svg>
+              )}
+            />
           </div>
         </main>
       </div>
@@ -3023,11 +2737,13 @@ const HOLD_FILTER_SECTIONS = [
   { key: "Impact",    label: "Impact",    options: { Ship: 7 } },
 ];
 
-function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
   orderId: string;
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateDashboard: () => void;
+  onNavigateCommandCenterOverview?: () => void;
+  onNavigateCommandCenterEmailView?: () => void;
   onNavigateOverview: () => void;
   onNavigateOrderListing: () => void;
   onNavigateReleasedOrders?: () => void;
@@ -3082,6 +2798,8 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
         onNavigateDashboard={onNavigateDashboard}
+        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
         onNavigateHoldManagementOverview={onNavigateOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
@@ -3754,8 +3472,9 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [screen, setScreen] = useState<"login" | "dashboard" | "notifications" | "hold-management" | "order-listing" | "released-orders" | "order-details">("login");
+  const [screen, setScreen] = useState<"login" | "dashboard" | "notifications" | "command-center-overview" | "command-center-email-view" | "hold-management" | "order-listing" | "released-orders" | "order-details">("login");
   const [detailOrderId, setDetailOrderId] = useState<string>("7822110");
+  const [selectedEmailId, setSelectedEmailId] = useState<string>(ALL_EMAILS[0].id);
 
   return (
     <div className="size-full">
@@ -3765,6 +3484,8 @@ export default function App() {
         <Dashboard
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3774,6 +3495,37 @@ export default function App() {
         <NotificationsPage
           onBack={() => setScreen("dashboard")}
           onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateHoldManagementOverview={() => setScreen("hold-management")}
+          onNavigateOrderListing={() => setScreen("order-listing")}
+          onNavigateReleasedOrders={() => setScreen("released-orders")}
+        />
+      )}
+      {screen === "command-center-overview" && (
+        <CommandCenterOverviewPage
+          onLogout={() => setScreen("login")}
+          onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateDashboard={() => setScreen("dashboard")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateEmailDetail={(id) => { setSelectedEmailId(id); setScreen("command-center-email-view"); }}
+          onNavigateHoldManagementOverview={() => setScreen("hold-management")}
+          onNavigateOrderListing={() => setScreen("order-listing")}
+          onNavigateReleasedOrders={() => setScreen("released-orders")}
+        />
+      )}
+      {screen === "command-center-email-view" && (
+        <EmailViewPage
+          initialEmailId={selectedEmailId}
+          onLogout={() => setScreen("login")}
+          onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateDashboard={() => setScreen("dashboard")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateHoldManagementOverview={() => setScreen("hold-management")}
+          onNavigateOrderListing={() => setScreen("order-listing")}
+          onNavigateReleasedOrders={() => setScreen("released-orders")}
         />
       )}
       {screen === "hold-management" && (
@@ -3781,6 +3533,8 @@ export default function App() {
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onViewAllOrders={() => setScreen("order-listing")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3791,6 +3545,8 @@ export default function App() {
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3803,6 +3559,8 @@ export default function App() {
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3813,6 +3571,8 @@ export default function App() {
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
