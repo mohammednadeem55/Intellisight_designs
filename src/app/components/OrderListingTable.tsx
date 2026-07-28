@@ -42,6 +42,8 @@ export interface OrderListingTableProps<T> {
   displayingSuffix?: string;
   /** Extra toolbar button(s) rendered between the type dropdown and the view toggle (e.g. a Download button). */
   toolbarExtra?: ReactNode;
+  /** When provided, replaces the table rows + pagination with custom content — the toolbar (including toolbarExtra) still renders above it. Lets a caller swap in an entirely different view (e.g. an email view) without losing toolbar controls like a view-mode toggle. */
+  bodyOverride?: ReactNode;
   /** Show the 88px empty spacer between the "Displaying" text and the right-hand controls (default true). */
   showSpacer?: boolean;
   /** Provide to enable a Grid/List view toggle; renders each row as a card in grid mode. */
@@ -81,6 +83,7 @@ export function OrderListingTable<T>({
   emptyMessage = "No records match your filters",
   displayingSuffix = "(Name)",
   toolbarExtra,
+  bodyOverride,
   showSpacer = true,
   renderGridItem,
   gridViewIcon,
@@ -362,6 +365,8 @@ export function OrderListingTable<T>({
         </div>
       </div>
 
+      {bodyOverride ?? (
+      <>
       {/* Table + slide-in panels — contained between toolbar and pagination */}
       <div className="flex-1 relative overflow-hidden">
         {/* Grid view */}
@@ -860,6 +865,8 @@ export function OrderListingTable<T>({
           »
         </button>
       </div>
+      </>
+      )}
     </>
   );
 }

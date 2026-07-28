@@ -1017,18 +1017,24 @@ function EmailStatusBadge({ status }: { status: string }) {
   );
 }
 
-function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateEmailDetail, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
-  onNavigateEmailDetail?: (emailId: string) => void;
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "email">("table");
+  const [selectedEmailId, setSelectedEmailId] = useState<string>(ALL_EMAILS_WITH_CCC[0].id);
+
+  const openInEmailView = (id: string) => {
+    setSelectedEmailId(id);
+    setViewMode("email");
+  };
 
   const kpis = [
     { label: "TOTAL EMAILS", value: String(ALL_EMAILS.length).padStart(2, "0"), delta: "↑ 4.2%", up: true, sparkColor: "#cbd5e1" },
@@ -1192,7 +1198,7 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
           </span>
           {moreCount > 0 && (
             <button
-              onClick={(e) => { e.stopPropagation(); onNavigateEmailDetail?.(reply.rootEmailId ?? reply.id); }}
+              onClick={(e) => { e.stopPropagation(); openInEmailView(reply.rootEmailId ?? reply.id); }}
               className="inline-flex items-center gap-1 shrink-0 px-[8px] py-[3px] rounded-full bg-[#f3f4f6] text-[#686868] hover:bg-[#e5e7eb] hover:text-[#333] text-[11px] font-medium cursor-pointer transition-colors"
               title={`Open the full thread to see ${moreCount} more ${moreCount === 1 ? "reply" : "replies"}`}
             >
@@ -1230,7 +1236,7 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
 
         <main className="flex-1 flex flex-col">
 
-          {/* KPI strip */}
+          {/* KPI strip — stays visible in both Table and Email modes */}
           <div className="flex gap-4 px-5 py-4 bg-[#f5f6fa]">
             {kpis.map((kpi) => (
               <div key={kpi.label} className="bg-white flex-1 min-w-0 rounded-xl border border-black/[0.08] p-3 sm:p-4 flex flex-col gap-1.5">
@@ -1253,7 +1259,7 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
             ))}
           </div>
 
-          {/* White content area: toolbar + table + pagination */}
+          {/* White content area: toolbar (incl. Table/Email toggle) + table-or-email body */}
           <div className="flex-1 bg-white mx-5 mb-5 rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col">
             <OrderListingTable
               rows={cccRows}
@@ -1267,7 +1273,7 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
               typeDropdown={typeDropdown}
               renderCell={renderCell}
               getRowKey={(row) => row.id}
-              onRowClick={(row) => onNavigateEmailDetail?.(row.rootEmailId ?? row.id)}
+              onRowClick={(row) => openInEmailView(row.rootEmailId ?? row.id)}
               rowsPerPage={10}
               emptyMessage="No emails match your filters"
               getChildren={(row) => row.linkedCccs}
@@ -1276,6 +1282,26 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
               getGrandchildren={(ccc) => ccc.replies}
               renderGrandchildCell={renderReplyCell}
               grandchildIndentColumnLabel="Subject"
+              toolbarExtra={
+                <div className="flex items-center border border-[#d1d1d1] rounded-[4px] overflow-hidden h-[36px]">
+                  <button
+                    onClick={() => setViewMode("table")}
+                    className={`flex items-center gap-1.5 px-3 h-full text-[13px] font-medium transition-colors cursor-pointer ${viewMode === "table" ? "bg-[#c53e6c] text-white" : "bg-white text-[#686868] hover:bg-[#f8fafc]"}`}
+                  >
+                    <LayoutDashboard size={14} />
+                    Table
+                  </button>
+                  <div className="w-px h-5 bg-[#d1d1d1]" />
+                  <button
+                    onClick={() => setViewMode("email")}
+                    className={`flex items-center gap-1.5 px-3 h-full text-[13px] font-medium transition-colors cursor-pointer ${viewMode === "email" ? "bg-[#c53e6c] text-white" : "bg-white text-[#686868] hover:bg-[#f8fafc]"}`}
+                  >
+                    <Mail size={14} />
+                    Email
+                  </button>
+                </div>
+              }
+              bodyOverride={viewMode === "email" ? <EmailViewBody key={selectedEmailId} initialEmailId={selectedEmailId} /> : undefined}
             />
           </div>
         </main>
@@ -1286,22 +1312,23 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
 
 // ─── Command Center Email View ─────────────────────────────────────────────────
 
+// Three clearly distinct tiers: section heading (colored, larger) > field label (small, muted, this is a caption
+// not a heading) > value (dark, bold — the actual data being read).
 function DetailField({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="px-6 py-3.5 min-w-0">
-      <p className="text-[10.5px] font-semibold text-[#9ca3af] uppercase tracking-wider mb-1">{label}</p>
-      <div className="text-[13px] font-semibold text-[#111827] truncate">{value || "—"}</div>
+    <div className="min-w-[110px] max-w-[240px]">
+      <p className="text-[9.5px] font-normal text-[#9ca3af] uppercase tracking-wide mb-1 whitespace-nowrap">{label}</p>
+      <div className="text-[13.5px] font-semibold text-[#1f2937] truncate">{value || "—"}</div>
     </div>
   );
 }
 
+// Fields flow with whitespace rather than sitting in ruled grid cells — a "spec sheet" read instead of a table of boxes.
 function DetailSection({ title, fields }: { title: string; fields: { label: string; value: ReactNode }[] }) {
   return (
-    <div>
-      <div className="px-6 pt-4 pb-2">
-        <h4 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest">{title}</h4>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 divide-x divide-y divide-[#f3f4f6] border-t border-[#f3f4f6]">
+    <div className="px-5 py-4 border-t border-[#f3f4f6] first:border-t-0">
+      <h4 className="text-[12px] font-bold text-[#c53e6c] mb-3">{title}</h4>
+      <div className="flex flex-wrap gap-x-6 gap-y-3.5">
         {fields.map(f => <DetailField key={f.label} label={f.label} value={f.value} />)}
       </div>
     </div>
@@ -1355,134 +1382,138 @@ function ThreadMessage({ msg, depth = 0 }: { msg: Email; depth?: number }) {
   );
 }
 
-// One linked CCC request: Ownership / CCC Request Info / Order Info / Current Workflow Status are always visible
-// ("Main grid"); Automation Visibility / Previous State / OA sit behind an explicit expand toggle ("On Expand"),
-// mirroring the same main-grid-vs-on-expand split used for the overview grid's columns.
+// One linked CCC request. Collapsed by default to a single compact summary row (click to expand) — with several
+// linked CCCs the old always-expanded layout turned into a wall of scrolling. Once expanded: Ownership / CCC Request
+// Info / Order Info / Current Workflow Status show in a dense grid ("Main grid"); Automation Visibility / Previous
+// State / OA sit behind their own nested toggle ("On Expand"), mirroring the overview grid's column split.
 function CccDetailCard({ ccc, expanded, onToggleExpand }: { ccc: Email; expanded: boolean; onToggleExpand: () => void }) {
+  const [showAutomation, setShowAutomation] = useState(false);
   const replies = ccc.replies ?? [];
   return (
-    <div className="bg-white rounded-2xl border border-[#ebebeb] overflow-hidden shadow-sm mb-5">
-      {/* Header */}
-      <div className="px-7 py-5 border-b border-[#f3f4f6] flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="size-[34px] rounded-xl bg-[#fdf0f4] flex items-center justify-center shrink-0">
-            <FileText size={15} className="text-[#90003b]" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[14px] font-bold text-[#111827] truncate">{ccc.cccId}</p>
-            <p className="text-[12px] text-[#6b7280] truncate">{ccc.cccRequestType} — {ccc.cccRequestSubtype}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          {ccc.slaTimeRemaining && (
-            <span className="text-[11px] font-medium text-[#6b7280] bg-[#f3f4f6] px-2.5 py-1 rounded-md whitespace-nowrap">{ccc.slaTimeRemaining}</span>
-          )}
-          <EmailStatusBadge status={ccc.status} />
-        </div>
-      </div>
-
-      <DetailSection title="Ownership" fields={[
-        { label: "CSR Owner (SOO)", value: ccc.csrOwner },
-        { label: "Business Group", value: ccc.businessGroup },
-        { label: "Opportunity Number", value: <DetailLink text={ccc.opportunityNumber} what="Opportunity" /> },
-        { label: "Account Manager", value: ccc.accountManager },
-        { label: "Account Name", value: ccc.accountName },
-      ]} />
-
-      <DetailSection title="CCC Request Info" fields={[
-        { label: "CCC Request Type", value: ccc.cccRequestType },
-        { label: "CCC Request Subtype", value: ccc.cccRequestSubtype },
-        { label: "CCC Request Status", value: ccc.cccRequestStatus },
-        { label: "Awaiting Reason", value: ccc.awaitingReason },
-        { label: "CCC Request Received Date", value: ccc.cccRequestReceivedDate },
-        { label: "Time Remaining / SLA", value: ccc.slaTimeRemaining },
-      ]} />
-
-      <DetailSection title="Order Info" fields={[
-        { label: "PO #", value: ccc.poNumber },
-        { label: "Quote # + Version / Revision", value: <DetailLink text={ccc.quoteNumber} what="Sales Quote" /> },
-        { label: "Order #", value: ccc.orderNumber },
-        { label: "Operating Unit", value: ccc.operatingUnit },
-        { label: "PO Amount", value: ccc.poAmount },
-        { label: "Current Month Bookable Amount", value: ccc.currentMonthBookableAmount },
-        { label: "Currency", value: ccc.currency },
-      ]} />
-
-      <DetailSection title="Current Workflow Status" fields={[
-        { label: "Current Status", value: <EmailStatusBadge status={ccc.status} /> },
-        { label: "Status Notes", value: ccc.statusNotes },
-        { label: "Current Status Date", value: ccc.currentStatusDate },
-      ]} />
-
-      {/* On Expand */}
+    <div>
+      {/* Header — click to expand/collapse the whole card */}
       <button
         onClick={onToggleExpand}
-        className="w-full flex items-center justify-center gap-1.5 px-5 py-3 border-t border-[#f3f4f6] text-[12px] font-semibold text-[#c53e6c] hover:bg-[#fdf5f8] transition-colors cursor-pointer"
+        className="w-full flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-[#fafafa] transition-colors cursor-pointer text-left"
       >
-        {expanded ? "Hide" : "Show"} automation & history details
-        <ChevronDown size={14} className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="size-[30px] rounded-lg bg-[#fdf0f4] flex items-center justify-center shrink-0">
+            <FileText size={13} className="text-[#90003b]" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[13px] font-bold text-[#111827] truncate">{ccc.cccId}</p>
+              <span className="text-[11.5px] text-[#6b7280] truncate">{ccc.cccRequestType} — {ccc.cccRequestSubtype}</span>
+            </div>
+            <p className="text-[11px] text-[#9ca3af] truncate mt-0.5">{ccc.accountName} · {ccc.csrOwner}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {ccc.slaTimeRemaining && (
+            <span className="hidden sm:inline-block text-[10.5px] font-medium text-[#6b7280] bg-[#f3f4f6] px-2 py-1 rounded-md whitespace-nowrap">{ccc.slaTimeRemaining}</span>
+          )}
+          <EmailStatusBadge status={ccc.status} />
+          <ChevronDown size={16} className={`text-[#9ca3af] transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+        </div>
       </button>
 
       {expanded && (
         <div className="border-t border-[#f3f4f6]">
-          <DetailSection title="Automation Visibility (Read-only)" fields={[
-            { label: "Current Automation Status", value: ccc.currentAutomationStatus },
-            { label: "Current Automation Result", value: ccc.currentAutomationResult },
-            { label: "Link to Automation Details", value: <DetailLink text={ccc.automationDetailsLink} what="Automation Details" /> },
+          <DetailSection title="Ownership" fields={[
+            { label: "CSR Owner (SOO)", value: ccc.csrOwner },
+            { label: "Business Group", value: ccc.businessGroup },
+            { label: "Opportunity Number", value: <DetailLink text={ccc.opportunityNumber} what="Opportunity" /> },
+            { label: "Account Manager", value: ccc.accountManager },
+            { label: "Account Name", value: ccc.accountName },
           ]} />
-          <DetailSection title="Previous State" fields={[
-            { label: "Previous Status", value: ccc.previousStatus },
-            { label: "Previous Status Date", value: ccc.previousStatusDate },
-            { label: "Previous Stage", value: ccc.previousStage },
-            { label: "Previous Automation Status", value: ccc.previousAutomationStatus },
-          ]} />
-          <DetailSection title="OA" fields={[
-            { label: "OA Status", value: ccc.oaStatus },
-            { label: "OA Summary", value: ccc.oaSummary },
-            { label: "OA Validation Records", value: <DetailLink text={ccc.oaValidationRecords} what="OA Records" /> },
-          ]} />
-        </div>
-      )}
 
-      {/* This CCC's own correspondence */}
-      {replies.length > 0 && (
-        <div className="border-t border-[#f3f4f6]">
-          <div className="px-7 py-4 flex items-center gap-2">
-            <h3 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest">Correspondence</h3>
-            <span className="bg-[#f3f4f6] text-[#6b7280] text-[10px] font-bold px-2 py-0.5 rounded-full">{replies.length}</span>
-          </div>
-          <div className="divide-y divide-[#f3f4f6]">
-            {replies.map((msg, idx) => (
-              <div key={msg.id} className="px-7 py-5 flex gap-4">
-                {/* Timeline connector */}
-                <div className="flex flex-col items-center shrink-0 pt-1 w-[8px]">
-                  <div className="size-[8px] rounded-full bg-[#c53e6c] shrink-0" />
-                  {idx < replies.length - 1 && <div className="w-[1.5px] flex-1 bg-[#f0d5dd] mt-1" />}
-                </div>
-                <div className="flex-1 min-w-0 pb-1">
-                  <ThreadMessage msg={msg} />
-                </div>
+          <DetailSection title="CCC Request Info" fields={[
+            { label: "CCC Request Type", value: ccc.cccRequestType },
+            { label: "CCC Request Subtype", value: ccc.cccRequestSubtype },
+            { label: "CCC Request Status", value: ccc.cccRequestStatus },
+            { label: "Awaiting Reason", value: ccc.awaitingReason },
+            { label: "CCC Request Received Date", value: ccc.cccRequestReceivedDate },
+            { label: "Time Remaining / SLA", value: ccc.slaTimeRemaining },
+          ]} />
+
+          <DetailSection title="Order Info" fields={[
+            { label: "PO #", value: ccc.poNumber },
+            { label: "Quote # + Version / Revision", value: <DetailLink text={ccc.quoteNumber} what="Sales Quote" /> },
+            { label: "Order #", value: ccc.orderNumber },
+            { label: "Operating Unit", value: ccc.operatingUnit },
+            { label: "PO Amount", value: ccc.poAmount },
+            { label: "Current Month Bookable Amount", value: ccc.currentMonthBookableAmount },
+            { label: "Currency", value: ccc.currency },
+          ]} />
+
+          <DetailSection title="Current Workflow Status" fields={[
+            { label: "Current Status", value: <EmailStatusBadge status={ccc.status} /> },
+            { label: "Status Notes", value: ccc.statusNotes },
+            { label: "Current Status Date", value: ccc.currentStatusDate },
+          ]} />
+
+          {/* On Expand */}
+          <button
+            onClick={() => setShowAutomation(s => !s)}
+            className="w-full flex items-center justify-center gap-1.5 px-5 py-2.5 border-t border-[#f3f4f6] text-[11.5px] font-semibold text-[#c53e6c] hover:bg-[#fdf5f8] transition-colors cursor-pointer"
+          >
+            {showAutomation ? "Hide" : "Show"} automation & history details
+            <ChevronDown size={13} className={`transition-transform duration-200 ${showAutomation ? "rotate-180" : ""}`} />
+          </button>
+
+          {showAutomation && (
+            <div className="border-t border-[#f3f4f6]">
+              <DetailSection title="Automation Visibility (Read-only)" fields={[
+                { label: "Current Automation Status", value: ccc.currentAutomationStatus },
+                { label: "Current Automation Result", value: ccc.currentAutomationResult },
+                { label: "Link to Automation Details", value: <DetailLink text={ccc.automationDetailsLink} what="Automation Details" /> },
+              ]} />
+              <DetailSection title="Previous State" fields={[
+                { label: "Previous Status", value: ccc.previousStatus },
+                { label: "Previous Status Date", value: ccc.previousStatusDate },
+                { label: "Previous Stage", value: ccc.previousStage },
+                { label: "Previous Automation Status", value: ccc.previousAutomationStatus },
+              ]} />
+              <DetailSection title="OA" fields={[
+                { label: "OA Status", value: ccc.oaStatus },
+                { label: "OA Summary", value: ccc.oaSummary },
+                { label: "OA Validation Records", value: <DetailLink text={ccc.oaValidationRecords} what="OA Records" /> },
+              ]} />
+            </div>
+          )}
+
+          {/* This CCC's own correspondence */}
+          {replies.length > 0 && (
+            <div className="border-t border-[#f3f4f6]">
+              <div className="px-5 py-3 flex items-center gap-2">
+                <h3 className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-widest">Correspondence</h3>
+                <span className="bg-[#f3f4f6] text-[#6b7280] text-[10px] font-bold px-2 py-0.5 rounded-full">{replies.length}</span>
               </div>
-            ))}
-          </div>
+              <div className="divide-y divide-[#f3f4f6]">
+                {replies.map((msg, idx) => (
+                  <div key={msg.id} className="px-5 py-3.5 flex gap-3">
+                    {/* Timeline connector */}
+                    <div className="flex flex-col items-center shrink-0 pt-1 w-[8px]">
+                      <div className="size-[7px] rounded-full bg-[#c53e6c] shrink-0" />
+                      {idx < replies.length - 1 && <div className="w-[1.5px] flex-1 bg-[#f0d5dd] mt-1" />}
+                    </div>
+                    <div className="flex-1 min-w-0 pb-1">
+                      <ThreadMessage msg={msg} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, initialEmailId }: {
-  onLogout: () => void;
-  onViewAllNotifications: () => void;
-  onNavigateDashboard: () => void;
-  onNavigateCommandCenterOverview?: () => void;
-  onNavigateCommandCenterEmailView?: () => void;
-  onNavigateHoldManagementOverview?: () => void;
-  onNavigateOrderListing?: () => void;
-  onNavigateReleasedOrders?: () => void;
-  initialEmailId?: string;
-}) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+// The email sidebar + detail panel — shared by the standalone Email View page and the Table/Email toggle
+// inside the Command Center Overview page, so the two never drift apart.
+function EmailViewBody({ initialEmailId }: { initialEmailId?: string }) {
   const [activeTab, setActiveTab] = useState("All");
   const [selectedId, setSelectedId] = useState(initialEmailId ?? ALL_EMAILS_WITH_CCC[0].id);
   const [expandedCccIds, setExpandedCccIds] = useState<Set<string>>(new Set());
@@ -1503,7 +1534,7 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
   };
 
   // Separate expand state for the sidebar list's own 2-level nesting (email → CCCs → replies) — independent of
-  // expandedCccIds above, which only controls the right panel's automation/history disclosure.
+  // expandedCccIds above, which controls whether each CCC card's full body is expanded in the right panel.
   const [expandedSidebarEmailIds, setExpandedSidebarEmailIds] = useState<Set<string>>(new Set());
   const [expandedSidebarCccIds, setExpandedSidebarCccIds] = useState<Set<string>>(new Set());
   const toggleSidebarEmailExpanded = (id: string) => {
@@ -1533,21 +1564,7 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
   };
 
   return (
-    <div className="bg-[#f4f5f7] flex flex-col size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
-      <NavDrawer
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onLogout={onLogout}
-        onNavigateDashboard={onNavigateDashboard}
-        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
-        onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
-        onNavigateOrderListing={onNavigateOrderListing}
-        onNavigateReleasedOrders={onNavigateReleasedOrders}
-      />
-      <AppHeader onMenuClick={() => setSidebarOpen(true)} activeNav="Command Center" activeSub="Email View" onViewAllNotifications={onViewAllNotifications} onNavigateDashboard={onNavigateDashboard} />
-
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* ── Left sidebar ── */}
         <div className="bg-white border-r border-[#ebebeb] flex flex-col w-[420px] shrink-0 overflow-hidden">
@@ -1703,11 +1720,12 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#f4f5f7]">
           <div className="flex-1 overflow-y-auto p-6 lg:p-8">
 
-            {/* Primary email card */}
+            {/* Primary email card — the main content on this page; everything below is supplementary, on-demand detail */}
             <div className="bg-white rounded-2xl border border-[#ebebeb] overflow-hidden mb-5 shadow-sm">
               <div className="px-7 py-6 border-b border-[#f3f4f6]">
+                <p className="text-[10.5px] font-bold text-[#c53e6c] uppercase tracking-widest mb-2">Email</p>
                 <div className="flex items-start justify-between gap-4 mb-3">
-                  <h1 className="text-[18px] font-bold text-[#111827] leading-[1.35]">{selected.subject}</h1>
+                  <h1 className="text-[19px] font-bold text-[#111827] leading-[1.35]">{selected.subject}</h1>
                   <span className="shrink-0 mt-0.5"><EmailStatusBadge status={selected.status} /></span>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
@@ -1719,42 +1737,46 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
                 </div>
               </div>
 
-              {/* Meta grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y divide-[#f3f4f6]">
+              {/* Body — the primary content the user came here to read */}
+              <div className="px-7 py-6">
+                <p className="text-[14px] text-[#374151] leading-[1.7]">{selected.body ?? "No content preview available."}</p>
+              </div>
+
+              {/* Meta strip */}
+              <div className="flex flex-wrap gap-x-6 gap-y-2 px-7 py-4 border-t border-[#f3f4f6] bg-[#fafafa]">
                 {[
                   { label: "Email ID", value: selected.id },
                   { label: "Category", value: selected.category },
                   { label: "Size", value: selected.size },
                   { label: "Linked CCCs", value: String(linkedCccs.length) },
                 ].map(({ label, value }) => (
-                  <div key={label} className="px-6 py-4">
-                    <p className="text-[10.5px] font-semibold text-[#9ca3af] uppercase tracking-wider mb-1">{label}</p>
-                    <p className="text-[13px] font-semibold text-[#111827]">{value}</p>
+                  <div key={label} className="min-w-[90px]">
+                    <p className="text-[9.5px] font-normal text-[#9ca3af] uppercase tracking-wide mb-0.5">{label}</p>
+                    <p className="text-[12.5px] font-semibold text-[#374151]">{value}</p>
                   </div>
                 ))}
               </div>
-
-              {/* Body */}
-              <div className="px-7 py-6">
-                <p className="text-[13.5px] text-[#374151] leading-[1.7]">{selected.body ?? "No content preview available."}</p>
-              </div>
             </div>
 
-            {/* Linked CCC requests */}
+            {/* Linked CCC requests — supplementary, on-demand detail: one flat panel, not cards competing with the email above */}
             {linkedCccs.length > 0 && (
-              <div className="flex items-center gap-2 mb-3 mt-6">
-                <h3 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest">Linked CCC Requests</h3>
-                <span className="bg-[#f3f4f6] text-[#6b7280] text-[10px] font-bold px-2 py-0.5 rounded-full">{linkedCccs.length}</span>
+              <div className="bg-white rounded-xl border border-[#ebebeb] overflow-hidden">
+                <div className="flex items-center gap-2 px-5 py-3 bg-[#fafafa] border-b border-[#f3f4f6]">
+                  <h3 className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-widest">Linked CCC Requests</h3>
+                  <span className="bg-white border border-[#e5e7eb] text-[#6b7280] text-[10px] font-bold px-2 py-0.5 rounded-full">{linkedCccs.length}</span>
+                </div>
+                <div className="divide-y divide-[#f3f4f6]">
+                  {linkedCccs.map((ccc) => (
+                    <CccDetailCard
+                      key={ccc.id}
+                      ccc={ccc}
+                      expanded={expandedCccIds.has(ccc.id)}
+                      onToggleExpand={() => toggleCccExpanded(ccc.id)}
+                    />
+                  ))}
+                </div>
               </div>
             )}
-            {linkedCccs.map((ccc) => (
-              <CccDetailCard
-                key={ccc.id}
-                ccc={ccc}
-                expanded={expandedCccIds.has(ccc.id)}
-                onToggleExpand={() => toggleCccExpanded(ccc.id)}
-              />
-            ))}
 
           </div>
 
@@ -1775,6 +1797,37 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
         </div>
 
       </div>
+  );
+}
+
+// ─── Command Center Email View ─────────────────────────────────────────────────
+
+function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+  onLogout: () => void;
+  onViewAllNotifications: () => void;
+  onNavigateDashboard: () => void;
+  onNavigateCommandCenterOverview?: () => void;
+  onNavigateCommandCenterEmailView?: () => void;
+  onNavigateHoldManagementOverview?: () => void;
+  onNavigateOrderListing?: () => void;
+  onNavigateReleasedOrders?: () => void;
+}) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  return (
+    <div className="bg-[#f4f5f7] flex flex-col size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
+      <NavDrawer
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onLogout={onLogout}
+        onNavigateDashboard={onNavigateDashboard}
+        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+        onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
+        onNavigateOrderListing={onNavigateOrderListing}
+        onNavigateReleasedOrders={onNavigateReleasedOrders}
+      />
+      <AppHeader onMenuClick={() => setSidebarOpen(true)} activeNav="Command Center" activeSub="Email View" onViewAllNotifications={onViewAllNotifications} onNavigateDashboard={onNavigateDashboard} />
+      <EmailViewBody />
     </div>
   );
 }
@@ -3474,7 +3527,6 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
 export default function App() {
   const [screen, setScreen] = useState<"login" | "dashboard" | "notifications" | "command-center-overview" | "command-center-email-view" | "hold-management" | "order-listing" | "released-orders" | "order-details">("login");
   const [detailOrderId, setDetailOrderId] = useState<string>("7822110");
-  const [selectedEmailId, setSelectedEmailId] = useState<string>(ALL_EMAILS[0].id);
 
   return (
     <div className="size-full">
@@ -3485,7 +3537,6 @@ export default function App() {
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
-          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3496,7 +3547,6 @@ export default function App() {
           onBack={() => setScreen("dashboard")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
-          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3509,7 +3559,6 @@ export default function App() {
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
-          onNavigateEmailDetail={(id) => { setSelectedEmailId(id); setScreen("command-center-email-view"); }}
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3517,7 +3566,6 @@ export default function App() {
       )}
       {screen === "command-center-email-view" && (
         <EmailViewPage
-          initialEmailId={selectedEmailId}
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
@@ -3534,7 +3582,6 @@ export default function App() {
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
-          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onViewAllOrders={() => setScreen("order-listing")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3546,7 +3593,6 @@ export default function App() {
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
-          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3560,7 +3606,6 @@ export default function App() {
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
-          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3572,7 +3617,6 @@ export default function App() {
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
-          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
