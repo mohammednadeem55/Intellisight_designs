@@ -10,17 +10,20 @@ import detailsSvg from "@/imports/HoldManagementOrderDetailsV2/svg-wic8forngq";
 import imgAvatar2 from "@/imports/HoldManagementOrderDetailsV2/046edf4ec7def23e149b10ee868f0a76f99ff441.png";
 import imgLeftPanel from "@/imports/IntelliSightEmailLogin/17e78b7b41621dd481ed133d49944eb83c5f8836.png";
 import {
+  ArrowLeft,
   BarChart2,
+  Check,
   ChevronDown,
   CornerDownRight,
   FileText,
+  Filter,
   Globe,
   LayoutDashboard,
   Mail,
-  Menu,
   Settings,
   Shield,
   TrendingUp,
+  UserPlus,
   Users,
   Zap,
 } from "lucide-react";
@@ -32,6 +35,8 @@ import {
   type OrderListingFilterSection,
   type OrderListingDropdownFilter,
 } from "./components/OrderListingTable";
+import { NewOverviewPage } from "./NewOverviewPage";
+import { type Email, ALL_EMAILS, ALL_EMAILS_WITH_CCC } from "./emailData";
 import {
   BarChart,
   Bar,
@@ -302,7 +307,8 @@ const statusDot: Record<string, string> = {
   Resolved: "bg-emerald-500",
 };
 
-function NotificationsPage({ onBack, onViewAllNotifications, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onBack: () => void; onViewAllNotifications: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void }) {
+function NotificationsPage({ onBack, onViewAllNotifications, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onBack: () => void; onViewAllNotifications: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("All");
   const [selectedId, setSelectedId] = useState(1);
@@ -342,6 +348,7 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateCommandCe
         onNavigateDashboard={onBack}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+        onNavigateNewOverview={onNavigateNewOverview}
         onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
@@ -602,7 +609,8 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateCommandCe
   );
 }
 
-function Dashboard({ onLogout, onViewAllNotifications, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onLogout: () => void; onViewAllNotifications: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void }) {
+function Dashboard({ onLogout, onViewAllNotifications, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onLogout: () => void; onViewAllNotifications: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void }) {
   const [activeNav, setActiveNav] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -617,6 +625,7 @@ function Dashboard({ onLogout, onViewAllNotifications, onNavigateCommandCenterOv
         onLogout={onLogout}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+        onNavigateNewOverview={onNavigateNewOverview}
         onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
@@ -741,267 +750,6 @@ function Dashboard({ onLogout, onViewAllNotifications, onNavigateCommandCenterOv
   );
 }
 
-// ─── Command Center Overview ───────────────────────────────────────────────────
-
-type Email = {
-  id: string;
-  subject: string;
-  sender: string;
-  category: string;
-  status: string;
-  received: string;
-  size: string;
-  body?: string;
-  /** Nested correspondence — under a CCC row this is that CCC's own thread (level 2); under a reply this is its further replies (level 3+, surfaced via a "+N more" link rather than a 3rd inline row tier). */
-  replies?: Email[];
-  /** CCC requests linked to this email (level 1 nested rows). Only ever set on root email rows. */
-  linkedCccs?: Email[];
-  /** Set on CCC/reply rows so clicking through navigates to the root email's detail/thread view rather than a synthetic nested id. */
-  rootEmailId?: string;
-  // CCC request fields (Command Center listing columns)
-  cccId?: string;
-  csrOwner?: string;
-  businessGroup?: string;
-  opportunityNumber?: string;
-  accountManager?: string;
-  accountName?: string;
-  cccRequestType?: string;
-  cccRequestSubtype?: string;
-  cccRequestStatus?: string;
-  awaitingReason?: string;
-  cccRequestReceivedDate?: string;
-  slaTimeRemaining?: string;
-  poNumber?: string;
-  quoteNumber?: string;
-  orderNumber?: string;
-  operatingUnit?: string;
-  poAmount?: string;
-  currentMonthBookableAmount?: string;
-  currency?: string;
-  statusNotes?: string;
-  currentStatusDate?: string;
-  currentAutomationStatus?: string;
-  currentAutomationResult?: string;
-  automationDetailsLink?: string;
-  previousStatus?: string;
-  previousStatusDate?: string;
-  previousStage?: string;
-  previousAutomationStatus?: string;
-  oaStatus?: string;
-  oaSummary?: string;
-  oaValidationRecords?: string;
-};
-
-const CSR_OWNERS = ["A. Sharma", "M. Chen", "R. Okafor", "L. Novak", "T. Reyes"];
-const BUSINESS_GROUPS = ["Enterprise", "Mid-Market", "Public Sector", "SMB"];
-const ACCOUNT_MANAGERS = ["J. Patel (FE-2201)", "K. Summers (FE-1187)", "D. Alvarez (FE-3042)", "S. Kim (FE-0925)"];
-const ACCOUNT_NAMES = ["GlobalTech Industries", "Acme Industries", "Nexus Corp", "Sterling & Co", "MetaSite Inc"];
-const CCC_REQUEST_TYPES = ["New Order", "Amendment", "Renewal", "Cancellation"];
-const CCC_REQUEST_SUBTYPES = ["Standard", "Expedite", "Credit Hold Release", "Price Correction"];
-const CCC_REQUEST_STATUSES = ["Open", "In Progress", "Pending Info", "Completed"];
-const AWAITING_REASONS = ["Awaiting Customer Response", "Awaiting Finance Approval", "Awaiting Legal Review", "—"];
-const SLA_REMAINING = ["2d 4h remaining", "6h remaining", "Overdue by 1d", "4d remaining"];
-const OPERATING_UNITS = ["US OU", "EMEA OU", "APAC OU", "LATAM OU"];
-const CURRENCIES = ["USD", "EUR", "GBP", "INR"];
-const AUTOMATION_STATUSES = ["Completed", "Running", "Failed", "Not Started"];
-const AUTOMATION_RESULTS = ["Success", "Success", "Error – Retry", "N/A"];
-const PREVIOUS_STATUSES = ["Flagged", "Under Review", "Cleared"];
-const PREVIOUS_STAGES = ["Intake", "Validation", "Fulfillment", "Closed"];
-const OA_STATUSES = ["Validated", "Pending", "Failed"];
-const STATUS_NOTES = [
-  "Reviewed by CSR, pending downstream sync.",
-  "Escalated to secondary approver for sign-off.",
-  "Customer confirmed details, proceeding with fulfillment.",
-  "Awaiting updated documentation from requester.",
-];
-
-// Fields shared by a CCC request and all of its thread replies — the request identity doesn't change reply to reply.
-function deriveRequestFields(i: number) {
-  return {
-    cccId: `CCC-${20000 + i * 11}`,
-    csrOwner: CSR_OWNERS[i % CSR_OWNERS.length],
-    businessGroup: BUSINESS_GROUPS[i % BUSINESS_GROUPS.length],
-    opportunityNumber: `OPP-${10500 + i * 7}`,
-    accountManager: ACCOUNT_MANAGERS[i % ACCOUNT_MANAGERS.length],
-    accountName: ACCOUNT_NAMES[i % ACCOUNT_NAMES.length],
-    cccRequestType: CCC_REQUEST_TYPES[i % CCC_REQUEST_TYPES.length],
-    cccRequestSubtype: CCC_REQUEST_SUBTYPES[i % CCC_REQUEST_SUBTYPES.length],
-    poNumber: `PO-${88000 + i * 13}`,
-    quoteNumber: `QT-${5000 + i * 3} v${1 + (i % 3)}`,
-    orderNumber: i % 3 === 0 ? "—" : `ORD-${77000 + i * 9}`,
-    operatingUnit: OPERATING_UNITS[i % OPERATING_UNITS.length],
-    poAmount: `$${(12000 + i * 3540).toLocaleString()}.00`,
-    currentMonthBookableAmount: `$${(8000 + i * 2110).toLocaleString()}.00`,
-    currency: CURRENCIES[i % CURRENCIES.length],
-  };
-}
-
-// Fields that evolve message to message within a thread — each reply gets its own seed so status/automation progress.
-function deriveStatusFields(email: Email, seed: number) {
-  return {
-    cccRequestStatus: CCC_REQUEST_STATUSES[seed % CCC_REQUEST_STATUSES.length],
-    awaitingReason: AWAITING_REASONS[seed % AWAITING_REASONS.length],
-    cccRequestReceivedDate: email.received,
-    slaTimeRemaining: SLA_REMAINING[seed % SLA_REMAINING.length],
-    statusNotes: STATUS_NOTES[seed % STATUS_NOTES.length],
-    currentStatusDate: email.received,
-    currentAutomationStatus: AUTOMATION_STATUSES[seed % AUTOMATION_STATUSES.length],
-    currentAutomationResult: AUTOMATION_RESULTS[seed % AUTOMATION_RESULTS.length],
-    automationDetailsLink: "View Details",
-    previousStatus: PREVIOUS_STATUSES[(seed + 1) % PREVIOUS_STATUSES.length],
-    previousStatusDate: email.received,
-    previousStage: PREVIOUS_STAGES[seed % PREVIOUS_STAGES.length],
-    previousAutomationStatus: AUTOMATION_STATUSES[(seed + 1) % AUTOMATION_STATUSES.length],
-    oaStatus: OA_STATUSES[seed % OA_STATUSES.length],
-    oaSummary: `${2 + (seed % 3)}/${3 + (seed % 2)} checks passed`,
-    oaValidationRecords: "View Records",
-  };
-}
-
-// Builds one CCC row (level 1) linked to a root email, carrying its own request identity plus a thread of correspondence (level 2).
-function makeCcc(rootEmail: Email, cccSeed: number, replyPool: Email[]): Email {
-  const request = deriveRequestFields(cccSeed);
-  return {
-    id: request.cccId,
-    subject: `${request.cccRequestType} — ${request.cccRequestSubtype}`,
-    sender: "",
-    category: rootEmail.category,
-    status: PREVIOUS_STATUSES[cccSeed % PREVIOUS_STATUSES.length],
-    received: rootEmail.received,
-    size: "",
-    rootEmailId: rootEmail.id,
-    ...request,
-    ...deriveStatusFields(rootEmail, cccSeed),
-    replies: replyPool.map((reply, ri) => enrichReply(reply, request, cccSeed, ri, rootEmail.id)),
-  };
-}
-
-// Enriches a raw correspondence email with its parent CCC's request identity (unchanged thread to thread) plus its own
-// evolving status/timeline fields. Recurses into any further nested replies so 3rd-level+ data still carries real values,
-// even though the grid only renders 2 nested tiers — deeper data is reached via a "+N more" link, not another row tier.
-function enrichReply(reply: Email, request: ReturnType<typeof deriveRequestFields>, parentSeed: number, ri: number, rootEmailId: string): Email {
-  const seed = parentSeed * 10 + ri + 1;
-  return {
-    ...reply,
-    ...request,
-    ...deriveStatusFields(reply, seed),
-    rootEmailId,
-    replies: reply.replies?.map((sub, si) => enrichReply(sub, request, seed, si, rootEmailId)),
-  };
-}
-
-// Splits a root email's raw replies into 1 or 2 linked CCCs (an email can reference a single CCC or several), each owning
-// its share of the correspondence as its own nested thread.
-function withCccHierarchy(email: Email, i: number): Email {
-  let rawReplies = email.replies ?? [];
-
-  // Demonstrates a reply carrying its own further nested replies (3rd level) — surfaced via a "+N more" link.
-  if (i === 1 && rawReplies.length > 1) {
-    rawReplies = rawReplies.map((r, ri) => ri === 1 ? {
-      ...r,
-      replies: [
-        { id: `${r.id}-N1`, subject: `Re: ${r.subject}`, sender: "legal@intellisight.io", category: r.category, status: "Cleared", received: r.received, size: "0.4 MB",
-          body: "Confirmed the redlines are final — no further changes needed on our end." },
-        { id: `${r.id}-N2`, subject: `Re: ${r.subject}`, sender: "legal@acmeindustries.com", category: r.category, status: "Cleared", received: r.received, size: "0.6 MB",
-          body: "Great, signing today. Thanks for the quick turnaround." },
-      ],
-    } : r);
-  }
-
-  // Threads with 2+ raw replies plausibly touch more than one CCC — split them so several emails demonstrate the 1-to-many link.
-  const multiCcc = rawReplies.length >= 2;
-  const groups: Email[][] = multiCcc
-    ? [rawReplies.slice(0, Math.ceil(rawReplies.length / 2)), rawReplies.slice(Math.ceil(rawReplies.length / 2))]
-    : [rawReplies];
-
-  const linkedCccs = groups.map((group, ci) => makeCcc(email, i * 2 + ci, group));
-  const [primaryCcc] = linkedCccs;
-
-  // The root row surfaces its primary (first) linked CCC's data directly, so the main grid is informative
-  // without expanding — expanding still reveals every linked CCC (including this one) and their own threads.
-  return {
-    ...primaryCcc,
-    id: email.id,
-    subject: email.subject,
-    sender: email.sender,
-    category: email.category,
-    status: email.status,
-    received: email.received,
-    size: email.size,
-    body: email.body,
-    linkedCccs,
-    rootEmailId: undefined,
-    replies: undefined,
-  };
-}
-
-const ALL_EMAILS: Email[] = [
-  { id: "EML-10234", subject: "Q3 Invoice Approval Request",        sender: "vendor@globaltech.com",    category: "Finance",    status: "Flagged",      received: "Jan 18", size: "1.2 MB",
-    body: "Please find attached the Q3 invoice for licensing services totaling $124,500. This transaction exceeds the standard department spending threshold and requires secondary approval before processing.",
-    replies: [
-    { id: "EML-10234-R1", subject: "Re: Q3 Invoice Approval Request", sender: "finance@intellisight.io", category: "Finance", status: "Under Review", received: "Jan 18", size: "0.3 MB",
-      body: "Flagged for review — this invoice amount exceeds the $50,000 auto-approval limit. Routing to VP Finance for secondary sign-off." },
-    { id: "EML-10234-R2", subject: "Re: Q3 Invoice Approval Request", sender: "vendor@globaltech.com",    category: "Finance", status: "Flagged",      received: "Jan 18", size: "0.9 MB",
-      body: "Following up — the original PO and signed SOW are attached to support the invoiced amount. Let us know if anything else is needed." },
-  ] },
-  { id: "EML-10235", subject: "Contract Renewal — Acme Industries", sender: "legal@acmeindustries.com", category: "Legal",      status: "Under Review", received: "Jan 18", size: "3.4 MB",
-    body: "Attached is the renewal agreement for the annual services contract, effective next quarter. Please review the updated liability clause in Section 7 before countersigning.",
-    replies: [
-    { id: "EML-10235-R1", subject: "Re: Contract Renewal — Acme Industries", sender: "legal@intellisight.io",    category: "Legal", status: "Under Review", received: "Jan 18", size: "1.1 MB",
-      body: "Reviewing the updated liability clause now — will circle back with redlines by end of week." },
-    { id: "EML-10235-R2", subject: "Re: Contract Renewal — Acme Industries", sender: "legal@acmeindustries.com", category: "Legal", status: "Cleared",      received: "Jan 18", size: "2.0 MB",
-      body: "Redlines accepted, updated version attached. Ready for signature." },
-    { id: "EML-10235-R3", subject: "Fwd: Contract Renewal — Acme Industries", sender: "cfo@acmeindustries.com",  category: "Legal", status: "Cleared",      received: "Jan 18", size: "3.4 MB",
-      body: "Forwarding for final visibility — approved on our end, no objections to the renewal terms." },
-  ] },
-  { id: "EML-10236", subject: "Shipment Delay Notification",        sender: "ops@nexuscorp.com",        category: "Logistics",  status: "Cleared",      received: "Jan 17", size: "0.4 MB",
-    body: "Customs clearance for shipment #NX-88213 was delayed by two days but has now cleared. Updated delivery ETA is Thursday." },
-  { id: "EML-10237", subject: "Vendor Tax Documentation",           sender: "finance@sterlingco.com",   category: "Finance",    status: "Cleared",      received: "Jan 17", size: "2.1 MB",
-    body: "Attached are the completed W-9 and annual tax compliance forms as requested for our vendor file update." },
-  { id: "EML-10238", subject: "Unusual Login Attempt Report",       sender: "security@intellisight.io", category: "Security",   status: "Flagged",      received: "Jan 17", size: "0.1 MB",
-    body: "Automated monitoring detected a login attempt from an unrecognized device and IP range on an admin account. Account has been temporarily locked pending review.",
-    replies: [
-    { id: "EML-10238-R1", subject: "Re: Unusual Login Attempt Report", sender: "it-admin@intellisight.io", category: "Security", status: "Cleared", received: "Jan 17", size: "0.2 MB",
-      body: "Confirmed with the account owner — attempt was from a new work laptop, expected. Account unlocked and device allowlisted." },
-  ] },
-  { id: "EML-10239", subject: "GDPR Data Request Follow-up",        sender: "privacy@metasiteinc.com",  category: "Privacy",    status: "Under Review", received: "Jan 16", size: "0.8 MB",
-    body: "Following up on the data subject access request submitted last week. Please confirm the export is on track for the 30-day statutory deadline." },
-  { id: "EML-10240", subject: "Purchase Order #PO-88213",           sender: "procurement@globaltech.com", category: "Finance",  status: "Cleared",      received: "Jan 16", size: "1.5 MB",
-    body: "PO #PO-88213 has been fully executed and approved. Copy attached for your records." },
-  { id: "EML-10241", subject: "Audit Trail Missing — TX-9920",      sender: "audit@intellisight.io",    category: "Audit",      status: "Flagged",      received: "Jan 16", size: "0.6 MB",
-    body: "Transaction TX-9920 has no associated proof of purchase or approval record in the audit trail. Escalating for manual reconciliation." },
-  { id: "EML-10242", subject: "Vendor Onboarding Checklist",        sender: "vendors@nexuscorp.com",    category: "Legal",      status: "Cleared",      received: "Jan 15", size: "2.8 MB",
-    body: "All onboarding documentation — NDA, W-9, and banking details — has been submitted and verified. Vendor record is now active." },
-  { id: "EML-10243", subject: "SLA Breach Escalation",              sender: "support@acmeindustries.com", category: "Support",  status: "Under Review", received: "Jan 15", size: "0.3 MB",
-    body: "Ticket #4471 has exceeded the 24-hour SLA response window. Requesting immediate escalation to a senior CSR.",
-    replies: [
-    { id: "EML-10243-R1", subject: "Re: SLA Breach Escalation", sender: "csr@intellisight.io",           category: "Support", status: "Under Review", received: "Jan 15", size: "0.2 MB",
-      body: "Apologies for the delay — picking this up now. Will have a resolution plan within the hour." },
-    { id: "EML-10243-R2", subject: "Re: SLA Breach Escalation", sender: "support@acmeindustries.com",    category: "Support", status: "Cleared",      received: "Jan 15", size: "0.4 MB",
-      body: "Issue resolved, thank you for the quick turnaround. Closing the ticket." },
-  ] },
-  { id: "EML-10244", subject: "Quarterly Compliance Summary",       sender: "compliance@intellisight.io", category: "Audit",    status: "Cleared",      received: "Jan 15", size: "4.2 MB",
-    body: "Q3 compliance summary attached — 97% of flagged items resolved within SLA, no open critical findings." },
-  { id: "EML-10245", subject: "Policy Update — Data Retention",     sender: "legal@sterlingco.com",     category: "Privacy",    status: "Under Review", received: "Jan 14", size: "0.9 MB",
-    body: "New data retention policy requires customer records to be purged after 7 years unless under active litigation hold. Please confirm systems are updated accordingly." },
-  { id: "EML-10246", subject: "Invoice Dispute — INV-2024-0892",    sender: "billing@globaltech.com",   category: "Finance",    status: "Flagged",      received: "Jan 14", size: "1.1 MB",
-    body: "We're disputing invoice INV-2024-0892 — the billed amount does not match the agreed contract rate. Requesting a corrected invoice.",
-    replies: [
-    { id: "EML-10246-R1", subject: "Re: Invoice Dispute — INV-2024-0892", sender: "ap@intellisight.io",     category: "Finance", status: "Under Review", received: "Jan 14", size: "0.5 MB",
-      body: "Reviewing the contract rate against the billed line items now — will confirm discrepancy within 2 business days." },
-    { id: "EML-10246-R2", subject: "Re: Invoice Dispute — INV-2024-0892", sender: "billing@globaltech.com", category: "Finance", status: "Flagged",      received: "Jan 14", size: "0.6 MB",
-      body: "Appreciate the quick response — attaching the original signed rate card for reference." },
-  ] },
-  { id: "EML-10247", subject: "Shipment Customs Clearance",         sender: "ops@metasiteinc.com",      category: "Logistics",  status: "Cleared",      received: "Jan 14", size: "0.5 MB",
-    body: "Shipment cleared customs without incident. Delivery tracking updated, ETA unchanged." },
-  { id: "EML-10248", subject: "Security Patch Notification",        sender: "security@intellisight.io", category: "Security",   status: "Cleared",      received: "Jan 13", size: "0.2 MB",
-    body: "Critical security patch has been deployed across all production servers. No downtime reported." },
-];
-
-// Shared CCC-enriched view of ALL_EMAILS — computed once so the Command Center overview grid and the email detail
-// page read the exact same linkedCccs/replies hierarchy instead of each re-deriving their own mock data.
-const ALL_EMAILS_WITH_CCC: Email[] = ALL_EMAILS.map((email, i) => withCccHierarchy(email, i));
-
 const EMAIL_STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
   Flagged:      { label: "Flagged",      color: "#d12e2e", bg: "rgba(209,46,46,0.1)" },
   "Under Review": { label: "Under Review", color: "#e08c00", bg: "rgba(224,140,0,0.1)" },
@@ -1017,24 +765,20 @@ function EmailStatusBadge({ status }: { status: string }) {
   );
 }
 
-function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void;
+  onNavigateWorkflow: (emailId: string) => void;
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "email">("table");
-  const [selectedEmailId, setSelectedEmailId] = useState<string>(ALL_EMAILS_WITH_CCC[0].id);
-
-  const openInEmailView = (id: string) => {
-    setSelectedEmailId(id);
-    setViewMode("email");
-  };
 
   const kpis = [
     { label: "TOTAL EMAILS", value: String(ALL_EMAILS.length).padStart(2, "0"), delta: "↑ 4.2%", up: true, sparkColor: "#cbd5e1" },
@@ -1078,6 +822,14 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
     { key: "statusNotes",       label: "Status Notes" },
     { key: "currentStatusDate", label: "Current Status Date" },
   ];
+  // Listing-grid columns (Classification / Confidence / Assigned To / Review Status / Action) — visible by default.
+  const listingColumns: OrderListingColumn[] = [
+    { key: "classification", label: "Classification" },
+    { key: "confidencePct",  label: "Confidence" },
+    { key: "assignedTo",     label: "Assigned To" },
+    { key: "reviewStatus",   label: "Review Status" },
+    { key: "action",         label: "Action" },
+  ];
   // On-expand columns — available in Column Mgmt, hidden until the user enables them.
   const onExpandColumns: OrderListingColumn[] = [
     { key: "currentAutomationStatus", label: "Current Automation Status" },
@@ -1092,11 +844,11 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
     { key: "oaValidationRecords",     label: "OA Validation Records" },
   ];
 
-  const columns: OrderListingColumn[] = [...leadColumns, ...mainGridIdentityColumns, ...mainGridRequestColumns, ...onExpandColumns];
+  const columns: OrderListingColumn[] = [...leadColumns, ...mainGridIdentityColumns, ...mainGridRequestColumns, ...listingColumns, ...onExpandColumns];
 
   const fixedColumns = [...leadColumns.map(c => c.label), ...mainGridIdentityColumns.map(c => c.label)];
-  const scrollableColumns = [...mainGridRequestColumns.map(c => c.label), ...onExpandColumns.map(c => c.label)];
-  const defaultVisibleColumns = [...fixedColumns, ...mainGridRequestColumns.map(c => c.label)];
+  const scrollableColumns = [...mainGridRequestColumns.map(c => c.label), ...listingColumns.map(c => c.label), ...onExpandColumns.map(c => c.label)];
+  const defaultVisibleColumns = [...fixedColumns, ...mainGridRequestColumns.map(c => c.label), ...listingColumns.map(c => c.label)];
 
   const filterSections: OrderListingFilterSection<Email>[] = [
     { key: "Business Group",      label: "Business Group",      getValue: (r) => r.businessGroup ?? "" },
@@ -1168,6 +920,39 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
       case "OA Status":                     return plainCell(row.oaStatus);
       case "OA Summary":                    return noteCell(row.oaSummary);
       case "OA Validation Records":         return linkCell(row.oaValidationRecords);
+      case "Classification":                return plainCell(row.classification);
+      case "Confidence": {
+        const pct = row.confidencePct ?? 0;
+        return (
+          <div className="flex items-center gap-2 w-[100px]">
+            <div className="flex-1 h-[6px] rounded-full bg-[#f3f4f6] overflow-hidden">
+              <div className="h-full rounded-full bg-[#16a34a]" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="text-[12px] font-medium text-[#374151] shrink-0">{pct}%</span>
+          </div>
+        );
+      }
+      case "Assigned To":                   return (
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={`size-[22px] rounded-full flex items-center justify-center shrink-0 text-[9.5px] font-bold text-white ${row.assignedTo === "AI" ? "bg-[#6b7280]" : "bg-[#1e3a5f]"}`}>
+            {row.assignedInitials ?? "?"}
+          </div>
+          <span className="text-[13px] text-[#374151] truncate">{row.assignedTo ?? "Unassigned"}</span>
+        </div>
+      );
+      case "Review Status": {
+        const rs = row.reviewStatus ?? "Pending";
+        const style = rs === "Approved" ? "text-[#16a34a] bg-[#dcfce7]" : rs === "Rejected" ? "text-[#dc2626] bg-[#fee2e2]" : "text-[#0d9488] bg-[#ccfbf1]";
+        return <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11.5px] font-semibold whitespace-nowrap ${style}`}>{rs}</span>;
+      }
+      case "Action":                        return (
+        <button
+          onClick={(e) => { e.stopPropagation(); toast.success(`Assigned ${row.id} to you`); }}
+          className="px-4 py-1.5 rounded-full bg-[#1e3a5f] text-white text-[12px] font-semibold hover:bg-[#16304f] transition-colors cursor-pointer whitespace-nowrap"
+        >
+          Assign
+        </button>
+      );
       default:                              return null;
     }
   };
@@ -1198,7 +983,7 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
           </span>
           {moreCount > 0 && (
             <button
-              onClick={(e) => { e.stopPropagation(); openInEmailView(reply.rootEmailId ?? reply.id); }}
+              onClick={(e) => { e.stopPropagation(); onNavigateWorkflow(reply.rootEmailId ?? reply.id); }}
               className="inline-flex items-center gap-1 shrink-0 px-[8px] py-[3px] rounded-full bg-[#f3f4f6] text-[#686868] hover:bg-[#e5e7eb] hover:text-[#333] text-[11px] font-medium cursor-pointer transition-colors"
               title={`Open the full thread to see ${moreCount} more ${moreCount === 1 ? "reply" : "replies"}`}
             >
@@ -1220,6 +1005,7 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+        onNavigateNewOverview={onNavigateNewOverview}
         onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
@@ -1239,10 +1025,14 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
           {/* KPI strip — stays visible in both Table and Email modes */}
           <div className="flex gap-4 px-5 py-4 bg-[#f5f6fa]">
             {kpis.map((kpi) => (
-              <div key={kpi.label} className="bg-white flex-1 min-w-0 rounded-xl border border-black/[0.08] p-3 sm:p-4 flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-[12px] font-medium text-[#6b7380]">{kpi.label}</p>
-                  <div className="rounded-lg p-1 shrink-0">
+              <div key={kpi.label} className="bg-white flex-1 min-w-0 rounded-2xl border border-[#e5e7eb] p-4 flex flex-col gap-2">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-[10.5px] font-semibold text-[#6b7280] uppercase tracking-wide">{kpi.label}</p>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className={`flex items-center gap-1 text-[10.5px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${kpi.up ? "text-[#16a34a] bg-[#dcfce7]" : "text-[#dc2626] bg-[#fee2e2]"}`}>
+                      <TrendingUp size={10} className={kpi.up ? "" : "rotate-180"} />
+                      {kpi.delta}
+                    </span>
                     <div className="flex items-end gap-[2px] h-[11px]">
                       {sparkHeights.map((h, i) => (
                         <div key={i} className="w-[3px] rounded-[1px]" style={{ height: h * 0.55, backgroundColor: kpi.sparkColor }} />
@@ -1250,11 +1040,7 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
                     </div>
                   </div>
                 </div>
-                <p className="text-[18px] sm:text-[22px] font-bold text-[#111827] leading-none">{kpi.value}</p>
-                <div className={`flex items-center gap-1 text-[11px] font-medium ${kpi.up ? "text-emerald-600" : "text-rose-500"}`}>
-                  <TrendingUp size={10} />
-                  <span>{kpi.delta} vs last week</span>
-                </div>
+                <p className="text-[24px] font-bold text-[#111827] leading-none">{kpi.value}</p>
               </div>
             ))}
           </div>
@@ -1273,9 +1059,10 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
               typeDropdown={typeDropdown}
               renderCell={renderCell}
               getRowKey={(row) => row.id}
-              onRowClick={(row) => openInEmailView(row.rootEmailId ?? row.id)}
+              onRowClick={(row) => onNavigateWorkflow(row.rootEmailId ?? row.id)}
               rowsPerPage={10}
               emptyMessage="No emails match your filters"
+              search={{ placeholder: "Search Email", getText: (row) => `${row.subject} ${row.sender} ${row.classification ?? ""}` }}
               getChildren={(row) => row.linkedCccs}
               renderChildCell={renderCccCell}
               childIndentColumnLabel="Subject"
@@ -1301,10 +1088,175 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
                   </button>
                 </div>
               }
-              bodyOverride={viewMode === "email" ? <EmailViewBody key={selectedEmailId} initialEmailId={selectedEmailId} /> : undefined}
+              bodyOverride={viewMode === "email" ? <EmailViewBody onOpenWorkflow={onNavigateWorkflow} /> : undefined}
             />
           </div>
         </main>
+      </div>
+    </div>
+  );
+}
+
+// ─── Email Workflow (pipeline detail page) ─────────────────────────────────────
+
+const WORKFLOW_STAGES: { key: string; label: string; soon?: boolean }[] = [
+  { key: "intake", label: "Email Intake" },
+  { key: "classify", label: "Classify Intent" },
+  { key: "extract", label: "Extract PO Fields" },
+  { key: "draft", label: "Draft Response" },
+  { key: "enrich", label: "Enrich & Entity Resolution", soon: true },
+  { key: "acceptance", label: "Order Acceptance", soon: true },
+];
+
+// Deterministic mock automation log — same idea as the CCC mock-data generators, just for this page's "System Actions" panel.
+function buildSystemActions(email: Email): { time: string; actor: string; detail: ReactNode }[] {
+  return [
+    { time: "09:14:01", actor: "Email Receiver", detail: <>Ingested from <span className="font-medium text-[#374151]">orders@intellisight.io</span> mailbox</> },
+    { time: "09:14:02", actor: "Parser", detail: <>Extracted email body{email.size ? <>; attachment ({email.size}) stored to S3</> : null}</> },
+    { time: "09:14:02", actor: "Language Detector", detail: <>Detected English (confidence 1.0)</> },
+    { time: "09:14:03", actor: "Customer Resolver", detail: <>Resolved <span className="font-medium text-[#374151]">{email.sender}</span> → <span className="font-semibold text-[#c53e6c]">{email.accountName ?? "Unresolved Account"}</span></> },
+  ];
+}
+
+// The email's detail/drill-down destination — clicking a row (table) or opening an email (Email View) lands here,
+// on the first stage. Stages 2-4 are placeholder content for now; 5-6 are visibly "Soon" and not interactive yet.
+function WorkflowPage({ emailId, onBack }: { emailId: string; onBack: () => void }) {
+  const email = ALL_EMAILS_WITH_CCC.find(e => e.id === emailId) ?? ALL_EMAILS_WITH_CCC[0];
+  const [stageIdx, setStageIdx] = useState(0);
+  const [emailBodyOpen, setEmailBodyOpen] = useState(true);
+  const stage = WORKFLOW_STAGES[stageIdx];
+  const actions = buildSystemActions(email);
+  const maxInteractiveStage = WORKFLOW_STAGES.filter(s => !s.soon).length - 1;
+
+  return (
+    <div className="bg-[#f5f6fa] min-h-screen flex flex-col" style={{ fontFamily: "Inter, sans-serif" }}>
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 px-6 py-4">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 px-3 py-1.5 border border-[#d1d1d1] rounded-md text-[13px] font-medium text-[#374151] bg-white hover:bg-[#f8fafc] cursor-pointer transition-colors"
+        >
+          <ArrowLeft size={14} />
+          Email Queue
+        </button>
+        <span className="text-[#c4c4c4]">/</span>
+        <span className="text-[15px] font-bold text-[#111827]">Email Details</span>
+      </div>
+
+      <div className="px-6 pb-6 flex flex-col gap-4 flex-1 min-h-0">
+        {/* Header entry card */}
+        <div className="bg-white rounded-xl border border-[#ebebeb] px-5 py-4 flex items-center justify-between gap-4 shrink-0">
+          <div className="min-w-0">
+            <p className="text-[14px] font-semibold text-[#111827] truncate">{email.subject}</p>
+            <p className="text-[12.5px] text-[#6b7280] mt-0.5">{email.sender} <span className="text-[#d1d1d1]">·</span> Received {email.received}</p>
+          </div>
+          <span className="shrink-0 flex items-center gap-1.5 bg-[#f3f4f6] text-[#374151] text-[11px] font-semibold px-2.5 py-1 rounded-md uppercase tracking-wide">
+            <Shield size={11} /> Internal
+          </span>
+        </div>
+
+        {/* Stepper */}
+        <div className="bg-white rounded-xl border border-[#ebebeb] px-5 py-4 flex items-center gap-3 overflow-x-auto shrink-0">
+          {WORKFLOW_STAGES.map((s, i) => (
+            <div key={s.key} className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={() => !s.soon && setStageIdx(i)}
+                disabled={s.soon}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[12.5px] font-semibold whitespace-nowrap transition-colors ${
+                  i === stageIdx
+                    ? "border-[#c53e6c] text-[#c53e6c] bg-[#fdf0f4]"
+                    : s.soon
+                    ? "border-[#e5e7eb] text-[#c4c4c4] cursor-not-allowed"
+                    : "border-[#e5e7eb] text-[#6b7280] hover:border-[#d1d5db] cursor-pointer"
+                }`}
+              >
+                <span className={`size-[16px] shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold ${i === stageIdx ? "bg-[#c53e6c] text-white" : "bg-[#f3f4f6] text-[#9ca3af]"}`}>
+                  {i + 1}
+                </span>
+                {s.label}
+                {s.soon && <span className="text-[10px] text-[#c4c4c4] font-normal">Soon</span>}
+              </button>
+              {i < WORKFLOW_STAGES.length - 1 && <div className="w-5 h-px bg-[#e5e7eb] shrink-0" />}
+            </div>
+          ))}
+        </div>
+
+        {/* Section bar */}
+        <div className="bg-white rounded-xl border border-[#ebebeb] px-5 py-3.5 flex items-center justify-between shrink-0">
+          <p className="text-[14px] font-bold text-[#111827]">{stage.label}</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setStageIdx(i => Math.max(0, i - 1))}
+              disabled={stageIdx === 0}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#d1d1d1] text-[13px] font-medium text-[#374151] disabled:opacity-40 hover:enabled:bg-[#f8fafc] cursor-pointer disabled:cursor-not-allowed transition-colors"
+            >
+              <ArrowLeft size={13} /> Back
+            </button>
+            <button
+              onClick={() => setStageIdx(i => Math.min(maxInteractiveStage, i + 1))}
+              disabled={stageIdx >= maxInteractiveStage}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#c53e6c] text-white text-[13px] font-semibold disabled:opacity-40 hover:enabled:bg-[#a0334f] cursor-pointer disabled:cursor-not-allowed transition-colors"
+            >
+              Next <ArrowLeft size={13} className="rotate-180" />
+            </button>
+          </div>
+        </div>
+
+        {/* Body: inbound email (left) + system actions (right) */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 min-h-0">
+          <div className="bg-white rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col min-h-0">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#f3f4f6] shrink-0 flex-wrap gap-2">
+              <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-widest">Inbound Email — Received {email.received}</p>
+              <button
+                onClick={() => toast.info("Opening original message")}
+                className="flex items-center gap-1.5 text-[12px] font-medium text-[#374151] border border-[#d1d1d1] rounded-md px-2.5 py-1 hover:bg-[#f8fafc] cursor-pointer transition-colors"
+              >
+                <Mail size={12} /> View original
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-2 border-b border-[#f3f4f6] shrink-0">
+              <div className="flex gap-2 text-[12.5px]"><span className="text-[#9ca3af] w-8 shrink-0">From</span><span className="text-[#374151] truncate">{email.sender}</span></div>
+              <div className="flex gap-2 text-[12.5px]"><span className="text-[#9ca3af] w-8 shrink-0">To</span><span className="text-[#374151] truncate">orders@intellisight.io</span></div>
+            </div>
+            <button
+              onClick={() => setEmailBodyOpen(v => !v)}
+              className="flex items-center gap-2 px-5 py-3 text-[12.5px] font-semibold text-[#374151] hover:bg-[#fafafa] cursor-pointer transition-colors shrink-0"
+            >
+              <ChevronDown size={13} className={`transition-transform duration-200 ${emailBodyOpen ? "rotate-180" : ""}`} />
+              Recent Email
+            </button>
+            {emailBodyOpen && (
+              <div className="px-5 pb-5 flex-1 overflow-y-auto">
+                <p className="text-[13.5px] text-[#374151] leading-[1.7]">{email.body ?? "No content preview available."}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col min-h-0">
+            <div className="px-5 py-3.5 border-b border-[#f3f4f6] shrink-0">
+              <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-widest">System Actions</p>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              <div className="space-y-4">
+                {actions.map((a, i) => (
+                  <div key={i} className="flex gap-3">
+                    <div className="flex flex-col items-center shrink-0">
+                      <div className="size-[18px] rounded-full bg-[#c53e6c] text-white flex items-center justify-center shrink-0">
+                        <Check size={11} />
+                      </div>
+                      {i < actions.length - 1 && <div className="w-px flex-1 bg-[#f0d5dd] mt-1" />}
+                    </div>
+                    <div className="pb-1 min-w-0">
+                      <p className="text-[10.5px] text-[#9ca3af] mb-0.5">{a.time}</p>
+                      <p className="text-[13px] font-semibold text-[#111827]">{a.actor}</p>
+                      <p className="text-[12.5px] text-[#6b7280] mt-0.5 leading-[1.5]">{a.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1319,18 +1271,6 @@ function DetailField({ label, value }: { label: string; value: ReactNode }) {
     <div className="min-w-[110px] max-w-[240px]">
       <p className="text-[9.5px] font-normal text-[#9ca3af] uppercase tracking-wide mb-1 whitespace-nowrap">{label}</p>
       <div className="text-[13.5px] font-semibold text-[#1f2937] truncate">{value || "—"}</div>
-    </div>
-  );
-}
-
-// Fields flow with whitespace rather than sitting in ruled grid cells — a "spec sheet" read instead of a table of boxes.
-function DetailSection({ title, fields }: { title: string; fields: { label: string; value: ReactNode }[] }) {
-  return (
-    <div className="px-5 py-4 border-t border-[#f3f4f6] first:border-t-0">
-      <h4 className="text-[12px] font-bold text-[#c53e6c] mb-3">{title}</h4>
-      <div className="flex flex-wrap gap-x-6 gap-y-3.5">
-        {fields.map(f => <DetailField key={f.label} label={f.label} value={f.value} />)}
-      </div>
     </div>
   );
 }
@@ -1382,20 +1322,26 @@ function ThreadMessage({ msg, depth = 0 }: { msg: Email; depth?: number }) {
   );
 }
 
+type CccTab = "ownership" | "request" | "order" | "workflow" | "automation";
+const CCC_TABS: { key: CccTab; label: string }[] = [
+  { key: "ownership", label: "Ownership" },
+  { key: "request", label: "Request Info" },
+  { key: "order", label: "Order Info" },
+  { key: "workflow", label: "Workflow" },
+  { key: "automation", label: "Automation & History" },
+];
+
 // One linked CCC request. Collapsed by default to a single compact summary row (click to expand) — with several
-// linked CCCs the old always-expanded layout turned into a wall of scrolling. Once expanded: Ownership / CCC Request
-// Info / Order Info / Current Workflow Status show in a dense grid ("Main grid"); Automation Visibility / Previous
-// State / OA sit behind their own nested toggle ("On Expand"), mirroring the overview grid's column split.
+// linked CCCs the old always-expanded layout turned into a wall of scrolling. Once expanded, the structured fields
+// sit behind tabs (only one section visible at a time) instead of stacking every section at once; the correspondence
+// thread — actual nested emails, not metadata — always shows below the tabs since it's a different kind of content.
 function CccDetailCard({ ccc, expanded, onToggleExpand }: { ccc: Email; expanded: boolean; onToggleExpand: () => void }) {
-  const [showAutomation, setShowAutomation] = useState(false);
+  const [activeSection, setActiveSection] = useState<CccTab>("ownership");
   const replies = ccc.replies ?? [];
   return (
     <div>
-      {/* Header — click to expand/collapse the whole card */}
-      <button
-        onClick={onToggleExpand}
-        className="w-full flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-[#fafafa] transition-colors cursor-pointer text-left"
-      >
+      {/* Header — a summary row; the explicit "View Details" button (not the row itself) reveals the tabbed data below */}
+      <div className="w-full flex items-center justify-between gap-4 px-5 py-3.5">
         <div className="flex items-center gap-3 min-w-0">
           <div className="size-[30px] rounded-lg bg-[#fdf0f4] flex items-center justify-center shrink-0">
             <FileText size={13} className="text-[#90003b]" />
@@ -1409,80 +1355,119 @@ function CccDetailCard({ ccc, expanded, onToggleExpand }: { ccc: Email; expanded
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {replies.length > 0 && (
+            <span className="hidden sm:inline-flex items-center gap-1 text-[10.5px] font-medium text-[#6b7280] bg-[#f3f4f6] px-2 py-1 rounded-md whitespace-nowrap" title={`${replies.length} nested ${replies.length === 1 ? "email" : "emails"} in this CCC's correspondence`}>
+              <CornerDownRight size={10} />
+              {replies.length}
+            </span>
+          )}
           {ccc.slaTimeRemaining && (
             <span className="hidden sm:inline-block text-[10.5px] font-medium text-[#6b7280] bg-[#f3f4f6] px-2 py-1 rounded-md whitespace-nowrap">{ccc.slaTimeRemaining}</span>
           )}
           <EmailStatusBadge status={ccc.status} />
-          <ChevronDown size={16} className={`text-[#9ca3af] transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+          <button
+            onClick={onToggleExpand}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11.5px] font-semibold cursor-pointer transition-colors ${
+              expanded ? "bg-[#c53e6c] text-white" : "border border-[#d1d1d1] text-[#374151] hover:bg-[#f8fafc]"
+            }`}
+          >
+            View Details
+            <ChevronDown size={13} className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+          </button>
         </div>
-      </button>
+      </div>
 
       {expanded && (
         <div className="border-t border-[#f3f4f6]">
-          <DetailSection title="Ownership" fields={[
-            { label: "CSR Owner (SOO)", value: ccc.csrOwner },
-            { label: "Business Group", value: ccc.businessGroup },
-            { label: "Opportunity Number", value: <DetailLink text={ccc.opportunityNumber} what="Opportunity" /> },
-            { label: "Account Manager", value: ccc.accountManager },
-            { label: "Account Name", value: ccc.accountName },
-          ]} />
+          {/* Tabs — one section visible at a time instead of stacking all of them */}
+          <div className="flex items-center gap-1 px-5 pt-2.5 overflow-x-auto">
+            {CCC_TABS.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveSection(tab.key)}
+                className={`shrink-0 px-3 pb-2.5 text-[12px] font-semibold whitespace-nowrap border-b-2 cursor-pointer transition-colors ${
+                  activeSection === tab.key ? "text-[#c53e6c] border-[#c53e6c]" : "text-[#9ca3af] border-transparent hover:text-[#6b7280]"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-          <DetailSection title="CCC Request Info" fields={[
-            { label: "CCC Request Type", value: ccc.cccRequestType },
-            { label: "CCC Request Subtype", value: ccc.cccRequestSubtype },
-            { label: "CCC Request Status", value: ccc.cccRequestStatus },
-            { label: "Awaiting Reason", value: ccc.awaitingReason },
-            { label: "CCC Request Received Date", value: ccc.cccRequestReceivedDate },
-            { label: "Time Remaining / SLA", value: ccc.slaTimeRemaining },
-          ]} />
+          <div className="px-5 py-4 border-t border-[#f3f4f6]">
+            {activeSection === "ownership" && (
+              <div className="flex flex-wrap gap-x-6 gap-y-3.5">
+                <DetailField label="CSR Owner (SOO)" value={ccc.csrOwner} />
+                <DetailField label="Business Group" value={ccc.businessGroup} />
+                <DetailField label="Opportunity Number" value={<DetailLink text={ccc.opportunityNumber} what="Opportunity" />} />
+                <DetailField label="Account Manager" value={ccc.accountManager} />
+                <DetailField label="Account Name" value={ccc.accountName} />
+              </div>
+            )}
 
-          <DetailSection title="Order Info" fields={[
-            { label: "PO #", value: ccc.poNumber },
-            { label: "Quote # + Version / Revision", value: <DetailLink text={ccc.quoteNumber} what="Sales Quote" /> },
-            { label: "Order #", value: ccc.orderNumber },
-            { label: "Operating Unit", value: ccc.operatingUnit },
-            { label: "PO Amount", value: ccc.poAmount },
-            { label: "Current Month Bookable Amount", value: ccc.currentMonthBookableAmount },
-            { label: "Currency", value: ccc.currency },
-          ]} />
+            {activeSection === "request" && (
+              <div className="flex flex-wrap gap-x-6 gap-y-3.5">
+                <DetailField label="CCC Request Type" value={ccc.cccRequestType} />
+                <DetailField label="CCC Request Subtype" value={ccc.cccRequestSubtype} />
+                <DetailField label="CCC Request Status" value={ccc.cccRequestStatus} />
+                <DetailField label="Awaiting Reason" value={ccc.awaitingReason} />
+                <DetailField label="CCC Request Received Date" value={ccc.cccRequestReceivedDate} />
+                <DetailField label="Time Remaining / SLA" value={ccc.slaTimeRemaining} />
+              </div>
+            )}
 
-          <DetailSection title="Current Workflow Status" fields={[
-            { label: "Current Status", value: <EmailStatusBadge status={ccc.status} /> },
-            { label: "Status Notes", value: ccc.statusNotes },
-            { label: "Current Status Date", value: ccc.currentStatusDate },
-          ]} />
+            {activeSection === "order" && (
+              <div className="flex flex-wrap gap-x-6 gap-y-3.5">
+                <DetailField label="PO #" value={ccc.poNumber} />
+                <DetailField label="Quote # + Version / Revision" value={<DetailLink text={ccc.quoteNumber} what="Sales Quote" />} />
+                <DetailField label="Order #" value={ccc.orderNumber} />
+                <DetailField label="Operating Unit" value={ccc.operatingUnit} />
+                <DetailField label="PO Amount" value={ccc.poAmount} />
+                <DetailField label="Current Month Bookable Amount" value={ccc.currentMonthBookableAmount} />
+                <DetailField label="Currency" value={ccc.currency} />
+              </div>
+            )}
 
-          {/* On Expand */}
-          <button
-            onClick={() => setShowAutomation(s => !s)}
-            className="w-full flex items-center justify-center gap-1.5 px-5 py-2.5 border-t border-[#f3f4f6] text-[11.5px] font-semibold text-[#c53e6c] hover:bg-[#fdf5f8] transition-colors cursor-pointer"
-          >
-            {showAutomation ? "Hide" : "Show"} automation & history details
-            <ChevronDown size={13} className={`transition-transform duration-200 ${showAutomation ? "rotate-180" : ""}`} />
-          </button>
+            {activeSection === "workflow" && (
+              <div className="flex flex-wrap gap-x-6 gap-y-3.5">
+                <DetailField label="Current Status" value={<EmailStatusBadge status={ccc.status} />} />
+                <DetailField label="Status Notes" value={ccc.statusNotes} />
+                <DetailField label="Current Status Date" value={ccc.currentStatusDate} />
+              </div>
+            )}
 
-          {showAutomation && (
-            <div className="border-t border-[#f3f4f6]">
-              <DetailSection title="Automation Visibility (Read-only)" fields={[
-                { label: "Current Automation Status", value: ccc.currentAutomationStatus },
-                { label: "Current Automation Result", value: ccc.currentAutomationResult },
-                { label: "Link to Automation Details", value: <DetailLink text={ccc.automationDetailsLink} what="Automation Details" /> },
-              ]} />
-              <DetailSection title="Previous State" fields={[
-                { label: "Previous Status", value: ccc.previousStatus },
-                { label: "Previous Status Date", value: ccc.previousStatusDate },
-                { label: "Previous Stage", value: ccc.previousStage },
-                { label: "Previous Automation Status", value: ccc.previousAutomationStatus },
-              ]} />
-              <DetailSection title="OA" fields={[
-                { label: "OA Status", value: ccc.oaStatus },
-                { label: "OA Summary", value: ccc.oaSummary },
-                { label: "OA Validation Records", value: <DetailLink text={ccc.oaValidationRecords} what="OA Records" /> },
-              ]} />
-            </div>
-          )}
+            {activeSection === "automation" && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-widest mb-2.5">Automation Visibility (Read-only)</p>
+                  <div className="flex flex-wrap gap-x-6 gap-y-3.5">
+                    <DetailField label="Current Automation Status" value={ccc.currentAutomationStatus} />
+                    <DetailField label="Current Automation Result" value={ccc.currentAutomationResult} />
+                    <DetailField label="Link to Automation Details" value={<DetailLink text={ccc.automationDetailsLink} what="Automation Details" />} />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-widest mb-2.5">Previous State</p>
+                  <div className="flex flex-wrap gap-x-6 gap-y-3.5">
+                    <DetailField label="Previous Status" value={ccc.previousStatus} />
+                    <DetailField label="Previous Status Date" value={ccc.previousStatusDate} />
+                    <DetailField label="Previous Stage" value={ccc.previousStage} />
+                    <DetailField label="Previous Automation Status" value={ccc.previousAutomationStatus} />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-widest mb-2.5">OA</p>
+                  <div className="flex flex-wrap gap-x-6 gap-y-3.5">
+                    <DetailField label="OA Status" value={ccc.oaStatus} />
+                    <DetailField label="OA Summary" value={ccc.oaSummary} />
+                    <DetailField label="OA Validation Records" value={<DetailLink text={ccc.oaValidationRecords} what="OA Records" />} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
-          {/* This CCC's own correspondence */}
+          {/* This CCC's own correspondence — actual nested emails, always shown below the tabbed metadata */}
           {replies.length > 0 && (
             <div className="border-t border-[#f3f4f6]">
               <div className="px-5 py-3 flex items-center gap-2">
@@ -1513,13 +1498,14 @@ function CccDetailCard({ ccc, expanded, onToggleExpand }: { ccc: Email; expanded
 
 // The email sidebar + detail panel — shared by the standalone Email View page and the Table/Email toggle
 // inside the Command Center Overview page, so the two never drift apart.
-function EmailViewBody({ initialEmailId }: { initialEmailId?: string }) {
+function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: string; onOpenWorkflow?: (emailId: string) => void }) {
   const [activeTab, setActiveTab] = useState("All");
   const [selectedId, setSelectedId] = useState(initialEmailId ?? ALL_EMAILS_WITH_CCC[0].id);
   const [expandedCccIds, setExpandedCccIds] = useState<Set<string>>(new Set());
 
   const selected = ALL_EMAILS_WITH_CCC.find((e) => e.id === selectedId) ?? ALL_EMAILS_WITH_CCC[0];
   const linkedCccs = selected.linkedCccs ?? [];
+  const earlierInThread = linkedCccs.flatMap((c) => c.replies ?? []).slice(0, 3);
 
   const tabs = ["All", "Flagged", "Under Review", "Cleared"];
   const tabCount = (tab: string) => tab === "All" ? ALL_EMAILS_WITH_CCC.length : ALL_EMAILS_WITH_CCC.filter(e => e.status === tab).length;
@@ -1640,7 +1626,16 @@ function EmailViewBody({ initialEmailId }: { initialEmailId?: string }) {
                           <p className={`text-[13px] leading-[1.3] truncate ${isActive ? "font-semibold text-[#111827]" : "font-medium text-[#1f2937]"}`}>
                             {e.subject}
                           </p>
-                          <p className="text-[10.5px] text-[#9ca3af] shrink-0 whitespace-nowrap">{e.received}</p>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={(ev) => { ev.stopPropagation(); toast.success(`Assigned ${e.id} to you`); }}
+                              className="p-1 rounded-md text-[#9ca3af] hover:text-[#c53e6c] hover:bg-[#fdf0f4] transition-colors cursor-pointer"
+                              title="Assign to me"
+                            >
+                              <UserPlus size={12} />
+                            </button>
+                            <p className="text-[10.5px] text-[#9ca3af] whitespace-nowrap">{e.received}</p>
+                          </div>
                         </div>
                         <p className="text-[11.5px] text-[#6b7280] leading-[1.5] truncate mb-2">{e.sender}</p>
                         <div className="flex items-center justify-between gap-2">
@@ -1721,16 +1716,35 @@ function EmailViewBody({ initialEmailId }: { initialEmailId?: string }) {
           <div className="flex-1 overflow-y-auto p-6 lg:p-8">
 
             {/* Primary email card — the main content on this page; everything below is supplementary, on-demand detail */}
-            <div className="bg-white rounded-2xl border border-[#ebebeb] overflow-hidden mb-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-[#e5e7eb] overflow-hidden mb-5 shadow-sm">
               <div className="px-7 py-6 border-b border-[#f3f4f6]">
-                <p className="text-[10.5px] font-bold text-[#c53e6c] uppercase tracking-widest mb-2">Email</p>
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="size-[38px] rounded-full bg-[#1e3a5f] text-white flex items-center justify-center text-[13px] font-bold shrink-0 uppercase">
+                      {selected.sender.slice(0, 2)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-bold text-[#111827] truncate">{selected.sender}</p>
+                      <p className="text-[11.5px] text-[#9ca3af]">{selected.received}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toast.success(`Assigned ${selected.id} to you`)}
+                    className="shrink-0 flex items-center gap-1.5 bg-[#1e3a5f] text-white text-[12.5px] font-semibold pl-3 pr-2.5 py-2 rounded-full hover:bg-[#16304f] transition-colors cursor-pointer"
+                  >
+                    <UserPlus size={13} />
+                    {selected.assignedTo ?? "Unassigned"}
+                    <ChevronDown size={12} />
+                  </button>
+                </div>
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <h1 className="text-[19px] font-bold text-[#111827] leading-[1.35]">{selected.subject}</h1>
                   <span className="shrink-0 mt-0.5"><EmailStatusBadge status={selected.status} /></span>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-[12px] text-[#9ca3af]">From: <span className="text-[#374151] font-medium">{selected.sender}</span></span>
-                  <span className="w-px h-3 bg-[#e5e7eb]" />
+                  {selected.classification && (
+                    <span className="bg-[#eef2ff] text-[#1e3a5f] text-[11px] font-semibold px-2.5 py-1 rounded-md">{selected.classification}</span>
+                  )}
                   <span className="text-[12px] text-[#9ca3af]">Received: <span className="text-[#374151] font-medium">{selected.received}</span></span>
                   <span className="w-px h-3 bg-[#e5e7eb]" />
                   <span className="bg-[#f3f4f6] text-[#374151] text-[11px] font-semibold px-2.5 py-1 rounded-md tracking-wide uppercase">{selected.category}</span>
@@ -1741,6 +1755,43 @@ function EmailViewBody({ initialEmailId }: { initialEmailId?: string }) {
               <div className="px-7 py-6">
                 <p className="text-[14px] text-[#374151] leading-[1.7]">{selected.body ?? "No content preview available."}</p>
               </div>
+
+              {/* Attachments */}
+              {(selected.attachments?.length ?? 0) > 0 && (
+                <div className="px-7 pb-6 flex flex-wrap gap-3">
+                  {selected.attachments!.map((a) => (
+                    <button
+                      key={a.name}
+                      onClick={() => toast.info(`Opening ${a.name}`)}
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-[#e5e7eb] hover:bg-[#fafafa] transition-colors cursor-pointer text-left"
+                    >
+                      <div className="size-[30px] rounded-lg bg-[#f3f4f6] flex items-center justify-center shrink-0">
+                        <FileText size={14} className="text-[#6b7280]" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[12.5px] font-semibold text-[#111827] truncate max-w-[160px]">{a.name}</p>
+                        <p className="text-[11px] text-[#9ca3af]">{a.size}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Earlier in this thread — a preview of this email's own correspondence, pulled from its linked CCC(s) */}
+              {earlierInThread.length > 0 && (
+                <div className="px-7 pb-6 space-y-2">
+                  <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-widest mb-1">Earlier in this thread</p>
+                  {earlierInThread.map((msg) => (
+                    <div key={msg.id} className="flex items-center justify-between gap-3 bg-[#f8f8f8] rounded-xl px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-[12.5px] font-semibold text-[#374151] truncate">{msg.sender}</p>
+                        <p className="text-[11.5px] text-[#9ca3af] truncate">{msg.subject}</p>
+                      </div>
+                      <p className="text-[11px] text-[#9ca3af] shrink-0">{msg.received}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Meta strip */}
               <div className="flex flex-wrap gap-x-6 gap-y-2 px-7 py-4 border-t border-[#f3f4f6] bg-[#fafafa]">
@@ -1781,16 +1832,19 @@ function EmailViewBody({ initialEmailId }: { initialEmailId?: string }) {
           </div>
 
           {/* Sticky footer */}
-          <div className="bg-white border-t border-[#ebebeb] px-8 py-4 flex items-center justify-between shrink-0">
+          <div className="bg-white border-t border-[#ebebeb] px-8 py-4 flex items-center justify-between gap-3 flex-wrap shrink-0">
             <p className="text-[12px] text-[#9ca3af]">
               Last updated: <span className="text-[#374151] font-medium">{selected.received}</span>
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <button onClick={() => toast.info(`Escalated ${selected.id}`)} className="px-5 py-2.5 border border-[#e5e7eb] rounded-xl text-[13px] font-medium text-[#374151] hover:bg-[#f9f9fb] cursor-pointer transition-colors">
                 Escalate
               </button>
-              <button onClick={() => toast.success(`Marked ${selected.id} as reviewed`)} className="px-5 py-2.5 bg-[#c53e6c] rounded-xl text-[13px] font-semibold text-white hover:opacity-90 cursor-pointer transition-opacity shadow-sm">
+              <button onClick={() => toast.success(`Marked ${selected.id} as reviewed`)} className="px-5 py-2.5 border border-[#e5e7eb] rounded-xl text-[13px] font-medium text-[#374151] hover:bg-[#f9f9fb] cursor-pointer transition-colors">
                 Mark Reviewed
+              </button>
+              <button onClick={() => onOpenWorkflow?.(selected.id)} className="px-5 py-2.5 bg-[#1e3a5f] rounded-xl text-[13px] font-semibold text-white hover:bg-[#16304f] cursor-pointer transition-colors shadow-sm">
+                Open Workflow →
               </button>
             </div>
           </div>
@@ -1802,12 +1856,14 @@ function EmailViewBody({ initialEmailId }: { initialEmailId?: string }) {
 
 // ─── Command Center Email View ─────────────────────────────────────────────────
 
-function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void;
+  onNavigateWorkflow: (emailId: string) => void;
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
@@ -1822,12 +1878,13 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+        onNavigateNewOverview={onNavigateNewOverview}
         onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
       />
       <AppHeader onMenuClick={() => setSidebarOpen(true)} activeNav="Command Center" activeSub="Email View" onViewAllNotifications={onViewAllNotifications} onNavigateDashboard={onNavigateDashboard} />
-      <EmailViewBody />
+      <EmailViewBody onOpenWorkflow={onNavigateWorkflow} />
     </div>
   );
 }
@@ -1836,12 +1893,13 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
 
 const CARDS_PER_PAGE = 4;
 
-function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void;
   onViewAllOrders?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
@@ -1953,6 +2011,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateDa
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+        onNavigateNewOverview={onNavigateNewOverview}
         onNavigateHoldManagementOverview={() => {}}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
@@ -2392,12 +2451,13 @@ function SortIcon() {
   );
 }
 
-function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateOrderDetails }: {
+function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateOrderDetails }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void;
   onNavigateOverview: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
@@ -2475,6 +2535,7 @@ function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateDashboar
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+        onNavigateNewOverview={onNavigateNewOverview}
         onNavigateHoldManagementOverview={onNavigateOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
@@ -2560,12 +2621,13 @@ const ALL_RELEASED = [
 
 const RELEASED_ROWS_PER_PAGE = 17;
 
-function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void;
   onNavigateOverview: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
@@ -2672,6 +2734,7 @@ function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateDashbo
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+        onNavigateNewOverview={onNavigateNewOverview}
         onNavigateHoldManagementOverview={onNavigateOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
@@ -2790,13 +2853,14 @@ const HOLD_FILTER_SECTIONS = [
   { key: "Impact",    label: "Impact",    options: { Ship: 7 } },
 ];
 
-function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
   orderId: string;
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void;
   onNavigateOverview: () => void;
   onNavigateOrderListing: () => void;
   onNavigateReleasedOrders?: () => void;
@@ -2853,6 +2917,7 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+        onNavigateNewOverview={onNavigateNewOverview}
         onNavigateHoldManagementOverview={onNavigateOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
@@ -3524,9 +3589,30 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
+type Screen = "login" | "dashboard" | "notifications" | "command-center-overview" | "command-center-email-view" | "new-overview" | "email-workflow" | "hold-management" | "order-listing" | "released-orders" | "order-details";
+
+const VALID_SCREENS: Screen[] = ["login", "dashboard", "notifications", "command-center-overview", "command-center-email-view", "new-overview", "email-workflow", "hold-management", "order-listing", "released-orders", "order-details"];
+
+// Session-only persistence so a page reload keeps you where you were instead of bouncing back to login —
+// sessionStorage (not localStorage) so it still clears when the tab/browser actually closes.
+const SCREEN_STORAGE_KEY = "intellisight:screen";
+const DETAIL_ORDER_STORAGE_KEY = "intellisight:detailOrderId";
+const WORKFLOW_EMAIL_STORAGE_KEY = "intellisight:workflowEmailId";
+
+function readStoredScreen(): Screen {
+  const stored = window.sessionStorage.getItem(SCREEN_STORAGE_KEY);
+  return VALID_SCREENS.includes(stored as Screen) ? (stored as Screen) : "login";
+}
+
 export default function App() {
-  const [screen, setScreen] = useState<"login" | "dashboard" | "notifications" | "command-center-overview" | "command-center-email-view" | "hold-management" | "order-listing" | "released-orders" | "order-details">("login");
-  const [detailOrderId, setDetailOrderId] = useState<string>("7822110");
+  const [screen, setScreen] = useState<Screen>(readStoredScreen);
+  const [detailOrderId, setDetailOrderId] = useState<string>(() => window.sessionStorage.getItem(DETAIL_ORDER_STORAGE_KEY) ?? "7822110");
+  const [workflowEmailId, setWorkflowEmailId] = useState<string>(() => window.sessionStorage.getItem(WORKFLOW_EMAIL_STORAGE_KEY) ?? ALL_EMAILS_WITH_CCC[0].id);
+  const openWorkflow = (emailId: string) => { setWorkflowEmailId(emailId); setScreen("email-workflow"); };
+
+  useEffect(() => { window.sessionStorage.setItem(SCREEN_STORAGE_KEY, screen); }, [screen]);
+  useEffect(() => { window.sessionStorage.setItem(DETAIL_ORDER_STORAGE_KEY, detailOrderId); }, [detailOrderId]);
+  useEffect(() => { window.sessionStorage.setItem(WORKFLOW_EMAIL_STORAGE_KEY, workflowEmailId); }, [workflowEmailId]);
 
   return (
     <div className="size-full">
@@ -3537,6 +3623,8 @@ export default function App() {
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3547,6 +3635,8 @@ export default function App() {
           onBack={() => setScreen("dashboard")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3559,6 +3649,8 @@ export default function App() {
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
+          onNavigateWorkflow={openWorkflow}
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3571,6 +3663,25 @@ export default function App() {
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
+          onNavigateWorkflow={openWorkflow}
+          onNavigateHoldManagementOverview={() => setScreen("hold-management")}
+          onNavigateOrderListing={() => setScreen("order-listing")}
+          onNavigateReleasedOrders={() => setScreen("released-orders")}
+        />
+      )}
+      {screen === "email-workflow" && (
+        <WorkflowPage emailId={workflowEmailId} onBack={() => setScreen("command-center-overview")} />
+      )}
+      {screen === "new-overview" && (
+        <NewOverviewPage
+          onLogout={() => setScreen("login")}
+          onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateDashboard={() => setScreen("dashboard")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
+          onNavigateWorkflow={openWorkflow}
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3582,6 +3693,8 @@ export default function App() {
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
           onViewAllOrders={() => setScreen("order-listing")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3593,6 +3706,8 @@ export default function App() {
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
           onNavigateOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3606,6 +3721,8 @@ export default function App() {
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
           onNavigateOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
@@ -3617,6 +3734,8 @@ export default function App() {
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
           onNavigateOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}

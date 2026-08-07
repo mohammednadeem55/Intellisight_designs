@@ -40,6 +40,8 @@ export interface OrderListingTableProps<T> {
   rowsPerPage?: number;
   emptyMessage?: string;
   displayingSuffix?: string;
+  /** Provide to show a free-text search box at the start of the toolbar, filtering rows by the given text extractor. */
+  search?: { placeholder: string; getText: (row: T) => string };
   /** Extra toolbar button(s) rendered between the type dropdown and the view toggle (e.g. a Download button). */
   toolbarExtra?: ReactNode;
   /** When provided, replaces the table rows + pagination with custom content — the toolbar (including toolbarExtra) still renders above it. Lets a caller swap in an entirely different view (e.g. an email view) without losing toolbar controls like a view-mode toggle. */
@@ -82,6 +84,7 @@ export function OrderListingTable<T>({
   rowsPerPage = 10,
   emptyMessage = "No records match your filters",
   displayingSuffix = "(Name)",
+  search,
   toolbarExtra,
   bodyOverride,
   showSpacer = true,
@@ -100,6 +103,7 @@ export function OrderListingTable<T>({
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<"grid" | "list">(defaultView);
   const [expandedRows, setExpandedRows] = useState<Set<string | number>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(categoryDropdown.allLabel);
   const [typeFilter, setTypeFilter] = useState(typeDropdown.allLabel);
   const [categoryOpen, setCategoryOpen] = useState(false);
@@ -159,13 +163,14 @@ export function OrderListingTable<T>({
   const filtered = rows.filter(r => {
     const matchCat = categoryFilter === categoryDropdown.allLabel || categoryDropdown.getValue(r) === categoryFilter;
     const matchType = typeFilter === typeDropdown.allLabel || typeDropdown.getValue(r) === typeFilter;
+    const matchSearch = !search || !searchQuery.trim() || search.getText(r).toLowerCase().includes(searchQuery.trim().toLowerCase());
     const matchPanel = filterSections.every(sec => {
       if (!sec.getValue) return true;
       const sel = checkedFilters[sec.key];
       if (!sel || sel.size === 0) return true;
       return sel.has(sec.getValue(r));
     });
-    return matchCat && matchType && matchPanel;
+    return matchCat && matchType && matchSearch && matchPanel;
   });
 
   const sorted = sortCol ? [...filtered].sort((a, b) => {
@@ -220,6 +225,22 @@ export function OrderListingTable<T>({
 
         {/* Right controls — matches Frame3 */}
         <div className="content-stretch flex gap-[16px] items-center relative shrink-0">
+
+          {/* Search */}
+          {search && (
+            <div className="relative h-[36px] w-[200px] shrink-0">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" className="absolute left-[10px] top-1/2 -translate-y-1/2 pointer-events-none">
+                <circle cx="9" cy="9" r="6.5" stroke="#9ca3af" strokeWidth="1.6" />
+                <path d="M14 14L17.5 17.5" stroke="#9ca3af" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+              <input
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                placeholder={search.placeholder}
+                className="h-full w-full pl-[32px] pr-3 rounded-[8px] border border-[#e5e7eb] text-[13px] text-[#333] placeholder:text-[#9ca3af] outline-none focus:border-[#c4c4c4] transition-colors"
+              />
+            </div>
+          )}
 
           {/* Category — matches Input */}
           <div className="relative" ref={categoryRef}>
