@@ -20,7 +20,7 @@ const menuItems = [
         <path d={menuSvg.p694ec70} fill="#686868" />
       </svg>
     ),
-    children: ["Overview", "Email View"],
+    children: ["Overview", "Email View", "New Overview"],
   },
   {
     label: "Hold Management",
@@ -41,6 +41,7 @@ export function NavDrawer({
   onNavigateDashboard,
   onNavigateCommandCenterOverview,
   onNavigateCommandCenterEmailView,
+  onNavigateNewOverview,
   onNavigateHoldManagementOverview,
   onNavigateOrderListing,
   onNavigateReleasedOrders,
@@ -51,6 +52,7 @@ export function NavDrawer({
   onNavigateDashboard?: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void;
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
@@ -151,6 +153,9 @@ export function NavDrawer({
                         } else if (item.label === "Command Center" && child === "Email View" && onNavigateCommandCenterEmailView) {
                           onClose();
                           onNavigateCommandCenterEmailView();
+                        } else if (item.label === "Command Center" && child === "New Overview" && onNavigateNewOverview) {
+                          onClose();
+                          onNavigateNewOverview();
                         } else if (item.label === "Hold Management" && child === "Overview" && onNavigateHoldManagementOverview) {
                           onClose();
                           onNavigateHoldManagementOverview();
