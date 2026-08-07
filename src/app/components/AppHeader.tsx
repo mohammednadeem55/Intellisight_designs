@@ -1,6 +1,5 @@
 import { useState } from "react";
 import headerSvg from "@/imports/IntellisightHeader/svg-55fm8fp6rz";
-import imgAvatar from "@/imports/image.png";
 import { NotificationPanel } from "./NotificationPanel";
 
 export function AppHeader({
@@ -26,12 +25,15 @@ export function AppHeader({
     <header className="bg-white border-b border-[#f2f2f2] flex items-center h-[64px] shrink-0 px-0 relative z-20">
       {/* Logo */}
       <div className="flex items-center shrink-0 pl-4 pr-3">
-        <div className="relative size-[40px]">
-          <svg className="absolute block inset-0 size-full" fill="none" viewBox="0 0 40 40">
-            <circle cx="20" cy="20" fill="#BA1C1C" r="20" />
-            <circle cx="20" cy="20" fill="white" r="8.88889" />
-          </svg>
-        </div>
+        <svg className="w-[38px] h-[24px]" fill="none" viewBox="0 0 42 24">
+          <path
+            d="M2 20L9 8L15 20L21 4L27 20L33 12L41 12"
+            stroke="#E90029"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </div>
 
       {/* Hamburger + Page title — visible on mobile, also on desktop when sidebar present */}
@@ -48,23 +50,23 @@ export function AppHeader({
           </svg>
         </button>
         <div className="flex flex-col justify-center leading-none">
-          <p className="text-[16px] font-normal text-[#333] whitespace-nowrap leading-[21px]">{activeNav}</p>
+          <p className="text-[16px] font-medium text-[#262626] whitespace-nowrap leading-[21px]">{activeNav}</p>
           {/* Breadcrumb */}
           <div className="flex items-center gap-[5px]">
             {/* Home icon */}
             <span
-              className="flex items-center cursor-pointer text-[#c53e6c] hover:opacity-75 transition-opacity"
+              className="flex items-center cursor-pointer text-[#CC0025] hover:opacity-75 transition-opacity"
               onClick={onNavigateDashboard}
               title="Go to Dashboard"
             >
               <svg fill="none" viewBox="0 0 14 14" className="size-[12px]">
-                <path d="M1 5.5L7 1l6 4.5V13a.5.5 0 01-.5.5H9v-4H5v4H1.5A.5.5 0 011 13V5.5z" stroke="#c53e6c" strokeWidth="1.2" strokeLinejoin="round" />
+                <path d="M1 5.5L7 1l6 4.5V13a.5.5 0 01-.5.5H9v-4H5v4H1.5A.5.5 0 011 13V5.5z" stroke="#CC0025" strokeWidth="1.2" strokeLinejoin="round" />
               </svg>
             </span>
             <svg fill="none" viewBox="0 0 12 12" className="size-[12px] shrink-0">
-              <path clipRule="evenodd" d={headerSvg.p39b4900} fill="#C53E6C" fillRule="evenodd" />
+              <path clipRule="evenodd" d={headerSvg.p39b4900} fill="#CC0025" fillRule="evenodd" />
             </svg>
-            <span className="text-[12px] text-[#333] leading-[12px] whitespace-nowrap">{activeSub ?? activeNav}</span>
+            <span className="text-[12px] text-[#666666] leading-[12px] whitespace-nowrap">{activeSub ?? activeNav}</span>
           </div>
         </div>
       </div>
@@ -109,24 +111,48 @@ export function AppHeader({
       </div>
 
       {/* Right actions */}
-      <div className="flex items-center gap-5 ml-auto pr-4 sm:pr-6">
+      <div className="flex items-center gap-4 ml-auto pr-4 sm:pr-6">
         {/* AI Chat */}
-        <button className="hidden sm:flex items-center gap-[7px] cursor-pointer hover:opacity-80 transition-opacity">
-          <svg fill="none" viewBox="0 0 17.5 17.5021" className="size-[17.5px] shrink-0">
-            <path clipRule="evenodd" d={headerSvg.p7bbbb0} fill="#BA1C1C" fillRule="evenodd" />
-          </svg>
-          <span className="text-[14px] font-medium text-[#bf0000] whitespace-nowrap">AI Chat</span>
+        <button className="hidden sm:flex items-center rounded-full p-px bg-gradient-to-r from-[#E90029] via-[#823E81] to-[#30578D] cursor-pointer hover:opacity-90 transition-opacity">
+          <span className="flex items-center gap-[6px] bg-white rounded-full px-3 h-[30px]">
+            <svg viewBox="0 0 16 16" className="size-[14px] shrink-0">
+              <defs>
+                <linearGradient id="aiChatSparkleGradient" x1="0" y1="0" x2="16" y2="16">
+                  <stop offset="0%" stopColor="#E90029" />
+                  <stop offset="55%" stopColor="#823E81" />
+                  <stop offset="100%" stopColor="#30578D" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M8 0L9.8 6.2L16 8L9.8 9.8L8 16L6.2 9.8L0 8L6.2 6.2Z"
+                fill="url(#aiChatSparkleGradient)"
+              />
+            </svg>
+            <span className="text-[14px] font-medium bg-gradient-to-r from-[#E90029] via-[#823E81] to-[#30578D] bg-clip-text text-transparent whitespace-nowrap">
+              AI Chat
+            </span>
+          </span>
         </button>
 
-        {/* Person / Lina icon */}
-        <button className="hidden sm:flex cursor-pointer hover:opacity-70 transition-opacity">
-          <svg fill="none" viewBox="0 0 16.2475 17.5" className="size-[18px]">
-            <path d={headerSvg.p1ab4280} fill="#686868" />
+        {/* Headset / support */}
+        <button className="hidden sm:flex cursor-pointer hover:opacity-70 transition-opacity" aria-label="Support">
+          <svg viewBox="0 0 24 24" fill="none" className="size-[20px]">
+            <path
+              d="M3 18v-6a9 9 0 0 1 18 0v6"
+              stroke="#686868"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3v5zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3v5z"
+              stroke="#686868"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </button>
-
-        {/* Divider */}
-        <div className="hidden sm:block w-px h-[20px] bg-[#d1d1d1] opacity-50" />
 
         {/* Notification bell */}
         <div className="relative">
@@ -150,14 +176,22 @@ export function AppHeader({
           )}
         </div>
 
-        {/* Avatar */}
-        <div className="size-[40px] rounded-full overflow-hidden shrink-0 cursor-pointer">
-          <img
-            src={imgAvatar}
-            alt="User avatar"
-            className="size-full object-cover"
-          />
-        </div>
+        {/* Profile */}
+        <button
+          className="size-[32px] rounded-full bg-[#F1F2F4] flex items-center justify-center shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+          aria-label="Profile"
+        >
+          <svg viewBox="0 0 24 24" fill="none" className="size-[18px]">
+            <path
+              d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+              stroke="#686868"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle cx="12" cy="7" r="4" stroke="#686868" strokeWidth="1.7" />
+          </svg>
+        </button>
       </div>
     </header>
   );
