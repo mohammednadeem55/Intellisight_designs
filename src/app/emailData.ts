@@ -59,7 +59,7 @@ export type Email = {
 };
 
 const CSR_OWNERS = ["A. Sharma", "M. Chen", "R. Okafor", "L. Novak", "T. Reyes"];
-const BUSINESS_GROUPS = ["Enterprise", "Mid-Market", "Public Sector", "SMB"];
+export const BUSINESS_GROUPS = ["Enterprise", "Mid-Market", "Public Sector", "SMB"];
 const ACCOUNT_MANAGERS = ["J. Patel (FE-2201)", "K. Summers (FE-1187)", "D. Alvarez (FE-3042)", "S. Kim (FE-0925)"];
 const ACCOUNT_NAMES = ["GlobalTech Industries", "Acme Industries", "Nexus Corp", "Sterling & Co", "MetaSite Inc"];
 const CCC_REQUEST_TYPES = ["New Order", "Amendment", "Renewal", "Cancellation"];
@@ -80,8 +80,8 @@ const STATUS_NOTES = [
   "Customer confirmed details, proceeding with fulfillment.",
   "Awaiting updated documentation from requester.",
 ];
-const CLASSIFICATIONS = ["Trade Order", "Service Contract", "Work Order", "Quote Request", "Info Required", "Review Required"];
-const REVIEW_STATUSES = ["Pending", "Approved", "Rejected"];
+export const CLASSIFICATIONS = ["Trade Order", "Service Contract", "Work Order", "Quote Request", "Info Required", "Review Required"];
+export const REVIEW_STATUSES = ["Pending", "Approved", "Rejected"];
 const ASSIGNEES: { name: string; initials: string }[] = [
   { name: "Jagdish K.", initials: "JK" },
   { name: "Gaurish", initials: "G" },

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  Check,
   ChevronDown,
   ChevronRight,
   CornerDownRight,
@@ -13,6 +14,7 @@ import {
   Maximize2,
   Minimize2,
   Paperclip,
+  RotateCcw,
   SlidersHorizontal,
   TrendingUp,
   User,
@@ -22,7 +24,7 @@ import {
 } from "lucide-react";
 import { NavDrawer } from "./components/NavDrawer";
 import { AppHeader } from "./components/AppHeader";
-import { type Email, ALL_EMAILS_WITH_CCC } from "./emailData";
+import { type Email, ALL_EMAILS_WITH_CCC, BUSINESS_GROUPS, CLASSIFICATIONS, REVIEW_STATUSES } from "./emailData";
 
 // ─── New Overview (fresh build, matching the shared reference design) ──────────
 // Deliberately does not reuse OrderListingTable, CccDetailCard, or EmailViewBody — its own table, toolbar,
@@ -33,6 +35,19 @@ const NEW_OVERVIEW_NAVY = "#30578D";
 const NEW_OVERVIEW_MAILBOXES = ["All Mailboxes", "support@intellisight.io", "sales@intellisight.io", "billing@intellisight.io"];
 
 const NEW_OVERVIEW_INTERVALS = ["Day", "Week", "Month", "Quarter", "Year"];
+
+// Table columns for the grid view — From/Subject and Action are always shown; the rest can be
+// hidden via the toolbar's "Manage columns" popover.
+const NEW_OVERVIEW_COLUMNS: { key: string; label: string; pinned?: boolean }[] = [
+  { key: "subject", label: "From/Subject", pinned: true },
+  { key: "classification", label: "Classification" },
+  { key: "confidence", label: "Confidence" },
+  { key: "age", label: "Age" },
+  { key: "assignedTo", label: "Assigned To" },
+  { key: "businessGroup", label: "Business Group" },
+  { key: "reviewStatus", label: "Review Status" },
+  { key: "action", label: "Action", pinned: true },
+];
 
 function NewOverviewAvatar({ email }: { email: Email }) {
   const isAi = email.assignedTo === "AI";
@@ -228,13 +243,16 @@ function NewOverviewAssignModal({ email, onClose }: { email: Email; onClose: () 
 }
 
 // Custom table — expand chevron reveals linked CCCs as simple one-level sub-rows (no tabs, no deep hierarchy).
-function NewOverviewTable({ rows, expandedIds, onToggleExpand, onOpenRow }: {
+function NewOverviewTable({ rows, expandedIds, onToggleExpand, onOpenRow, hiddenColumns }: {
   rows: Email[];
   expandedIds: Set<string>;
   onToggleExpand: (id: string) => void;
   onOpenRow: (id: string) => void;
+  hiddenColumns: Set<string>;
 }) {
   const [assignModalRow, setAssignModalRow] = useState<Email | null>(null);
+  const visibleColumns = NEW_OVERVIEW_COLUMNS.filter((c) => c.pinned || !hiddenColumns.has(c.key));
+  const isVisible = (key: string) => !hiddenColumns.has(key);
 
   return (
     <>
@@ -243,16 +261,16 @@ function NewOverviewTable({ rows, expandedIds, onToggleExpand, onOpenRow }: {
         <thead>
           <tr className="border-b border-[#DEDEDE] bg-[#F7F7F7] sticky top-0 z-10">
             <th className="w-[40px]" />
-            {["From/Subject", "Classification", "Confidence", "Age", "Assigned To", "Business Group", "Review Status", "Action"].map((label) => (
-              <th key={label} className="px-4 h-[42px] text-left whitespace-nowrap">
-                <span className="text-[12px] font-semibold text-[#4D4D4D]">{label}</span>
+            {visibleColumns.map((col) => (
+              <th key={col.key} className="px-4 h-[42px] text-left whitespace-nowrap">
+                <span className="text-[12px] font-semibold text-[#4D4D4D]">{col.label}</span>
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={9} className="text-center py-16 text-[#97999B] text-[14px]">No emails match your filters</td></tr>
+            <tr><td colSpan={visibleColumns.length + 1} className="text-center py-16 text-[#97999B] text-[14px]">No emails match your filters</td></tr>
           ) : rows.flatMap((row, idx) => {
             const linked = row.linkedCccs ?? [];
             const hasChildren = linked.length > 0;
@@ -275,22 +293,34 @@ function NewOverviewTable({ rows, expandedIds, onToggleExpand, onOpenRow }: {
                   <p className="text-[12.5px] text-[#4D4D4D] truncate">{row.sender}</p>
                   <p className="text-[12px] text-[#97999B] truncate">{row.subject}</p>
                 </td>
-                <td className="px-4 py-3"><span className="text-[12.5px] text-[#4D4D4D] whitespace-nowrap">{row.classification ?? "—"}</span></td>
-                <td className="px-4 py-3"><NewOverviewConfidenceBar pct={row.confidencePct} /></td>
-                <td className="px-4 py-3"><span className="text-[12.5px] text-[#4D4D4D] whitespace-nowrap">{NEW_OVERVIEW_AGE_POOL[idx % NEW_OVERVIEW_AGE_POOL.length]}</span></td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <NewOverviewAvatar email={row} />
-                    <span className="text-[12.5px] text-[#4D4D4D] truncate">{row.assignedTo ?? "Unassigned"}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <Users size={12} className="text-[#97999B] shrink-0" />
-                    <span className="text-[12.5px] text-[#4D4D4D] truncate">{row.businessGroup ?? "—"}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3"><NewOverviewReviewPill status={row.reviewStatus} /></td>
+                {isVisible("classification") && (
+                  <td className="px-4 py-3"><span className="text-[12.5px] text-[#4D4D4D] whitespace-nowrap">{row.classification ?? "—"}</span></td>
+                )}
+                {isVisible("confidence") && (
+                  <td className="px-4 py-3"><NewOverviewConfidenceBar pct={row.confidencePct} /></td>
+                )}
+                {isVisible("age") && (
+                  <td className="px-4 py-3"><span className="text-[12.5px] text-[#4D4D4D] whitespace-nowrap">{NEW_OVERVIEW_AGE_POOL[idx % NEW_OVERVIEW_AGE_POOL.length]}</span></td>
+                )}
+                {isVisible("assignedTo") && (
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <NewOverviewAvatar email={row} />
+                      <span className="text-[12.5px] text-[#4D4D4D] truncate">{row.assignedTo ?? "Unassigned"}</span>
+                    </div>
+                  </td>
+                )}
+                {isVisible("businessGroup") && (
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Users size={12} className="text-[#97999B] shrink-0" />
+                      <span className="text-[12.5px] text-[#4D4D4D] truncate">{row.businessGroup ?? "—"}</span>
+                    </div>
+                  </td>
+                )}
+                {isVisible("reviewStatus") && (
+                  <td className="px-4 py-3"><NewOverviewReviewPill status={row.reviewStatus} /></td>
+                )}
                 <td className="px-4 py-3">
                   <button
                     onClick={(e) => { e.stopPropagation(); setAssignModalRow(row); }}
@@ -308,7 +338,7 @@ function NewOverviewTable({ rows, expandedIds, onToggleExpand, onOpenRow }: {
             const childRows = linked.map((ccc) => (
               <tr key={`${row.id}::${ccc.id}`} onClick={() => onOpenRow(row.id)} className="border-b border-[#DEDEDE] bg-[#F7F7F7] hover:bg-[#E2E6E9] cursor-pointer transition-colors">
                 <td />
-                <td className="px-4 py-2.5 pl-8" colSpan={8}>
+                <td className="px-4 py-2.5 pl-8" colSpan={visibleColumns.length}>
                   <div className="flex items-center gap-2 min-w-0">
                     <CornerDownRight size={12} className="text-[#97999B] shrink-0" />
                     <span className="text-[12.5px] font-semibold text-[#4D4D4D] shrink-0">{ccc.cccId}</span>
@@ -508,11 +538,50 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateDa
   const [kpisExpanded, setKpisExpanded] = useState(true);
   const rowsPerPage = 10;
 
+  // Classification + Interval are "staged" — picks in their popovers don't take effect until Apply is
+  // clicked, so multiple picks across both can be committed together in one go.
+  const [classificationOpen, setClassificationOpen] = useState(false);
+  const [appliedClassifications, setAppliedClassifications] = useState<string[]>([]);
+  const [pendingClassifications, setPendingClassifications] = useState<string[]>([]);
+  const [toolbarIntervalOpen, setToolbarIntervalOpen] = useState(false);
+  const [appliedToolbarInterval, setAppliedToolbarInterval] = useState<string | null>(null);
+  const [pendingToolbarInterval, setPendingToolbarInterval] = useState<string | null>(null);
+
+  const classificationDirty = pendingClassifications.slice().sort().join("|") !== appliedClassifications.slice().sort().join("|");
+  const intervalDirty = pendingToolbarInterval !== appliedToolbarInterval;
+  const filtersAreDirty = classificationDirty || intervalDirty;
+
+  const applyToolbarFilters = () => {
+    setAppliedClassifications(pendingClassifications);
+    setAppliedToolbarInterval(pendingToolbarInterval);
+    setClassificationOpen(false);
+    setToolbarIntervalOpen(false);
+    setPage(1);
+  };
+  const resetToolbarFilters = () => {
+    setPendingClassifications(appliedClassifications);
+    setPendingToolbarInterval(appliedToolbarInterval);
+  };
+
+  // Filter icon popover — applies instantly (not gated behind the Apply button above).
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<Set<string>>(new Set());
+  const [businessGroupFilter, setBusinessGroupFilter] = useState<Set<string>>(new Set());
+  const activeFilterCount = reviewStatusFilter.size + businessGroupFilter.size;
+
+  // Manage columns popover — also instant.
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+
   const isInternal = (e: Email) => e.sender.endsWith("@intellisight.io");
   const allRows = ALL_EMAILS_WITH_CCC;
-  const rows = searchQuery.trim()
-    ? allRows.filter((r) => `${r.subject} ${r.sender} ${r.classification ?? ""}`.toLowerCase().includes(searchQuery.trim().toLowerCase()))
-    : allRows;
+  const rows = allRows.filter((r) => {
+    if (searchQuery.trim() && !`${r.subject} ${r.sender} ${r.classification ?? ""}`.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
+    if (appliedClassifications.length > 0 && !appliedClassifications.includes(r.classification ?? "")) return false;
+    if (reviewStatusFilter.size > 0 && !reviewStatusFilter.has(r.reviewStatus ?? "Pending")) return false;
+    if (businessGroupFilter.size > 0 && !businessGroupFilter.has(r.businessGroup ?? "")) return false;
+    return true;
+  });
 
   const selected = allRows.find((r) => r.id === selectedId) ?? allRows[0];
   const totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage));
@@ -693,21 +762,124 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateDa
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
                   placeholder="Search Email"
-                  className="h-[36px] w-full pl-[32px] pr-3 rounded-[8px] border border-[#E2E6E9] text-[13px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#D9D9D6] transition-colors"
+                  className="h-[36px] w-full pl-[32px] pr-8 rounded-[8px] border border-[#E2E6E9] text-[13px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => { setSearchQuery(""); setPage(1); }}
+                    aria-label="Clear search"
+                    className="absolute right-[8px] top-1/2 -translate-y-1/2 text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <button className="flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[12.5px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer">
-                  Classification
-                  <ChevronDown size={13} />
-                </button>
-                <button className="flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[12.5px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer">
-                  Interval
-                  <ChevronDown size={13} />
-                </button>
+                {/* Classification — multi-select, staged behind Apply */}
+                <div className="relative">
+                  <button
+                    onClick={() => setClassificationOpen((v) => !v)}
+                    className={`relative flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-medium transition-colors cursor-pointer ${classificationOpen ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7]"}`}
+                  >
+                    Classification
+                    {appliedClassifications.length > 0 && (
+                      <span className="flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full text-white text-[10px] font-bold" style={{ backgroundColor: NEW_OVERVIEW_NAVY }}>
+                        {appliedClassifications.length}
+                      </span>
+                    )}
+                    <ChevronDown size={13} className={`transition-transform duration-200 ${classificationOpen ? "rotate-180" : ""}`} />
+                    {classificationDirty && <span className="absolute -top-[3px] -right-[3px] size-[8px] rounded-full bg-[#E67919] ring-2 ring-white" />}
+                  </button>
+                  {classificationOpen && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setClassificationOpen(false)} />
+                      <div className="absolute top-full left-0 mt-1 bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-30 w-[220px] py-1.5">
+                        {CLASSIFICATIONS.map((c) => {
+                          const checked = pendingClassifications.includes(c);
+                          return (
+                            <button
+                              key={c}
+                              onClick={() => setPendingClassifications((prev) => (checked ? prev.filter((x) => x !== c) : [...prev, c]))}
+                              className="w-full flex items-center gap-2.5 text-left px-3.5 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                            >
+                              <span
+                                className={`flex items-center justify-center size-[15px] rounded-[4px] border shrink-0 transition-colors ${checked ? "border-transparent" : "border-[#D9D9D6]"}`}
+                                style={checked ? { backgroundColor: NEW_OVERVIEW_NAVY } : undefined}
+                              >
+                                {checked && <Check size={11} className="text-white" strokeWidth={3} />}
+                              </span>
+                              <span className={checked ? "text-[#262626] font-medium" : "text-[#4D4D4D]"}>{c}</span>
+                            </button>
+                          );
+                        })}
+                        {pendingClassifications.length > 0 && (
+                          <button
+                            onClick={() => setPendingClassifications([])}
+                            className="w-full text-left px-3.5 pt-1.5 pb-0.5 text-[11.5px] font-medium text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors"
+                          >
+                            Clear selection
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Interval — single-select, staged behind Apply */}
+                <div className="relative">
+                  <button
+                    onClick={() => setToolbarIntervalOpen((v) => !v)}
+                    className={`relative flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-medium transition-colors cursor-pointer ${toolbarIntervalOpen ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7]"}`}
+                  >
+                    {pendingToolbarInterval ?? "Interval"}
+                    <ChevronDown size={13} className={`transition-transform duration-200 ${toolbarIntervalOpen ? "rotate-180" : ""}`} />
+                    {intervalDirty && <span className="absolute -top-[3px] -right-[3px] size-[8px] rounded-full bg-[#E67919] ring-2 ring-white" />}
+                  </button>
+                  {toolbarIntervalOpen && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setToolbarIntervalOpen(false)} />
+                      <div className="absolute top-full left-0 mt-1 bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-30 w-[140px] py-1">
+                        {NEW_OVERVIEW_INTERVALS.map((opt) => (
+                          <button
+                            key={opt}
+                            onClick={() => setPendingToolbarInterval(opt === pendingToolbarInterval ? null : opt)}
+                            className="w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                            style={opt === pendingToolbarInterval ? { color: NEW_OVERVIEW_NAVY, fontWeight: 600 } : { color: "#4D4D4D" }}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Apply / Reset — surfaces only once Classification and/or Interval have unapplied changes */}
+                {filtersAreDirty && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={resetToolbarFilters}
+                      title="Discard changes"
+                      className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7] transition-colors cursor-pointer"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                    <button
+                      onClick={applyToolbarFilters}
+                      className="h-[36px] px-4 rounded-[8px] text-white text-[12.5px] font-semibold hover:opacity-90 transition-opacity cursor-pointer whitespace-nowrap"
+                      style={{ backgroundColor: NEW_OVERVIEW_NAVY }}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                )}
+
+                <div className="w-px h-5 bg-[#E2E6E9]" />
+
                 <div className="flex items-center border border-[#E2E6E9] rounded-[8px] overflow-hidden h-[36px]">
                   <button
                     onClick={() => setViewMode("list")}
+                    title="List + email view"
                     className={`flex items-center justify-center w-[36px] h-full transition-colors cursor-pointer ${viewMode === "list" ? "text-white" : "bg-white text-[#666666] hover:bg-[#F7F7F7]"}`}
                     style={viewMode === "list" ? { backgroundColor: NEW_OVERVIEW_NAVY } : undefined}
                   >
@@ -716,18 +888,121 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateDa
                   <div className="w-px h-5 bg-[#E2E6E9]" />
                   <button
                     onClick={() => setViewMode("grid")}
+                    title="Table view"
                     className={`flex items-center justify-center w-[36px] h-full transition-colors cursor-pointer ${viewMode === "grid" ? "text-white" : "bg-white text-[#666666] hover:bg-[#F7F7F7]"}`}
                     style={viewMode === "grid" ? { backgroundColor: NEW_OVERVIEW_NAVY } : undefined}
                   >
                     <LayoutGrid size={15} />
                   </button>
                 </div>
-                <button className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7] transition-colors cursor-pointer">
-                  <Filter size={15} />
-                </button>
-                <button className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7] transition-colors cursor-pointer">
-                  <SlidersHorizontal size={15} />
-                </button>
+
+                {/* Filter — Review Status + Business Group, applies instantly */}
+                <div className="relative">
+                  <button
+                    onClick={() => setFilterOpen((v) => !v)}
+                    title="More filters"
+                    className={`relative flex items-center justify-center size-[36px] rounded-[8px] border transition-colors cursor-pointer ${filterOpen ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7]"}`}
+                  >
+                    <Filter size={15} />
+                    {activeFilterCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[15px] h-[15px] px-[3px] rounded-full text-white text-[9px] font-bold" style={{ backgroundColor: NEW_OVERVIEW_NAVY }}>
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </button>
+                  {filterOpen && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setFilterOpen(false)} />
+                      <div className="absolute top-full right-0 mt-1 bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-30 w-[220px] py-1.5">
+                        <p className="px-3.5 pt-1 pb-1 text-[10.5px] font-semibold text-[#97999B] uppercase tracking-wide">Review Status</p>
+                        {REVIEW_STATUSES.map((s) => {
+                          const checked = reviewStatusFilter.has(s);
+                          return (
+                            <button
+                              key={s}
+                              onClick={() => { setReviewStatusFilter((prev) => { const next = new Set(prev); if (checked) next.delete(s); else next.add(s); return next; }); setPage(1); }}
+                              className="w-full flex items-center gap-2.5 text-left px-3.5 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                            >
+                              <span
+                                className={`flex items-center justify-center size-[15px] rounded-[4px] border shrink-0 transition-colors ${checked ? "border-transparent" : "border-[#D9D9D6]"}`}
+                                style={checked ? { backgroundColor: NEW_OVERVIEW_NAVY } : undefined}
+                              >
+                                {checked && <Check size={11} className="text-white" strokeWidth={3} />}
+                              </span>
+                              <span className={checked ? "text-[#262626] font-medium" : "text-[#4D4D4D]"}>{s}</span>
+                            </button>
+                          );
+                        })}
+                        <div className="h-px bg-[#E2E6E9] my-1.5" />
+                        <p className="px-3.5 pt-1 pb-1 text-[10.5px] font-semibold text-[#97999B] uppercase tracking-wide">Business Group</p>
+                        {BUSINESS_GROUPS.map((g) => {
+                          const checked = businessGroupFilter.has(g);
+                          return (
+                            <button
+                              key={g}
+                              onClick={() => { setBusinessGroupFilter((prev) => { const next = new Set(prev); if (checked) next.delete(g); else next.add(g); return next; }); setPage(1); }}
+                              className="w-full flex items-center gap-2.5 text-left px-3.5 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                            >
+                              <span
+                                className={`flex items-center justify-center size-[15px] rounded-[4px] border shrink-0 transition-colors ${checked ? "border-transparent" : "border-[#D9D9D6]"}`}
+                                style={checked ? { backgroundColor: NEW_OVERVIEW_NAVY } : undefined}
+                              >
+                                {checked && <Check size={11} className="text-white" strokeWidth={3} />}
+                              </span>
+                              <span className={checked ? "text-[#262626] font-medium" : "text-[#4D4D4D]"}>{g}</span>
+                            </button>
+                          );
+                        })}
+                        {activeFilterCount > 0 && (
+                          <button
+                            onClick={() => { setReviewStatusFilter(new Set()); setBusinessGroupFilter(new Set()); setPage(1); }}
+                            className="w-full text-left px-3.5 pt-2 pb-0.5 text-[11.5px] font-medium text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors"
+                          >
+                            Clear filters
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Manage columns — table view only, applies instantly */}
+                <div className="relative">
+                  <button
+                    onClick={() => setColumnsOpen((v) => !v)}
+                    title="Manage columns"
+                    className={`relative flex items-center justify-center size-[36px] rounded-[8px] border transition-colors cursor-pointer ${columnsOpen ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7]"}`}
+                  >
+                    <SlidersHorizontal size={15} />
+                    {hiddenColumns.size > 0 && <span className="absolute -top-1 -right-1 size-[8px] rounded-full ring-2 ring-white" style={{ backgroundColor: NEW_OVERVIEW_NAVY }} />}
+                  </button>
+                  {columnsOpen && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setColumnsOpen(false)} />
+                      <div className="absolute top-full right-0 mt-1 bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-30 w-[200px] py-1.5">
+                        <p className="px-3.5 pt-1 pb-1 text-[10.5px] font-semibold text-[#97999B] uppercase tracking-wide">Show columns</p>
+                        {NEW_OVERVIEW_COLUMNS.filter((c) => !c.pinned).map((col) => {
+                          const visible = !hiddenColumns.has(col.key);
+                          return (
+                            <button
+                              key={col.key}
+                              onClick={() => setHiddenColumns((prev) => { const next = new Set(prev); if (visible) next.add(col.key); else next.delete(col.key); return next; })}
+                              className="w-full flex items-center gap-2.5 text-left px-3.5 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                            >
+                              <span
+                                className={`flex items-center justify-center size-[15px] rounded-[4px] border shrink-0 transition-colors ${visible ? "border-transparent" : "border-[#D9D9D6]"}`}
+                                style={visible ? { backgroundColor: NEW_OVERVIEW_NAVY } : undefined}
+                              >
+                                {visible && <Check size={11} className="text-white" strokeWidth={3} />}
+                              </span>
+                              <span className={visible ? "text-[#262626] font-medium" : "text-[#4D4D4D]"}>{col.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -739,6 +1014,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateDa
                   expandedIds={expandedIds}
                   onToggleExpand={toggleExpanded}
                   onOpenRow={(id) => onNavigateWorkflow(id)}
+                  hiddenColumns={hiddenColumns}
                 />
               ) : (
                 <NewOverviewListView
