@@ -36,6 +36,7 @@ import {
   type OrderListingDropdownFilter,
 } from "./components/OrderListingTable";
 import { NewOverviewPage } from "./NewOverviewPage";
+import { HomePage } from "./HomePage";
 import { type Email, ALL_EMAILS, ALL_EMAILS_WITH_CCC } from "./emailData";
 import {
   BarChart,
@@ -307,7 +308,7 @@ const statusDot: Record<string, string> = {
   Resolved: "bg-emerald-500",
 };
 
-function NotificationsPage({ onBack, onViewAllNotifications, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onBack: () => void; onViewAllNotifications: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void;
+function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onBack: () => void; onViewAllNotifications: () => void; onNavigateHome?: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("All");
@@ -345,6 +346,7 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateCommandCe
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={onBack}
+        onNavigateHome={onNavigateHome}
         onNavigateDashboard={onBack}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
@@ -609,7 +611,7 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateCommandCe
   );
 }
 
-function Dashboard({ onLogout, onViewAllNotifications, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onLogout: () => void; onViewAllNotifications: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void;
+function Dashboard({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onLogout: () => void; onViewAllNotifications: () => void; onNavigateHome?: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void }) {
   const [activeNav, setActiveNav] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -623,6 +625,7 @@ function Dashboard({ onLogout, onViewAllNotifications, onNavigateCommandCenterOv
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
+        onNavigateHome={onNavigateHome}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
         onNavigateNewOverview={onNavigateNewOverview}
@@ -765,9 +768,10 @@ function EmailStatusBadge({ status }: { status: string }) {
   );
 }
 
-function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
+  onNavigateHome?: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
@@ -1002,6 +1006,7 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
+        onNavigateHome={onNavigateHome}
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
@@ -1856,9 +1861,10 @@ function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: st
 
 // ─── Command Center Email View ─────────────────────────────────────────────────
 
-function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
+  onNavigateHome?: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
@@ -1875,6 +1881,7 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
+        onNavigateHome={onNavigateHome}
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
@@ -1893,9 +1900,10 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, 
 
 const CARDS_PER_PAGE = 4;
 
-function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
+  onNavigateHome?: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
@@ -2008,6 +2016,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateDa
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
+        onNavigateHome={onNavigateHome}
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
@@ -2451,9 +2460,10 @@ function SortIcon() {
   );
 }
 
-function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateOrderDetails }: {
+function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateOrderDetails }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
+  onNavigateHome?: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
@@ -2532,6 +2542,7 @@ function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateDashboar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
+        onNavigateHome={onNavigateHome}
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
@@ -2621,9 +2632,10 @@ const ALL_RELEASED = [
 
 const RELEASED_ROWS_PER_PAGE = 17;
 
-function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
+  onNavigateHome?: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
@@ -2731,6 +2743,7 @@ function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateDashbo
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
+        onNavigateHome={onNavigateHome}
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
@@ -2853,10 +2866,11 @@ const HOLD_FILTER_SECTIONS = [
   { key: "Impact",    label: "Impact",    options: { Ship: 7 } },
 ];
 
-function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
   orderId: string;
   onLogout: () => void;
   onViewAllNotifications: () => void;
+  onNavigateHome?: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
@@ -2914,6 +2928,7 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
+        onNavigateHome={onNavigateHome}
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
@@ -3589,9 +3604,9 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
-type Screen = "login" | "dashboard" | "notifications" | "command-center-overview" | "command-center-email-view" | "new-overview" | "email-workflow" | "hold-management" | "order-listing" | "released-orders" | "order-details";
+type Screen = "login" | "dashboard" | "home" | "notifications" | "command-center-overview" | "command-center-email-view" | "new-overview" | "email-workflow" | "hold-management" | "order-listing" | "released-orders" | "order-details";
 
-const VALID_SCREENS: Screen[] = ["login", "dashboard", "notifications", "command-center-overview", "command-center-email-view", "new-overview", "email-workflow", "hold-management", "order-listing", "released-orders", "order-details"];
+const VALID_SCREENS: Screen[] = ["login", "dashboard", "home", "notifications", "command-center-overview", "command-center-email-view", "new-overview", "email-workflow", "hold-management", "order-listing", "released-orders", "order-details"];
 
 // Session-only persistence so a page reload keeps you where you were instead of bouncing back to login —
 // sessionStorage (not localStorage) so it still clears when the tab/browser actually closes.
@@ -3622,6 +3637,19 @@ export default function App() {
         <Dashboard
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateHome={() => setScreen("home")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
+          onNavigateHoldManagementOverview={() => setScreen("hold-management")}
+          onNavigateOrderListing={() => setScreen("order-listing")}
+          onNavigateReleasedOrders={() => setScreen("released-orders")}
+        />
+      )}
+      {screen === "home" && (
+        <HomePage
+          onLogout={() => setScreen("login")}
+          onViewAllNotifications={() => setScreen("notifications")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateNewOverview={() => setScreen("new-overview")}
@@ -3634,6 +3662,7 @@ export default function App() {
         <NotificationsPage
           onBack={() => setScreen("dashboard")}
           onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateHome={() => setScreen("home")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateNewOverview={() => setScreen("new-overview")}
@@ -3646,6 +3675,7 @@ export default function App() {
         <CommandCenterOverviewPage
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateHome={() => setScreen("home")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
@@ -3660,6 +3690,7 @@ export default function App() {
         <EmailViewPage
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateHome={() => setScreen("home")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
@@ -3677,6 +3708,7 @@ export default function App() {
         <NewOverviewPage
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateHome={() => setScreen("home")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
@@ -3691,6 +3723,7 @@ export default function App() {
         <HoldManagementOverview
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateHome={() => setScreen("home")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
@@ -3704,6 +3737,7 @@ export default function App() {
         <OrderListingPage
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateHome={() => setScreen("home")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
@@ -3719,6 +3753,7 @@ export default function App() {
           orderId={detailOrderId}
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateHome={() => setScreen("home")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
@@ -3732,6 +3767,7 @@ export default function App() {
         <ReleasedOrdersPage
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateHome={() => setScreen("home")}
           onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}

@@ -513,9 +513,10 @@ function NewOverviewListView({ rows, selectedId, selected, onSelect, expandedIds
   );
 }
 
-export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateWorkflow, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateWorkflow, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
+  onNavigateHome?: () => void;
   onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
@@ -621,6 +622,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateDa
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={onLogout}
+        onNavigateHome={onNavigateHome}
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}

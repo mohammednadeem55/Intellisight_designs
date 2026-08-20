@@ -1,8 +1,13 @@
 import { useState } from "react";
-import { LogOut, X } from "lucide-react";
+import { House, LogOut, X } from "lucide-react";
 import menuSvg from "@/imports/NestedMenuExample/svg-bciw7c0072";
 
 const menuItems = [
+  {
+    label: "Home",
+    color: "#686868",
+    icon: <House size={17} color="#686868" strokeWidth={1.7} />,
+  },
   {
     label: "Dashboard",
     color: "#686868",
@@ -38,6 +43,7 @@ export function NavDrawer({
   open,
   onClose,
   onLogout,
+  onNavigateHome,
   onNavigateDashboard,
   onNavigateCommandCenterOverview,
   onNavigateCommandCenterEmailView,
@@ -49,6 +55,7 @@ export function NavDrawer({
   open: boolean;
   onClose: () => void;
   onLogout: () => void;
+  onNavigateHome?: () => void;
   onNavigateDashboard?: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
@@ -102,6 +109,9 @@ export function NavDrawer({
                 onClick={() => {
                   if (item.children) {
                     setExpanded(expanded === item.label ? null : item.label);
+                  } else if (item.label === "Home" && onNavigateHome) {
+                    onClose();
+                    onNavigateHome();
                   } else if (item.label === "Dashboard" && onNavigateDashboard) {
                     onClose();
                     onNavigateDashboard();
