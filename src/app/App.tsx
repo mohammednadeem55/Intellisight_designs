@@ -28,7 +28,6 @@ import {
   Zap,
 } from "lucide-react";
 import { AppHeader } from "./components/AppHeader";
-import { NavDrawer } from "./components/NavDrawer";
 import {
   OrderListingTable,
   type OrderListingColumn,
@@ -37,6 +36,7 @@ import {
 } from "./components/OrderListingTable";
 import { NewOverviewPage } from "./NewOverviewPage";
 import { HomePage } from "./HomePage";
+import { PlaceholderPage } from "./PlaceholderPage";
 import { type Email, ALL_EMAILS, ALL_EMAILS_WITH_CCC } from "./emailData";
 import {
   BarChart,
@@ -148,7 +148,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
           <button
             onClick={onLogin}
-            className="bg-[#ba1c1c] flex h-[52px] items-center justify-center w-full rounded-[10px] shadow-[0px_4px_14px_0px_rgba(186,28,28,0.25)] cursor-pointer transition-opacity hover:opacity-90 active:opacity-80"
+            className="bg-[#ba1c1c] flex h-[52px] items-center justify-center w-full rounded-[8px] shadow-[0px_4px_14px_0px_rgba(186,28,28,0.25)] cursor-pointer transition-opacity hover:opacity-90 active:opacity-80"
           >
             <p className="font-semibold text-[15px] text-white">Continue with SSO</p>
           </button>
@@ -229,10 +229,10 @@ function StatCard({
   positive: boolean;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-black/[0.08] p-4 sm:p-5 flex flex-col gap-3">
+    <div className="bg-white rounded-[8px] border border-black/[0.08] p-4 sm:p-5 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="text-[12px] sm:text-[13px] font-medium text-[#6b7380]">{label}</p>
-        <div className="bg-[#fff0f0] rounded-lg p-2">
+        <div className="bg-[#fff0f0] rounded-[8px] p-2">
           <Icon size={15} className="text-[#ba1c1c]" />
         </div>
       </div>
@@ -308,9 +308,8 @@ const statusDot: Record<string, string> = {
   Resolved: "bg-emerald-500",
 };
 
-function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onBack: () => void; onViewAllNotifications: () => void; onNavigateHome?: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void;
-  onNavigateNewOverview?: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview }: { onBack: () => void; onViewAllNotifications: () => void; onNavigateHome?: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void; onNavigateEmailTemplate?: () => void; onNavigateReview?: () => void }) {
   const [activeTab, setActiveTab] = useState("All");
   const [selectedId, setSelectedId] = useState(1);
   const [dismissed, setDismissed] = useState<number[]>([]);
@@ -342,20 +341,20 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onN
 
   return (
     <div className="bg-[#f4f5f7] flex flex-col size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
-      <NavDrawer
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+      <AppHeader
+        activeNav="Notifications"
+        onViewAllNotifications={onViewAllNotifications}
         onLogout={onBack}
         onNavigateHome={onNavigateHome}
-        onNavigateDashboard={onBack}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
         onNavigateNewOverview={onNavigateNewOverview}
         onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
+        onNavigateEmailTemplate={onNavigateEmailTemplate}
+        onNavigateReview={onNavigateReview}
       />
-      <AppHeader onMenuClick={() => setSidebarOpen(true)} activeNav="Notifications" onViewAllNotifications={onViewAllNotifications} onNavigateDashboard={onBack} />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
@@ -378,7 +377,7 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onN
 
             {/* Category select */}
             <div className="relative">
-              <select className="w-full bg-[#f9f9fb] border border-[#e5e7eb] rounded-lg pl-3 pr-8 py-2.5 text-[13px] text-[#374151] appearance-none cursor-pointer outline-none focus:border-[#ba1c1c] transition-colors">
+              <select className="w-full bg-[#f9f9fb] border border-[#e5e7eb] rounded-[8px] pl-3 pr-8 py-2.5 text-[13px] text-[#374151] appearance-none cursor-pointer outline-none focus:border-[#ba1c1c] transition-colors">
                 <option>All Categories</option>
                 <option>Finance</option>
                 <option>Security</option>
@@ -406,7 +405,7 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onN
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[12px] font-medium transition-all cursor-pointer ${
                       active ? activeColors[tab] : "bg-[#f3f4f6] text-[#6b7280] hover:bg-[#e9eaec]"
                     }`}
                   >
@@ -449,7 +448,7 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onN
                 >
                   <div className="flex items-start gap-3">
                     {/* Bell icon */}
-                    <div className={`shrink-0 size-[34px] rounded-xl flex items-center justify-center mt-0.5 ${
+                    <div className={`shrink-0 size-[34px] rounded-[8px] flex items-center justify-center mt-0.5 ${
                       n.status === "Breached" ? "bg-rose-50" : n.status === "At Risk" ? "bg-amber-50" : "bg-emerald-50"
                     }`}>
                       <svg fill="none" viewBox="0 0 16 16" className="size-[15px]">
@@ -473,7 +472,7 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onN
                       </div>
                       <p className="text-[11.5px] text-[#6b7280] leading-[1.5] line-clamp-2 mb-2">{n.body}</p>
                       <div className="flex items-center justify-between">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10.5px] font-medium ${statusBadge[n.status]}`}>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-[8px] text-[10.5px] font-medium ${statusBadge[n.status]}`}>
                           {n.status}
                         </span>
                         <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -504,21 +503,21 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onN
           <div className="flex-1 overflow-y-auto p-6 lg:p-8">
 
             {/* Detail card */}
-            <div className="bg-white rounded-2xl border border-[#ebebeb] overflow-hidden mb-5 shadow-sm">
+            <div className="bg-white rounded-[8px] border border-[#ebebeb] overflow-hidden mb-5 shadow-sm">
               {/* Card header */}
               <div className="px-7 py-6 border-b border-[#f3f4f6]">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <h1 className="text-[18px] font-bold text-[#111827] leading-[1.35]">
                     {selectedDetail.title}
                   </h1>
-                  <span className={`shrink-0 inline-flex items-center px-3 py-1 rounded-lg text-[12px] font-semibold mt-0.5 ${statusBadge[selectedDetail.status]}`}>
+                  <span className={`shrink-0 inline-flex items-center px-3 py-1 rounded-[8px] text-[12px] font-semibold mt-0.5 ${statusBadge[selectedDetail.status]}`}>
                     {selectedDetail.status}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-[12px] text-[#9ca3af]">Received: <span className="text-[#374151] font-medium">{selectedDetail.received}</span></span>
                   <span className="w-px h-3 bg-[#e5e7eb]" />
-                  <span className="bg-[#f3f4f6] text-[#374151] text-[11px] font-semibold px-2.5 py-1 rounded-md tracking-wide uppercase">{selectedDetail.category}</span>
+                  <span className="bg-[#f3f4f6] text-[#374151] text-[11px] font-semibold px-2.5 py-1 rounded-[8px] tracking-wide uppercase">{selectedDetail.category}</span>
                 </div>
               </div>
 
@@ -539,13 +538,13 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onN
             </div>
 
             {/* Alert Summary card */}
-            <div className="bg-white rounded-2xl border border-[#ebebeb] px-7 py-6 mb-5 shadow-sm">
+            <div className="bg-white rounded-[8px] border border-[#ebebeb] px-7 py-6 mb-5 shadow-sm">
               <h3 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest mb-3">Alert Summary</h3>
               <p className="text-[13.5px] text-[#374151] leading-[1.7]">{selectedDetail.summary}</p>
             </div>
 
             {/* Affected Records card */}
-            <div className="bg-white rounded-2xl border border-[#ebebeb] overflow-hidden mb-5 shadow-sm">
+            <div className="bg-white rounded-[8px] border border-[#ebebeb] overflow-hidden mb-5 shadow-sm">
               <div className="px-7 py-5 border-b border-[#f3f4f6]">
                 <h3 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest">Affected Records</h3>
               </div>
@@ -563,7 +562,7 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onN
                       <td className="px-7 py-4 text-[13px] font-mono font-medium text-[#374151]">{r.id}</td>
                       <td className="px-7 py-4 text-[13px] text-[#374151] text-right font-medium">{r.amount}</td>
                       <td className="px-7 py-4 text-right">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-semibold ${statusBadge[r.status]}`}>
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-[8px] text-[11px] font-semibold ${statusBadge[r.status]}`}>
                           {r.status}
                         </span>
                       </td>
@@ -574,7 +573,7 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onN
             </div>
 
             {/* Recommended Actions card */}
-            <div className="bg-white rounded-2xl border border-[#ebebeb] px-7 py-6 shadow-sm">
+            <div className="bg-white rounded-[8px] border border-[#ebebeb] px-7 py-6 shadow-sm">
               <h3 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest mb-5">Recommended Actions</h3>
               <ol className="flex flex-col gap-4">
                 {selectedDetail.actions.map((action, i) => (
@@ -596,10 +595,10 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onN
               Last updated: <span className="text-[#374151] font-medium">{selectedDetail.received}</span>
             </p>
             <div className="flex items-center gap-3">
-              <button className="px-5 py-2.5 border border-[#e5e7eb] rounded-xl text-[13px] font-medium text-[#374151] hover:bg-[#f9f9fb] cursor-pointer transition-colors">
+              <button className="px-5 py-2.5 border border-[#e5e7eb] rounded-[8px] text-[13px] font-medium text-[#374151] hover:bg-[#f9f9fb] cursor-pointer transition-colors">
                 Dismiss Alert
               </button>
-              <button className="px-5 py-2.5 bg-[#ba1c1c] rounded-xl text-[13px] font-semibold text-white hover:opacity-90 cursor-pointer transition-opacity shadow-sm">
+              <button className="px-5 py-2.5 bg-[#ba1c1c] rounded-[8px] text-[13px] font-semibold text-white hover:opacity-90 cursor-pointer transition-opacity shadow-sm">
                 Accept &amp; Resolve
               </button>
             </div>
@@ -611,36 +610,30 @@ function NotificationsPage({ onBack, onViewAllNotifications, onNavigateHome, onN
   );
 }
 
-function Dashboard({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: { onLogout: () => void; onViewAllNotifications: () => void; onNavigateHome?: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void;
-  onNavigateNewOverview?: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void }) {
-  const [activeNav, setActiveNav] = useState("Dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
+function Dashboard({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview }: { onLogout: () => void; onViewAllNotifications: () => void; onNavigateHome?: () => void; onNavigateCommandCenterOverview?: () => void; onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void; onNavigateHoldManagementOverview?: () => void; onNavigateOrderListing?: () => void; onNavigateReleasedOrders?: () => void; onNavigateEmailTemplate?: () => void; onNavigateReview?: () => void }) {
   return (
     <div className="bg-[#f5f6fa] flex size-full min-h-screen">
-      {/* Desktop sidebar */}
-
-      {/* Nav drawer */}
-      <NavDrawer
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onLogout={onLogout}
-        onNavigateHome={onNavigateHome}
-        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
-        onNavigateNewOverview={onNavigateNewOverview}
-        onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
-        onNavigateOrderListing={onNavigateOrderListing}
-        onNavigateReleasedOrders={onNavigateReleasedOrders}
-      />
-
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-auto">
         {/* ── Header (from Figma import) ── */}
-        <AppHeader onMenuClick={() => setSidebarOpen(true)} activeNav={activeNav} onViewAllNotifications={onViewAllNotifications} onNavigateDashboard={() => setActiveNav("Dashboard")} />
+        <AppHeader
+          activeNav="Dashboard"
+          onViewAllNotifications={onViewAllNotifications}
+          onLogout={onLogout}
+          onNavigateHome={onNavigateHome}
+          onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+          onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+          onNavigateNewOverview={onNavigateNewOverview}
+          onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
+          onNavigateOrderListing={onNavigateOrderListing}
+          onNavigateReleasedOrders={onNavigateReleasedOrders}
+          onNavigateEmailTemplate={onNavigateEmailTemplate}
+          onNavigateReview={onNavigateReview}
+        />
 
         {/* Page body */}
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-5">
+        <main className="flex-1 w-full max-w-[1600px] mx-auto px-5 py-6 flex flex-col gap-5">
           {/* Title */}
           <div>
             <h1 className="text-[18px] sm:text-[22px] font-bold text-[#111827]">
@@ -661,7 +654,7 @@ function Dashboard({ onLogout, onViewAllNotifications, onNavigateHome, onNavigat
 
           {/* Charts — stack on mobile, side-by-side on lg */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
-            <div className="lg:col-span-2 bg-white rounded-xl border border-black/[0.08] p-4 sm:p-5">
+            <div className="lg:col-span-2 bg-white rounded-[8px] border border-black/[0.08] p-4 sm:p-5">
               <p className="text-[13.5px] font-semibold text-[#111827] mb-4">Weekly Activity</p>
               <ResponsiveContainer width="100%" height={180}>
                 <BarChart data={activityData} barGap={4}>
@@ -687,7 +680,7 @@ function Dashboard({ onLogout, onViewAllNotifications, onNavigateHome, onNavigat
               </ResponsiveContainer>
             </div>
 
-            <div className="bg-white rounded-xl border border-black/[0.08] p-4 sm:p-5">
+            <div className="bg-white rounded-[8px] border border-black/[0.08] p-4 sm:p-5">
               <p className="text-[13.5px] font-semibold text-[#111827] mb-4">Coverage Trend</p>
               <ResponsiveContainer width="100%" height={180}>
                 <LineChart data={trendData}>
@@ -720,7 +713,7 @@ function Dashboard({ onLogout, onViewAllNotifications, onNavigateHome, onNavigat
           </div>
 
           {/* Recent alerts */}
-          <div className="bg-white rounded-xl border border-black/[0.08] p-4 sm:p-5">
+          <div className="bg-white rounded-[8px] border border-black/[0.08] p-4 sm:p-5">
             <div className="flex items-center justify-between mb-4">
               <p className="text-[13.5px] font-semibold text-[#111827]">Recent Alerts</p>
               <button className="text-[12px] font-medium text-[#ba1c1c] hover:underline cursor-pointer">
@@ -762,17 +755,16 @@ const EMAIL_STATUS_STYLE: Record<string, { label: string; color: string; bg: str
 function EmailStatusBadge({ status }: { status: string }) {
   const s = EMAIL_STATUS_STYLE[status] ?? EMAIL_STATUS_STYLE.Cleared;
   return (
-    <span className="inline-flex items-center justify-center px-2 py-1 rounded-[4px] text-[12px] font-medium whitespace-nowrap" style={{ color: s.color, backgroundColor: s.bg }}>
+    <span className="inline-flex items-center justify-center px-2 py-1 rounded-[8px] text-[12px] font-medium whitespace-nowrap" style={{ color: s.color, backgroundColor: s.bg }}>
       {s.label}
     </span>
   );
 }
 
-function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
-  onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
@@ -780,8 +772,9 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateEmailTemplate?: () => void;
+  onNavigateReview?: () => void;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "email">("table");
 
   const kpis = [
@@ -1002,35 +995,28 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
 
   return (
     <div className="bg-[#f5f6fa] flex size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
-      <NavDrawer
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onLogout={onLogout}
-        onNavigateHome={onNavigateHome}
-        onNavigateDashboard={onNavigateDashboard}
-        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
-        onNavigateNewOverview={onNavigateNewOverview}
-        onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
-        onNavigateOrderListing={onNavigateOrderListing}
-        onNavigateReleasedOrders={onNavigateReleasedOrders}
-      />
-
       <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-auto">
         <AppHeader
-          onMenuClick={() => setSidebarOpen(true)}
-          activeNav="Command Center"
-          activeSub="Overview"
+          activeNav="Old Pages"
           onViewAllNotifications={onViewAllNotifications}
-          onNavigateDashboard={onNavigateDashboard}
+          onLogout={onLogout}
+          onNavigateHome={onNavigateHome}
+          onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+          onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+          onNavigateNewOverview={onNavigateNewOverview}
+          onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
+          onNavigateOrderListing={onNavigateOrderListing}
+          onNavigateReleasedOrders={onNavigateReleasedOrders}
+          onNavigateEmailTemplate={onNavigateEmailTemplate}
+          onNavigateReview={onNavigateReview}
         />
 
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col w-full max-w-[1600px] mx-auto">
 
           {/* KPI strip — stays visible in both Table and Email modes */}
           <div className="flex gap-4 px-5 py-4 bg-[#f5f6fa]">
             {kpis.map((kpi) => (
-              <div key={kpi.label} className="bg-white flex-1 min-w-0 rounded-2xl border border-[#e5e7eb] p-4 flex flex-col gap-2">
+              <div key={kpi.label} className="bg-white flex-1 min-w-0 rounded-[8px] border border-[#e5e7eb] p-4 flex flex-col gap-2">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-[10.5px] font-semibold text-[#6b7280] uppercase tracking-wide">{kpi.label}</p>
                   <div className="flex flex-col items-end gap-1 shrink-0">
@@ -1051,7 +1037,7 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
           </div>
 
           {/* White content area: toolbar (incl. Table/Email toggle) + table-or-email body */}
-          <div className="flex-1 bg-white mx-5 mb-5 rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col">
+          <div className="flex-1 bg-white mx-5 mb-5 rounded-[8px] border border-[#ebebeb] overflow-hidden flex flex-col">
             <OrderListingTable
               rows={cccRows}
               columns={columns}
@@ -1075,7 +1061,7 @@ function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigat
               renderGrandchildCell={renderReplyCell}
               grandchildIndentColumnLabel="Subject"
               toolbarExtra={
-                <div className="flex items-center border border-[#d1d1d1] rounded-[4px] overflow-hidden h-[36px]">
+                <div className="flex items-center border border-[#d1d1d1] rounded-[8px] overflow-hidden h-[36px]">
                   <button
                     onClick={() => setViewMode("table")}
                     className={`flex items-center gap-1.5 px-3 h-full text-[13px] font-medium transition-colors cursor-pointer ${viewMode === "table" ? "bg-[#c53e6c] text-white" : "bg-white text-[#686868] hover:bg-[#f8fafc]"}`}
@@ -1125,7 +1111,35 @@ function buildSystemActions(email: Email): { time: string; actor: string; detail
 
 // The email's detail/drill-down destination — clicking a row (table) or opening an email (Email View) lands here,
 // on the first stage. Stages 2-4 are placeholder content for now; 5-6 are visibly "Soon" and not interactive yet.
-function WorkflowPage({ emailId, onBack }: { emailId: string; onBack: () => void }) {
+function WorkflowPage({
+  emailId,
+  onBack,
+  onLogout,
+  onViewAllNotifications,
+  onNavigateHome,
+  onNavigateCommandCenterOverview,
+  onNavigateCommandCenterEmailView,
+  onNavigateNewOverview,
+  onNavigateHoldManagementOverview,
+  onNavigateOrderListing,
+  onNavigateReleasedOrders,
+  onNavigateEmailTemplate,
+  onNavigateReview,
+}: {
+  emailId: string;
+  onBack: () => void;
+  onLogout?: () => void;
+  onViewAllNotifications: () => void;
+  onNavigateHome?: () => void;
+  onNavigateCommandCenterOverview?: () => void;
+  onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void;
+  onNavigateHoldManagementOverview?: () => void;
+  onNavigateOrderListing?: () => void;
+  onNavigateReleasedOrders?: () => void;
+  onNavigateEmailTemplate?: () => void;
+  onNavigateReview?: () => void;
+}) {
   const email = ALL_EMAILS_WITH_CCC.find(e => e.id === emailId) ?? ALL_EMAILS_WITH_CCC[0];
   const [stageIdx, setStageIdx] = useState(0);
   const [emailBodyOpen, setEmailBodyOpen] = useState(true);
@@ -1134,12 +1148,30 @@ function WorkflowPage({ emailId, onBack }: { emailId: string; onBack: () => void
   const maxInteractiveStage = WORKFLOW_STAGES.filter(s => !s.soon).length - 1;
 
   return (
-    <div className="bg-[#f5f6fa] min-h-screen flex flex-col" style={{ fontFamily: "Inter, sans-serif" }}>
+    <div className="bg-[#f5f6fa] h-screen flex flex-col overflow-hidden" style={{ fontFamily: "Inter, sans-serif" }}>
+      <div className="shrink-0 shadow-[0_2px_6px_rgba(15,23,42,0.06)] relative z-50">
+        <AppHeader
+          activeNav="Command Center"
+          onViewAllNotifications={onViewAllNotifications}
+          onLogout={onLogout}
+          onNavigateHome={onNavigateHome}
+          onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+          onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+          onNavigateNewOverview={onNavigateNewOverview}
+          onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
+          onNavigateOrderListing={onNavigateOrderListing}
+          onNavigateReleasedOrders={onNavigateReleasedOrders}
+          onNavigateEmailTemplate={onNavigateEmailTemplate}
+          onNavigateReview={onNavigateReview}
+        />
+      </div>
+
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 px-6 py-4">
+      <div className="flex items-center gap-2 px-6 py-4 shrink-0">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 px-3 py-1.5 border border-[#d1d1d1] rounded-md text-[13px] font-medium text-[#374151] bg-white hover:bg-[#f8fafc] cursor-pointer transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 border border-[#d1d1d1] rounded-[8px] text-[13px] font-medium text-[#374151] bg-white hover:bg-[#f8fafc] cursor-pointer transition-colors"
         >
           <ArrowLeft size={14} />
           Email Queue
@@ -1150,18 +1182,18 @@ function WorkflowPage({ emailId, onBack }: { emailId: string; onBack: () => void
 
       <div className="px-6 pb-6 flex flex-col gap-4 flex-1 min-h-0">
         {/* Header entry card */}
-        <div className="bg-white rounded-xl border border-[#ebebeb] px-5 py-4 flex items-center justify-between gap-4 shrink-0">
+        <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4 flex items-center justify-between gap-4 shrink-0">
           <div className="min-w-0">
             <p className="text-[14px] font-semibold text-[#111827] truncate">{email.subject}</p>
             <p className="text-[12.5px] text-[#6b7280] mt-0.5">{email.sender} <span className="text-[#d1d1d1]">·</span> Received {email.received}</p>
           </div>
-          <span className="shrink-0 flex items-center gap-1.5 bg-[#f3f4f6] text-[#374151] text-[11px] font-semibold px-2.5 py-1 rounded-md uppercase tracking-wide">
+          <span className="shrink-0 flex items-center gap-1.5 bg-[#f3f4f6] text-[#374151] text-[11px] font-semibold px-2.5 py-1 rounded-[8px] uppercase tracking-wide">
             <Shield size={11} /> Internal
           </span>
         </div>
 
         {/* Stepper */}
-        <div className="bg-white rounded-xl border border-[#ebebeb] px-5 py-4 flex items-center gap-3 overflow-x-auto shrink-0">
+        <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4 flex items-center gap-3 overflow-x-auto shrink-0">
           {WORKFLOW_STAGES.map((s, i) => (
             <div key={s.key} className="flex items-center gap-3 shrink-0">
               <button
@@ -1187,20 +1219,20 @@ function WorkflowPage({ emailId, onBack }: { emailId: string; onBack: () => void
         </div>
 
         {/* Section bar */}
-        <div className="bg-white rounded-xl border border-[#ebebeb] px-5 py-3.5 flex items-center justify-between shrink-0">
+        <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-3.5 flex items-center justify-between shrink-0">
           <p className="text-[14px] font-bold text-[#111827]">{stage.label}</p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setStageIdx(i => Math.max(0, i - 1))}
               disabled={stageIdx === 0}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#d1d1d1] text-[13px] font-medium text-[#374151] disabled:opacity-40 hover:enabled:bg-[#f8fafc] cursor-pointer disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] border border-[#d1d1d1] text-[13px] font-medium text-[#374151] disabled:opacity-40 hover:enabled:bg-[#f8fafc] cursor-pointer disabled:cursor-not-allowed transition-colors"
             >
               <ArrowLeft size={13} /> Back
             </button>
             <button
               onClick={() => setStageIdx(i => Math.min(maxInteractiveStage, i + 1))}
               disabled={stageIdx >= maxInteractiveStage}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#c53e6c] text-white text-[13px] font-semibold disabled:opacity-40 hover:enabled:bg-[#a0334f] cursor-pointer disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] bg-[#c53e6c] text-white text-[13px] font-semibold disabled:opacity-40 hover:enabled:bg-[#a0334f] cursor-pointer disabled:cursor-not-allowed transition-colors"
             >
               Next <ArrowLeft size={13} className="rotate-180" />
             </button>
@@ -1209,12 +1241,12 @@ function WorkflowPage({ emailId, onBack }: { emailId: string; onBack: () => void
 
         {/* Body: inbound email (left) + system actions (right) */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 min-h-0">
-          <div className="bg-white rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col min-h-0">
+          <div className="bg-white rounded-[8px] border border-[#ebebeb] overflow-hidden flex flex-col min-h-0">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#f3f4f6] shrink-0 flex-wrap gap-2">
               <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-widest">Inbound Email — Received {email.received}</p>
               <button
                 onClick={() => toast.info("Opening original message")}
-                className="flex items-center gap-1.5 text-[12px] font-medium text-[#374151] border border-[#d1d1d1] rounded-md px-2.5 py-1 hover:bg-[#f8fafc] cursor-pointer transition-colors"
+                className="flex items-center gap-1.5 text-[12px] font-medium text-[#374151] border border-[#d1d1d1] rounded-[8px] px-2.5 py-1 hover:bg-[#f8fafc] cursor-pointer transition-colors"
               >
                 <Mail size={12} /> View original
               </button>
@@ -1237,7 +1269,7 @@ function WorkflowPage({ emailId, onBack }: { emailId: string; onBack: () => void
             )}
           </div>
 
-          <div className="bg-white rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col min-h-0">
+          <div className="bg-white rounded-[8px] border border-[#ebebeb] overflow-hidden flex flex-col min-h-0">
             <div className="px-5 py-3.5 border-b border-[#f3f4f6] shrink-0">
               <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-widest">System Actions</p>
             </div>
@@ -1262,6 +1294,7 @@ function WorkflowPage({ emailId, onBack }: { emailId: string; onBack: () => void
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -1348,7 +1381,7 @@ function CccDetailCard({ ccc, expanded, onToggleExpand }: { ccc: Email; expanded
       {/* Header — a summary row; the explicit "View Details" button (not the row itself) reveals the tabbed data below */}
       <div className="w-full flex items-center justify-between gap-4 px-5 py-3.5">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="size-[30px] rounded-lg bg-[#fdf0f4] flex items-center justify-center shrink-0">
+          <div className="size-[30px] rounded-[8px] bg-[#fdf0f4] flex items-center justify-center shrink-0">
             <FileText size={13} className="text-[#90003b]" />
           </div>
           <div className="min-w-0">
@@ -1361,18 +1394,18 @@ function CccDetailCard({ ccc, expanded, onToggleExpand }: { ccc: Email; expanded
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {replies.length > 0 && (
-            <span className="hidden sm:inline-flex items-center gap-1 text-[10.5px] font-medium text-[#6b7280] bg-[#f3f4f6] px-2 py-1 rounded-md whitespace-nowrap" title={`${replies.length} nested ${replies.length === 1 ? "email" : "emails"} in this CCC's correspondence`}>
+            <span className="hidden sm:inline-flex items-center gap-1 text-[10.5px] font-medium text-[#6b7280] bg-[#f3f4f6] px-2 py-1 rounded-[8px] whitespace-nowrap" title={`${replies.length} nested ${replies.length === 1 ? "email" : "emails"} in this CCC's correspondence`}>
               <CornerDownRight size={10} />
               {replies.length}
             </span>
           )}
           {ccc.slaTimeRemaining && (
-            <span className="hidden sm:inline-block text-[10.5px] font-medium text-[#6b7280] bg-[#f3f4f6] px-2 py-1 rounded-md whitespace-nowrap">{ccc.slaTimeRemaining}</span>
+            <span className="hidden sm:inline-block text-[10.5px] font-medium text-[#6b7280] bg-[#f3f4f6] px-2 py-1 rounded-[8px] whitespace-nowrap">{ccc.slaTimeRemaining}</span>
           )}
           <EmailStatusBadge status={ccc.status} />
           <button
             onClick={onToggleExpand}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11.5px] font-semibold cursor-pointer transition-colors ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] text-[11.5px] font-semibold cursor-pointer transition-colors ${
               expanded ? "bg-[#c53e6c] text-white" : "border border-[#d1d1d1] text-[#374151] hover:bg-[#f8fafc]"
             }`}
           >
@@ -1584,7 +1617,7 @@ function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: st
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[12px] font-medium transition-all cursor-pointer ${
                       active ? activeColors[tab] : "bg-[#f3f4f6] text-[#6b7280] hover:bg-[#e9eaec]"
                     }`}
                   >
@@ -1623,7 +1656,7 @@ function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: st
                     className={`group relative px-5 py-4 cursor-pointer transition-all ${isActive ? "bg-[#fff5f7]" : "hover:bg-[#fafafa]"}`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`shrink-0 size-[34px] rounded-xl flex items-center justify-center mt-0.5 ${statusIconBg[e.status] ?? "bg-emerald-50"}`}>
+                      <div className={`shrink-0 size-[34px] rounded-[8px] flex items-center justify-center mt-0.5 ${statusIconBg[e.status] ?? "bg-emerald-50"}`}>
                         <Mail size={15} className={statusIconColors[e.status] ?? "text-emerald-600"} />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1634,7 +1667,7 @@ function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: st
                           <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               onClick={(ev) => { ev.stopPropagation(); toast.success(`Assigned ${e.id} to you`); }}
-                              className="p-1 rounded-md text-[#9ca3af] hover:text-[#c53e6c] hover:bg-[#fdf0f4] transition-colors cursor-pointer"
+                              className="p-1 rounded-[8px] text-[#9ca3af] hover:text-[#c53e6c] hover:bg-[#fdf0f4] transition-colors cursor-pointer"
                               title="Assign to me"
                             >
                               <UserPlus size={12} />
@@ -1721,7 +1754,7 @@ function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: st
           <div className="flex-1 overflow-y-auto p-6 lg:p-8">
 
             {/* Primary email card — the main content on this page; everything below is supplementary, on-demand detail */}
-            <div className="bg-white rounded-2xl border border-[#e5e7eb] overflow-hidden mb-5 shadow-sm">
+            <div className="bg-white rounded-[8px] border border-[#e5e7eb] overflow-hidden mb-5 shadow-sm">
               <div className="px-7 py-6 border-b border-[#f3f4f6]">
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div className="flex items-center gap-3 min-w-0">
@@ -1748,11 +1781,11 @@ function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: st
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                   {selected.classification && (
-                    <span className="bg-[#eef2ff] text-[#1e3a5f] text-[11px] font-semibold px-2.5 py-1 rounded-md">{selected.classification}</span>
+                    <span className="bg-[#eef2ff] text-[#1e3a5f] text-[11px] font-semibold px-2.5 py-1 rounded-[8px]">{selected.classification}</span>
                   )}
                   <span className="text-[12px] text-[#9ca3af]">Received: <span className="text-[#374151] font-medium">{selected.received}</span></span>
                   <span className="w-px h-3 bg-[#e5e7eb]" />
-                  <span className="bg-[#f3f4f6] text-[#374151] text-[11px] font-semibold px-2.5 py-1 rounded-md tracking-wide uppercase">{selected.category}</span>
+                  <span className="bg-[#f3f4f6] text-[#374151] text-[11px] font-semibold px-2.5 py-1 rounded-[8px] tracking-wide uppercase">{selected.category}</span>
                 </div>
               </div>
 
@@ -1768,9 +1801,9 @@ function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: st
                     <button
                       key={a.name}
                       onClick={() => toast.info(`Opening ${a.name}`)}
-                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-[#e5e7eb] hover:bg-[#fafafa] transition-colors cursor-pointer text-left"
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] border border-[#e5e7eb] hover:bg-[#fafafa] transition-colors cursor-pointer text-left"
                     >
-                      <div className="size-[30px] rounded-lg bg-[#f3f4f6] flex items-center justify-center shrink-0">
+                      <div className="size-[30px] rounded-[8px] bg-[#f3f4f6] flex items-center justify-center shrink-0">
                         <FileText size={14} className="text-[#6b7280]" />
                       </div>
                       <div className="min-w-0">
@@ -1787,7 +1820,7 @@ function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: st
                 <div className="px-7 pb-6 space-y-2">
                   <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-widest mb-1">Earlier in this thread</p>
                   {earlierInThread.map((msg) => (
-                    <div key={msg.id} className="flex items-center justify-between gap-3 bg-[#f8f8f8] rounded-xl px-4 py-3">
+                    <div key={msg.id} className="flex items-center justify-between gap-3 bg-[#f8f8f8] rounded-[8px] px-4 py-3">
                       <div className="min-w-0">
                         <p className="text-[12.5px] font-semibold text-[#374151] truncate">{msg.sender}</p>
                         <p className="text-[11.5px] text-[#9ca3af] truncate">{msg.subject}</p>
@@ -1816,7 +1849,7 @@ function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: st
 
             {/* Linked CCC requests — supplementary, on-demand detail: one flat panel, not cards competing with the email above */}
             {linkedCccs.length > 0 && (
-              <div className="bg-white rounded-xl border border-[#ebebeb] overflow-hidden">
+              <div className="bg-white rounded-[8px] border border-[#ebebeb] overflow-hidden">
                 <div className="flex items-center gap-2 px-5 py-3 bg-[#fafafa] border-b border-[#f3f4f6]">
                   <h3 className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-widest">Linked CCC Requests</h3>
                   <span className="bg-white border border-[#e5e7eb] text-[#6b7280] text-[10px] font-bold px-2 py-0.5 rounded-full">{linkedCccs.length}</span>
@@ -1842,13 +1875,13 @@ function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: st
               Last updated: <span className="text-[#374151] font-medium">{selected.received}</span>
             </p>
             <div className="flex items-center gap-3 flex-wrap">
-              <button onClick={() => toast.info(`Escalated ${selected.id}`)} className="px-5 py-2.5 border border-[#e5e7eb] rounded-xl text-[13px] font-medium text-[#374151] hover:bg-[#f9f9fb] cursor-pointer transition-colors">
+              <button onClick={() => toast.info(`Escalated ${selected.id}`)} className="px-5 py-2.5 border border-[#e5e7eb] rounded-[8px] text-[13px] font-medium text-[#374151] hover:bg-[#f9f9fb] cursor-pointer transition-colors">
                 Escalate
               </button>
-              <button onClick={() => toast.success(`Marked ${selected.id} as reviewed`)} className="px-5 py-2.5 border border-[#e5e7eb] rounded-xl text-[13px] font-medium text-[#374151] hover:bg-[#f9f9fb] cursor-pointer transition-colors">
+              <button onClick={() => toast.success(`Marked ${selected.id} as reviewed`)} className="px-5 py-2.5 border border-[#e5e7eb] rounded-[8px] text-[13px] font-medium text-[#374151] hover:bg-[#f9f9fb] cursor-pointer transition-colors">
                 Mark Reviewed
               </button>
-              <button onClick={() => onOpenWorkflow?.(selected.id)} className="px-5 py-2.5 bg-[#1e3a5f] rounded-xl text-[13px] font-semibold text-white hover:bg-[#16304f] cursor-pointer transition-colors shadow-sm">
+              <button onClick={() => onOpenWorkflow?.(selected.id)} className="px-5 py-2.5 bg-[#1e3a5f] rounded-[8px] text-[13px] font-semibold text-white hover:bg-[#16304f] cursor-pointer transition-colors shadow-sm">
                 Open Workflow →
               </button>
             </div>
@@ -1861,11 +1894,10 @@ function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: st
 
 // ─── Command Center Email View ─────────────────────────────────────────────────
 
-function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
-  onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
@@ -1873,24 +1905,25 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNav
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateEmailTemplate?: () => void;
+  onNavigateReview?: () => void;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className="bg-[#f4f5f7] flex flex-col size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
-      <NavDrawer
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+      <AppHeader
+        activeNav="Command Center"
+        onViewAllNotifications={onViewAllNotifications}
         onLogout={onLogout}
         onNavigateHome={onNavigateHome}
-        onNavigateDashboard={onNavigateDashboard}
         onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
         onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
         onNavigateNewOverview={onNavigateNewOverview}
         onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
+        onNavigateEmailTemplate={onNavigateEmailTemplate}
+        onNavigateReview={onNavigateReview}
       />
-      <AppHeader onMenuClick={() => setSidebarOpen(true)} activeNav="Command Center" activeSub="Email View" onViewAllNotifications={onViewAllNotifications} onNavigateDashboard={onNavigateDashboard} />
       <EmailViewBody onOpenWorkflow={onNavigateWorkflow} />
     </div>
   );
@@ -1900,19 +1933,19 @@ function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNav
 
 const CARDS_PER_PAGE = 4;
 
-function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
-  onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onViewAllOrders?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateEmailTemplate?: () => void;
+  onNavigateReview?: () => void;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [timelineTab, setTimelineTab] = useState("7d");
   const [activeSort, setActiveSort] = useState("Aging");
   const [monthOpen, setMonthOpen] = useState(false);
@@ -2012,30 +2045,23 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
         .slide-next { animation: slideInFromRight 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
         .slide-prev { animation: slideInFromLeft  0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
       `}</style>
-      <NavDrawer
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onLogout={onLogout}
-        onNavigateHome={onNavigateHome}
-        onNavigateDashboard={onNavigateDashboard}
-        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
-        onNavigateNewOverview={onNavigateNewOverview}
-        onNavigateHoldManagementOverview={() => {}}
-        onNavigateOrderListing={onNavigateOrderListing}
-        onNavigateReleasedOrders={onNavigateReleasedOrders}
-      />
-
       <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-auto">
         <AppHeader
-          onMenuClick={() => setSidebarOpen(true)}
           activeNav="Hold Management"
-          activeSub="Overview"
           onViewAllNotifications={onViewAllNotifications}
-          onNavigateDashboard={onNavigateDashboard}
+          onLogout={onLogout}
+          onNavigateHome={onNavigateHome}
+          onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+          onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+          onNavigateNewOverview={onNavigateNewOverview}
+          onNavigateHoldManagementOverview={() => {}}
+          onNavigateOrderListing={onNavigateOrderListing}
+          onNavigateReleasedOrders={onNavigateReleasedOrders}
+          onNavigateEmailTemplate={onNavigateEmailTemplate}
+          onNavigateReview={onNavigateReview}
         />
 
-        <main className="flex-1 p-5 flex flex-col gap-5">
+        <main className="flex-1 w-full max-w-[1600px] mx-auto p-5 flex flex-col gap-5">
 
           {/* ── Page header ── */}
           <div className="flex items-center justify-between">
@@ -2053,7 +2079,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
               <div className="relative" ref={monthRef}>
                 <button
                   onClick={() => setMonthOpen(o => !o)}
-                  className="bg-white h-[32px] px-[12px] pr-[10px] rounded-[4px] border border-[#e0e5ed] flex items-center gap-[6px] text-[#64748b] text-[12px] font-medium cursor-pointer hover:bg-[#f8fafc] transition-colors"
+                  className="bg-white h-[32px] px-[12px] pr-[10px] rounded-[8px] border border-[#e0e5ed] flex items-center gap-[6px] text-[#64748b] text-[12px] font-medium cursor-pointer hover:bg-[#f8fafc] transition-colors"
                 >
                   {selectedMonth}
                   <svg fill="none" viewBox="0 0 10.5 6" className={`size-[10px] shrink-0 transition-transform duration-150 ${monthOpen ? "rotate-180" : ""}`}>
@@ -2061,7 +2087,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
                   </svg>
                 </button>
                 {monthOpen && (
-                  <div className="absolute right-0 top-[calc(100%+6px)] bg-white rounded-lg border border-[#e2e8f0] shadow-lg z-30 py-1 min-w-[130px]">
+                  <div className="absolute right-0 top-[calc(100%+6px)] bg-white rounded-[8px] border border-[#e2e8f0] shadow-lg z-30 py-1 min-w-[130px]">
                     {["This Month", "Last Month", "Last 3 Months", "Last 6 Months", "This Year"].map((m) => (
                       <button
                         key={m}
@@ -2077,7 +2103,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
 
               <button
                 onClick={() => toast.success("Report exported successfully", { description: "holds-overview.csv is ready to download" })}
-                className="bg-white h-[32px] px-[10px] rounded-[4px] border border-[#e0e5ed] flex items-center gap-[6px] text-[#64748b] text-[12px] font-medium cursor-pointer hover:bg-[#f8fafc] transition-colors"
+                className="bg-white h-[32px] px-[10px] rounded-[8px] border border-[#e0e5ed] flex items-center gap-[6px] text-[#64748b] text-[12px] font-medium cursor-pointer hover:bg-[#f8fafc] transition-colors"
               >
                 <svg fill="none" viewBox="0 0 12.25 10.9375" className="size-[13px] shrink-0">
                   <path clipRule="evenodd" d={holdSvg.p3615000} fill="#64748b" fillRule="evenodd" />
@@ -2090,10 +2116,10 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
           {/* ── KPI strip ── */}
           <div className="flex gap-4">
             {kpis.map((kpi) => (
-              <div key={kpi.label} className="bg-white flex-1 min-w-0 rounded-xl border border-black/[0.08] p-3 sm:p-4 flex flex-col gap-1.5">
+              <div key={kpi.label} className="bg-white flex-1 min-w-0 rounded-[8px] border border-black/[0.08] p-3 sm:p-4 flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <p className="text-[12px] font-medium text-[#6b7380]">{kpi.label}</p>
-                  <div className="rounded-lg p-1 shrink-0">
+                  <div className="rounded-[8px] p-1 shrink-0">
                     <div className="flex items-end gap-[2px] h-[11px]">
                       {sparkHeights.map((h, i) => (
                         <div key={i} className="w-[3px] rounded-[1px]" style={{ height: h * 0.55, backgroundColor: kpi.sparkColor }} />
@@ -2114,7 +2140,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
           <div className="flex gap-5 items-start">
 
             {/* ── Left column ── */}
-            <div className="flex-1 min-w-0 bg-white rounded-xl border border-[#e8ecef] overflow-hidden">
+            <div className="flex-1 min-w-0 bg-white rounded-[8px] border border-[#e8ecef] overflow-hidden">
 
               {/* Filter bar */}
               <div className="bg-[#f1f5f9] flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-[10px] border-b border-[#e8ecef] shadow-[inset_0px_-1px_0px_#e8ecef]">
@@ -2147,7 +2173,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
                         <button
                           key={s}
                           onClick={() => setActiveSort(s)}
-                          className={`flex items-center gap-[5px] px-[10px] py-[6px] rounded-[4px] text-[12px] border cursor-pointer transition-colors whitespace-nowrap ${
+                          className={`flex items-center gap-[5px] px-[10px] py-[6px] rounded-[8px] text-[12px] border cursor-pointer transition-colors whitespace-nowrap ${
                             isActive ? "bg-[#90003b] text-white border-[#90003b] font-semibold" : "text-[#c53e6c] border-[#c53e6c] bg-transparent font-normal hover:bg-[#fff0f5]"
                           }`}
                         >
@@ -2215,14 +2241,14 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
                               <button
                                 disabled={!canPrev}
                                 onClick={() => navigatePanel(panel.title, "prev")}
-                                className={`size-[28px] rounded-lg border flex items-center justify-center transition-colors ${canPrev ? "border-[#e2e8f0] hover:bg-[#f8fafc] cursor-pointer" : "border-[#f1f5f9] opacity-40 cursor-not-allowed"}`}
+                                className={`size-[28px] rounded-[8px] border flex items-center justify-center transition-colors ${canPrev ? "border-[#e2e8f0] hover:bg-[#f8fafc] cursor-pointer" : "border-[#f1f5f9] opacity-40 cursor-not-allowed"}`}
                               >
                                 <svg fill="none" viewBox="0 0 16 16" className="size-[14px]"><path d="M10 12L6 8L10 4" stroke="#64748B" strokeLinecap="round" strokeWidth="2" /></svg>
                               </button>
                               <button
                                 disabled={!canNext}
                                 onClick={() => navigatePanel(panel.title, "next")}
-                                className={`size-[28px] rounded-lg border flex items-center justify-center transition-colors ${canNext ? "border-[#e2e8f0] hover:bg-[#f8fafc] cursor-pointer" : "border-[#f1f5f9] opacity-40 cursor-not-allowed"}`}
+                                className={`size-[28px] rounded-[8px] border flex items-center justify-center transition-colors ${canNext ? "border-[#e2e8f0] hover:bg-[#f8fafc] cursor-pointer" : "border-[#f1f5f9] opacity-40 cursor-not-allowed"}`}
                               >
                                 <svg fill="none" viewBox="0 0 16 16" className="size-[14px]"><path d="M6 12L10 8L6 4" stroke="#64748B" strokeLinecap="round" strokeWidth="2" /></svg>
                               </button>
@@ -2244,11 +2270,11 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
                         <div
                           key={ci}
                           onClick={() => toast.info(`${card.code} — ${card.orders} orders, ${card.breached} breached`)}
-                          className="flex flex-col gap-2 p-3 rounded-xl cursor-pointer transition-all border border-[#e8ecef] bg-[rgba(241,245,249,0.46)] hover:bg-white hover:border-[#a53159]"
+                          className="flex flex-col gap-2 p-3 rounded-[8px] cursor-pointer transition-all border border-[#e8ecef] bg-[rgba(241,245,249,0.46)] hover:bg-white hover:border-[#a53159]"
                         >
                           <div className="flex items-center justify-between">
                             <p className="text-[#0f172a] text-[13px] font-bold">{card.code}</p>
-                            <div className="px-[7px] py-[3px] rounded-[4px]" style={{ backgroundColor: `${card.badgeColor}1f` }}>
+                            <div className="px-[7px] py-[3px] rounded-[8px]" style={{ backgroundColor: `${card.badgeColor}1f` }}>
                               <p className="text-[10px] font-semibold" style={{ color: card.badgeColor }}>{card.badge}</p>
                             </div>
                           </div>
@@ -2276,7 +2302,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
 
                           <div className="flex items-center gap-[6px] flex-wrap">
                             {card.tags.map((tag, ti) => (
-                              <div key={ti} className="px-[6px] py-[3px] rounded-[4px]" style={{ backgroundColor: tag.bg }}>
+                              <div key={ti} className="px-[6px] py-[3px] rounded-[8px]" style={{ backgroundColor: tag.bg }}>
                                 <p className="text-[10px] font-medium whitespace-nowrap" style={{ color: tag.color }}>{tag.label}</p>
                               </div>
                             ))}
@@ -2294,7 +2320,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
             <div className="w-[296px] shrink-0 flex flex-col gap-4">
 
               {/* Attention Required */}
-              <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-[0px_1px_2px_rgba(15,23,42,0.08)]">
+              <div className="bg-white rounded-[8px] border border-[#e2e8f0] shadow-[0px_1px_2px_rgba(15,23,42,0.08)]">
                 <div className="px-[14px] py-[14px] flex items-center gap-[10px] border-b border-[#f1f3f6]">
                   <p className="text-[#0f172a] text-[13px] font-semibold">Attention Required</p>
                   <div className="bg-[#fff1f2] px-[8px] py-[2px] rounded-full">
@@ -2325,7 +2351,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
               </div>
 
               {/* To-Do */}
-              <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-[0px_1px_2px_rgba(15,23,42,0.08)] p-[14px] flex flex-col gap-3">
+              <div className="bg-white rounded-[8px] border border-[#e2e8f0] shadow-[0px_1px_2px_rgba(15,23,42,0.08)] p-[14px] flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <p className="text-[#0f172a] text-[13px] font-semibold">To-Do</p>
@@ -2333,7 +2359,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
                       <p className="text-[#64748b] text-[10px] font-bold">{todos.filter(t => !t.done).length}</p>
                     </div>
                   </div>
-                  <button className="bg-[#f1f5f9] size-[22px] rounded-lg flex items-center justify-center hover:bg-[#e2e8f0] cursor-pointer transition-colors">
+                  <button className="bg-[#f1f5f9] size-[22px] rounded-[8px] flex items-center justify-center hover:bg-[#e2e8f0] cursor-pointer transition-colors">
                     <svg fill="none" viewBox="0 0 14 14" className="size-[12px]">
                       <path d={holdSvg.p133cc000} stroke="#64748b" strokeLinecap="round" strokeWidth="2" />
                     </svg>
@@ -2345,7 +2371,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
                     <div key={task.id} className="flex items-center gap-3 py-[12px]">
                       <button
                         onClick={() => setTodos(prev => prev.map(t => t.id === task.id ? { ...t, done: !t.done } : t))}
-                        className={`size-[16px] rounded-[4px] border-[1.5px] shrink-0 flex items-center justify-center cursor-pointer transition-all ${
+                        className={`size-[16px] rounded-[8px] border-[1.5px] shrink-0 flex items-center justify-center cursor-pointer transition-all ${
                           task.done ? "bg-[#90003b] border-[#90003b]" : "border-[#cbd5e1] bg-white hover:border-[#90003b]"
                         }`}
                       >
@@ -2363,7 +2389,7 @@ function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHo
               </div>
 
               {/* Released Orders */}
-              <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-[0px_1px_2px_rgba(15,23,42,0.08)] p-[16px] flex flex-col gap-3">
+              <div className="bg-white rounded-[8px] border border-[#e2e8f0] shadow-[0px_1px_2px_rgba(15,23,42,0.08)] p-[16px] flex flex-col gap-3">
                 <p className="text-[#0f172a] text-[13px] font-semibold">Released Orders</p>
                 <div className="bg-[#f1f3f6] h-px" />
                 <div className="flex flex-col gap-3">
@@ -2445,7 +2471,7 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }>
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_STYLE[status] ?? STATUS_STYLE["On Track"];
   return (
-    <span className="inline-flex items-center justify-center px-2 py-1 rounded-[4px] text-[12px] font-medium whitespace-nowrap" style={{ color: s.color, backgroundColor: s.bg }}>
+    <span className="inline-flex items-center justify-center px-2 py-1 rounded-[8px] text-[12px] font-medium whitespace-nowrap" style={{ color: s.color, backgroundColor: s.bg }}>
       {s.label}
     </span>
   );
@@ -2460,11 +2486,10 @@ function SortIcon() {
   );
 }
 
-function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateOrderDetails }: {
+function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateReview }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
-  onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
@@ -2472,9 +2497,9 @@ function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateHome, on
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateOrderDetails?: (orderId: string) => void;
+  onNavigateEmailTemplate?: () => void;
+  onNavigateReview?: () => void;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   const kpis = [
     { label: "Open Holds",   value: "05",         highlight: false },
     { label: "SLA Breached", value: "05",         highlight: true  },
@@ -2538,37 +2563,30 @@ function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateHome, on
 
   return (
     <div className="bg-[#f5f6fa] flex size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
-      <NavDrawer
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onLogout={onLogout}
-        onNavigateHome={onNavigateHome}
-        onNavigateDashboard={onNavigateDashboard}
-        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
-        onNavigateNewOverview={onNavigateNewOverview}
-        onNavigateHoldManagementOverview={onNavigateOverview}
-        onNavigateOrderListing={onNavigateOrderListing}
-        onNavigateReleasedOrders={onNavigateReleasedOrders}
-      />
-
       <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-auto">
         <AppHeader
-          onMenuClick={() => setSidebarOpen(true)}
           activeNav="Hold Management"
-          activeSub="Order Listing"
           onViewAllNotifications={onViewAllNotifications}
-          onNavigateDashboard={onNavigateDashboard}
+          onLogout={onLogout}
+          onNavigateHome={onNavigateHome}
+          onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+          onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+          onNavigateNewOverview={onNavigateNewOverview}
+          onNavigateHoldManagementOverview={onNavigateOverview}
+          onNavigateOrderListing={onNavigateOrderListing}
+          onNavigateReleasedOrders={onNavigateReleasedOrders}
+          onNavigateEmailTemplate={onNavigateEmailTemplate}
+          onNavigateReview={onNavigateReview}
         />
 
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col w-full max-w-[1600px] mx-auto">
 
           {/* KPI strip */}
           <div className="flex gap-4 px-5 py-4 bg-[#f5f6fa]">
             {kpis.map((k) => (
               <div
                 key={k.label}
-                className="flex-1 min-w-0 h-[78px] rounded-[10px] border border-[#f2f2f2] bg-white flex flex-col justify-start px-4 pt-[16px] cursor-pointer transition-all hover:bg-[#FFCFDB] hover:border-[#FFCFDB]"
+                className="flex-1 min-w-0 h-[78px] rounded-[8px] border border-[#f2f2f2] bg-white flex flex-col justify-start px-4 pt-[16px] cursor-pointer transition-all hover:bg-[#FFCFDB] hover:border-[#FFCFDB]"
               >
                 <p className="text-[#333] text-[20px] font-semibold leading-[24px]">{k.value}</p>
                 <p className="text-[#333] text-[12px] font-normal leading-[16px] mt-[2px]">{k.label}</p>
@@ -2577,7 +2595,7 @@ function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateHome, on
           </div>
 
           {/* White content area: toolbar + table + pagination */}
-          <div className="flex-1 bg-white mx-5 mb-5 rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col">
+          <div className="flex-1 bg-white mx-5 mb-5 rounded-[8px] border border-[#ebebeb] overflow-hidden flex flex-col">
             <OrderListingTable
               rows={ALL_ORDERS}
               columns={columns}
@@ -2632,20 +2650,19 @@ const ALL_RELEASED = [
 
 const RELEASED_ROWS_PER_PAGE = 17;
 
-function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
-  onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateOverview: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateEmailTemplate?: () => void;
+  onNavigateReview?: () => void;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   const columns: OrderListingColumn[] = [
     { key: "releasedDays", label: "Status" },
     { key: "id",           label: "Order Id" },
@@ -2683,7 +2700,7 @@ function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, 
     switch (label) {
       case "Status":
         return (
-          <span className="inline-flex items-center justify-center px-2 py-1 rounded-[4px] text-[11px] font-medium whitespace-nowrap"
+          <span className="inline-flex items-center justify-center px-2 py-1 rounded-[8px] text-[11px] font-medium whitespace-nowrap"
             style={{ color: "#10a957", backgroundColor: "rgba(16,169,87,0.1)" }}>
             Released {row.releasedDays}
           </span>
@@ -2699,7 +2716,7 @@ function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, 
   };
 
   const renderGridItem = (row: typeof ALL_RELEASED[0]) => (
-    <div className="bg-white border border-[#f2f2f2] rounded-[4px] p-4 flex flex-col gap-4 hover:shadow-md transition-shadow cursor-pointer">
+    <div className="bg-white border border-[#f2f2f2] rounded-[8px] p-4 flex flex-col gap-4 hover:shadow-md transition-shadow cursor-pointer">
       {/* Row 1: icon + id + menu */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -2729,7 +2746,7 @@ function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, 
       {/* Row 3: hold type + released badge */}
       <div className="flex items-center justify-between gap-2">
         <span className="text-[#686868] text-[12px] font-medium truncate">{row.holdType}</span>
-        <span className="shrink-0 px-2 py-1 rounded-[4px] text-[11px] font-medium whitespace-nowrap"
+        <span className="shrink-0 px-2 py-1 rounded-[8px] text-[11px] font-medium whitespace-nowrap"
           style={{ color: "#10a957", backgroundColor: "rgba(16,169,87,0.1)" }}>
           Released {row.releasedDays}
         </span>
@@ -2739,37 +2756,30 @@ function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, 
 
   return (
     <div className="bg-[#f5f6fa] flex size-full min-h-screen">
-      <NavDrawer
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onLogout={onLogout}
-        onNavigateHome={onNavigateHome}
-        onNavigateDashboard={onNavigateDashboard}
-        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
-        onNavigateNewOverview={onNavigateNewOverview}
-        onNavigateHoldManagementOverview={onNavigateOverview}
-        onNavigateOrderListing={onNavigateOrderListing}
-        onNavigateReleasedOrders={onNavigateReleasedOrders}
-      />
-
       <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-auto">
         <AppHeader
-          onMenuClick={() => setSidebarOpen(true)}
           activeNav="Hold Management"
-          activeSub="Released Orders"
           onViewAllNotifications={onViewAllNotifications}
-          onNavigateDashboard={onNavigateDashboard}
+          onLogout={onLogout}
+          onNavigateHome={onNavigateHome}
+          onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+          onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+          onNavigateNewOverview={onNavigateNewOverview}
+          onNavigateHoldManagementOverview={onNavigateOverview}
+          onNavigateOrderListing={onNavigateOrderListing}
+          onNavigateReleasedOrders={onNavigateReleasedOrders}
+          onNavigateEmailTemplate={onNavigateEmailTemplate}
+          onNavigateReview={onNavigateReview}
         />
 
-        <main className="flex-1 px-5 py-5 flex flex-col">
+        <main className="flex-1 w-full max-w-[1600px] mx-auto px-5 py-5 flex flex-col">
           {/* Page header */}
           <div className="flex items-center gap-3 mb-4">
 
           </div>
 
           {/* White card containing toolbar + content + pagination */}
-          <div className="flex-1 bg-white mx-0 mb-0 rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col">
+          <div className="flex-1 bg-white mx-0 mb-0 rounded-[8px] border border-[#ebebeb] overflow-hidden flex flex-col">
             <OrderListingTable
               rows={ALL_RELEASED}
               columns={columns}
@@ -2788,7 +2798,7 @@ function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, 
                 <div className="content-stretch flex items-center relative shrink-0">
                   <div className="grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0">
                     <button onClick={() => toast.success("Download started")}
-                      className="bg-white border border-[#d1d1d1] border-solid col-start-1 ml-0 mt-0 relative rounded-[4px] row-start-1 size-[36px] cursor-pointer hover:bg-[#f8fafc] transition-colors" />
+                      className="bg-white border border-[#d1d1d1] border-solid col-start-1 ml-0 mt-0 relative rounded-[8px] row-start-1 size-[36px] cursor-pointer hover:bg-[#f8fafc] transition-colors" />
                     <div className="col-start-1 ml-[8px] mt-[8px] relative row-start-1 size-[20px] pointer-events-none">
                       <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 17.5 15.625">
                         <path d={releasedSvg.p15e5a800} fill="#c53e6c" />
@@ -2866,20 +2876,20 @@ const HOLD_FILTER_SECTIONS = [
   { key: "Impact",    label: "Impact",    options: { Ship: 7 } },
 ];
 
-function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigateHome, onNavigateDashboard, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders }: {
+function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview }: {
   orderId: string;
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
-  onNavigateDashboard: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateOverview: () => void;
   onNavigateOrderListing: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateEmailTemplate?: () => void;
+  onNavigateReview?: () => void;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [activeTab, setActiveTab] = useState<"notes" | "audit" | "escalations">("notes");
   const [sortBy, setSortBy] = useState("Aging");
@@ -2924,31 +2934,24 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
 
   return (
     <div className="bg-[#f5f6fa] flex size-full min-h-screen">
-      <NavDrawer
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onLogout={onLogout}
-        onNavigateHome={onNavigateHome}
-        onNavigateDashboard={onNavigateDashboard}
-        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
-        onNavigateNewOverview={onNavigateNewOverview}
-        onNavigateHoldManagementOverview={onNavigateOverview}
-        onNavigateOrderListing={onNavigateOrderListing}
-        onNavigateReleasedOrders={onNavigateReleasedOrders}
-      />
-
       <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-auto">
         {/* Header */}
         <AppHeader
-          onMenuClick={() => setSidebarOpen(true)}
           activeNav="Hold Management"
-          activeSub="Order Listing"
           onViewAllNotifications={onViewAllNotifications}
-          onNavigateDashboard={onNavigateDashboard}
+          onLogout={onLogout}
+          onNavigateHome={onNavigateHome}
+          onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+          onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+          onNavigateNewOverview={onNavigateNewOverview}
+          onNavigateHoldManagementOverview={onNavigateOverview}
+          onNavigateOrderListing={onNavigateOrderListing}
+          onNavigateReleasedOrders={onNavigateReleasedOrders}
+          onNavigateEmailTemplate={onNavigateEmailTemplate}
+          onNavigateReview={onNavigateReview}
         />
 
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col w-full max-w-[1600px] mx-auto">
 
           {/* Order Banner */}
           <div className="bg-[#f1f5f9] px-5 py-[10px] border-b border-[#e2e8f0] shrink-0">
@@ -2966,7 +2969,7 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
             {/* Title row */}
             <div className="flex items-center gap-[8px] mb-[4px]">
               <span className="font-bold text-[#333] text-[24px] leading-[28px]">Order #{orderId}</span>
-              <span className="inline-flex items-center px-[6px] py-[3px] rounded-[4px] text-[9px] font-medium"
+              <span className="inline-flex items-center px-[6px] py-[3px] rounded-[8px] text-[9px] font-medium"
                 style={{ color: "#dc2626", backgroundColor: "rgba(220,38,38,0.1)" }}>
                 {order.status === "Breached" ? "Breached" : order.status === "At Risk" ? "At Risk" : "On Track"}
               </span>
@@ -3004,7 +3007,7 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
               {/* Follow-Up Date dropdown */}
               <div className="ml-auto">
                 <div className="h-[36px] relative w-[204px]">
-                  <div className="absolute bg-white border border-[#d1d1d1] h-[36px] left-0 right-0 rounded-[4px] top-0" />
+                  <div className="absolute bg-white border border-[#d1d1d1] h-[36px] left-0 right-0 rounded-[8px] top-0" />
                   <div className="absolute flex items-center justify-between left-[9px] right-[8px] top-[8px] pointer-events-none">
                     <span className="text-[#333] text-[14px]">Follow-Up Date</span>
                     <div className="relative shrink-0 size-[16px]">
@@ -3030,7 +3033,7 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
           <div className="flex-1 px-5 py-5 flex flex-col gap-5">
 
             {/* Hold Listings card */}
-            <div className="bg-white rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col">
+            <div className="bg-white rounded-[8px] border border-[#ebebeb] overflow-hidden flex flex-col">
 
               {/* Page header */}
               <div className="flex items-center justify-between px-5 h-[56px] border-b border-[#f2f2f2] shrink-0">
@@ -3057,7 +3060,7 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
                     <span className="text-[#94a3b8] text-[11px]">Last synced 10:45 AM</span>
                   </div>
                   <button onClick={() => toast.success("Exporting...")}
-                    className="flex items-center gap-[6px] h-[32px] px-[10px] bg-white border border-[#e0e5ed] rounded-[4px] text-[#64748b] text-[12px] font-medium hover:bg-[#f8fafc] cursor-pointer transition-colors">
+                    className="flex items-center gap-[6px] h-[32px] px-[10px] bg-white border border-[#e0e5ed] rounded-[8px] text-[#64748b] text-[12px] font-medium hover:bg-[#f8fafc] cursor-pointer transition-colors">
                     <svg fill="none" viewBox="0 0 13 11" className="size-[14px] shrink-0">
                       <path clipRule="evenodd" d={detailsSvg.p3615000} fill="#64748B" fillRule="evenodd" />
                     </svg>
@@ -3074,7 +3077,7 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
                   { value: "-",  label: "ERD / NEXT DATE", bg: "white",    border: true },
                   { value: "CSR Factory", label: "OWNERS INVOLVED", bg: "white", border: true },
                 ].map((card, i) => (
-                  <div key={i} className="rounded-[10px] h-[78px] relative"
+                  <div key={i} className="rounded-[8px] h-[78px] relative"
                     style={{ background: card.bg, border: card.border ? "1px solid #F2F2F2" : "none" }}>
                     <div className="absolute left-[16px] top-[16px] flex flex-col gap-0">
                       <span className="text-[#333] text-[24px] font-bold leading-[28px]">{card.value}</span>
@@ -3094,7 +3097,7 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
                   <div className="content-stretch flex items-center relative shrink-0">
                     <div className="grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0">
                       <button onClick={() => { setFilterPanelOpen(o => !o); if (colMgmtOpen) setColMgmtOpen(false); }}
-                        className={`border border-solid col-start-1 ml-0 mt-0 relative rounded-[4px] row-start-1 size-[36px] cursor-pointer transition-colors ${filterPanelOpen ? "bg-[#c53e6c] border-[#c53e6c] hover:bg-[#a0334f]" : "bg-white border-[#d1d1d1] hover:bg-[#f8fafc]"}`} />
+                        className={`border border-solid col-start-1 ml-0 mt-0 relative rounded-[8px] row-start-1 size-[36px] cursor-pointer transition-colors ${filterPanelOpen ? "bg-[#c53e6c] border-[#c53e6c] hover:bg-[#a0334f]" : "bg-white border-[#d1d1d1] hover:bg-[#f8fafc]"}`} />
                       <div className="col-start-1 ml-[8px] mt-[8px] relative row-start-1 size-[20px] pointer-events-none">
                         <div className="absolute inset-[9.38%_6.17%]">
                           <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 17.5332 16.25">
@@ -3108,7 +3111,7 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
                   <div className="content-stretch flex items-center relative shrink-0">
                     <div className="grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0">
                       <button onClick={() => { const opening = !colMgmtOpen; setColMgmtOpen(opening); if (opening) { setTempVisibleCols(new Set(visibleCols)); setTempColSortOrder([...colSortOrder]); if (filterPanelOpen) setFilterPanelOpen(false); } }}
-                        className={`border border-solid col-start-1 ml-0 mt-0 relative rounded-[4px] row-start-1 size-[36px] cursor-pointer transition-colors ${colMgmtOpen ? "bg-[#c53e6c] border-[#c53e6c] hover:bg-[#a0334f]" : "bg-white border-[#d1d1d1] hover:bg-[#f8fafc]"}`} />
+                        className={`border border-solid col-start-1 ml-0 mt-0 relative rounded-[8px] row-start-1 size-[36px] cursor-pointer transition-colors ${colMgmtOpen ? "bg-[#c53e6c] border-[#c53e6c] hover:bg-[#a0334f]" : "bg-white border-[#d1d1d1] hover:bg-[#f8fafc]"}`} />
                       <div className="col-start-1 ml-[8px] mt-[8px] relative row-start-1 size-[20px] pointer-events-none">
                         <div className="absolute inset-[12.5%_9.38%_68.75%_9.38%]">
                           <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16.25 3.75">
@@ -3210,7 +3213,7 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
                           {visibleCols.has("Impact")        && <td className="px-3 py-2 text-[#686868] text-[14px] whitespace-nowrap">{row.impact}</td>}
                           {visibleCols.has("ERD")           && (
                             <td className="px-3 py-2">
-                              <div className="flex items-center gap-1 h-[36px] w-[140px] bg-white border border-[#d1d1d1] rounded-[4px] px-2">
+                              <div className="flex items-center gap-1 h-[36px] w-[140px] bg-white border border-[#d1d1d1] rounded-[8px] px-2">
                                 <input
                                   type="text"
                                   placeholder="dd-mm-yyyy"
@@ -3315,7 +3318,7 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
                             <div>
                               {selCount > 0 && (
                                 <div className="flex items-center justify-between px-[16px] py-[7px] border-b border-[#f2f2f2] min-h-[32px]">
-                                  <div className="bg-[#f2f2f2] flex gap-[4px] items-center px-[6px] py-[3px] rounded-[4px] shrink-0">
+                                  <div className="bg-[#f2f2f2] flex gap-[4px] items-center px-[6px] py-[3px] rounded-[8px] shrink-0">
                                     <p className="font-normal leading-[16px] text-[#686868] text-[10px] whitespace-nowrap">{String(selCount).padStart(2, "0")} Selected</p>
                                     <button onClick={e => { e.stopPropagation(); setCheckedFilters(p => ({ ...p, [sec.key]: new Set() })); }}
                                       className="relative size-[12px] shrink-0 cursor-pointer flex items-center justify-center">
@@ -3471,11 +3474,11 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
                   </div>
                   <div className="shrink-0 border-t border-[#f2f2f2] flex justify-end gap-[8px] px-[16px] py-[12px]">
                     <button onClick={() => { setTempVisibleCols(new Set(visibleCols)); setTempColSortOrder([...colSortOrder]); setColMgmtOpen(false); }}
-                      className="px-[14px] py-[6px] rounded-[4px] border border-[#c53e6c] text-[#c53e6c] text-[13px] font-medium cursor-pointer hover:bg-[#fdf2f6] transition-colors">
+                      className="px-[14px] py-[6px] rounded-[8px] border border-[#c53e6c] text-[#c53e6c] text-[13px] font-medium cursor-pointer hover:bg-[#fdf2f6] transition-colors">
                       Cancel
                     </button>
                     <button onClick={() => { setVisibleCols(new Set(tempVisibleCols)); setColSortOrder([...tempColSortOrder]); setColMgmtOpen(false); toast.success("Column settings saved"); }}
-                      className="px-[14px] py-[6px] rounded-[4px] bg-[#c53e6c] text-white text-[13px] font-medium cursor-pointer hover:bg-[#a0334f] transition-colors">
+                      className="px-[14px] py-[6px] rounded-[8px] bg-[#c53e6c] text-white text-[13px] font-medium cursor-pointer hover:bg-[#a0334f] transition-colors">
                       Save
                     </button>
                   </div>
@@ -3484,7 +3487,7 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
             </div>
 
             {/* Notes & Audit Logs card */}
-            <div className="bg-white rounded-xl border border-[#ebebeb] overflow-hidden flex flex-col">
+            <div className="bg-white rounded-[8px] border border-[#ebebeb] overflow-hidden flex flex-col">
               <div className="px-5 pt-5 pb-0 border-b border-[#f2f2f2]">
                 <h2 className="text-[#0f172a] text-[20px] font-semibold mb-4">Notes &amp; Audit Logs</h2>
                 {/* Tabs */}
@@ -3576,11 +3579,11 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
                   </div>
                   <div className="flex justify-end gap-3">
                     <button onClick={() => setNoteText("")}
-                      className="h-[36px] px-5 rounded-[4px] border border-[#d1d1d1] bg-white text-[#686868] text-[14px] hover:bg-[#f8fafc] cursor-pointer transition-colors">
+                      className="h-[36px] px-5 rounded-[8px] border border-[#d1d1d1] bg-white text-[#686868] text-[14px] hover:bg-[#f8fafc] cursor-pointer transition-colors">
                       Cancel
                     </button>
                     <button onClick={() => { if (noteText.trim()) { toast.success("Note saved"); setNoteText(""); } }}
-                      className="h-[36px] px-5 rounded-[4px] bg-[#90003b] border border-[#90003b] text-white text-[14px] hover:bg-[#750030] cursor-pointer transition-colors">
+                      className="h-[36px] px-5 rounded-[8px] bg-[#90003b] border border-[#90003b] text-white text-[14px] hover:bg-[#750030] cursor-pointer transition-colors">
                       Save
                     </button>
                   </div>
@@ -3604,9 +3607,9 @@ function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigat
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
-type Screen = "login" | "dashboard" | "home" | "notifications" | "command-center-overview" | "command-center-email-view" | "new-overview" | "email-workflow" | "hold-management" | "order-listing" | "released-orders" | "order-details";
+type Screen = "login" | "dashboard" | "home" | "notifications" | "command-center-overview" | "command-center-email-view" | "new-overview" | "email-workflow" | "hold-management" | "order-listing" | "released-orders" | "order-details" | "email-template" | "review";
 
-const VALID_SCREENS: Screen[] = ["login", "dashboard", "home", "notifications", "command-center-overview", "command-center-email-view", "new-overview", "email-workflow", "hold-management", "order-listing", "released-orders", "order-details"];
+const VALID_SCREENS: Screen[] = ["login", "dashboard", "home", "notifications", "command-center-overview", "command-center-email-view", "new-overview", "email-workflow", "hold-management", "order-listing", "released-orders", "order-details", "email-template", "review"];
 
 // Session-only persistence so a page reload keeps you where you were instead of bouncing back to login —
 // sessionStorage (not localStorage) so it still clears when the tab/browser actually closes.
@@ -3623,16 +3626,50 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>(readStoredScreen);
   const [detailOrderId, setDetailOrderId] = useState<string>(() => window.sessionStorage.getItem(DETAIL_ORDER_STORAGE_KEY) ?? "7822110");
   const [workflowEmailId, setWorkflowEmailId] = useState<string>(() => window.sessionStorage.getItem(WORKFLOW_EMAIL_STORAGE_KEY) ?? ALL_EMAILS_WITH_CCC[0].id);
-  const openWorkflow = (emailId: string) => { setWorkflowEmailId(emailId); setScreen("email-workflow"); };
+  const [workflowReturnScreen, setWorkflowReturnScreen] = useState<Screen>("command-center-overview");
+  const openWorkflow = (emailId: string) => {
+    setWorkflowReturnScreen(screen);
+    setWorkflowEmailId(emailId);
+    setScreen("email-workflow");
+  };
 
   useEffect(() => { window.sessionStorage.setItem(SCREEN_STORAGE_KEY, screen); }, [screen]);
   useEffect(() => { window.sessionStorage.setItem(DETAIL_ORDER_STORAGE_KEY, detailOrderId); }, [detailOrderId]);
   useEffect(() => { window.sessionStorage.setItem(WORKFLOW_EMAIL_STORAGE_KEY, workflowEmailId); }, [workflowEmailId]);
 
+  // Browser back/forward support — the app has no router, just this screen state, so without pushing a
+  // history entry per navigation the browser's back button has nothing of ours to go back to. `isPopRef`
+  // distinguishes a screen change caused by popstate (browser back/forward) from one caused by in-app
+  // navigation, so we don't push a redundant new entry in response to a back/forward that already moved us.
+  const hasMountedRef = useRef(false);
+  const isPopRef = useRef(false);
+
+  useEffect(() => {
+    window.history.replaceState({ screen: readStoredScreen() }, "");
+  }, []);
+
+  useEffect(() => {
+    function handlePopState(e: PopStateEvent) {
+      const next = e.state?.screen as Screen | undefined;
+      if (next && VALID_SCREENS.includes(next)) {
+        isPopRef.current = true;
+        setScreen(next);
+      }
+    }
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
+    if (isPopRef.current) { isPopRef.current = false; return; }
+    window.history.pushState({ screen }, "");
+  }, [screen]);
+
   return (
     <div className="size-full">
       <Toaster position="bottom-right" richColors />
-      {screen === "login" && <LoginScreen onLogin={() => setScreen("dashboard")} />}
+      {screen === "login" && <LoginScreen onLogin={() => setScreen("home")} />}
       {screen === "dashboard" && (
         <Dashboard
           onLogout={() => setScreen("login")}
@@ -3644,6 +3681,8 @@ export default function App() {
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
+          onNavigateEmailTemplate={() => setScreen("email-template")}
+          onNavigateReview={() => setScreen("review")}
         />
       )}
       {screen === "home" && (
@@ -3660,7 +3699,7 @@ export default function App() {
       )}
       {screen === "notifications" && (
         <NotificationsPage
-          onBack={() => setScreen("dashboard")}
+          onBack={() => setScreen("home")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateHome={() => setScreen("home")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
@@ -3669,6 +3708,8 @@ export default function App() {
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
+          onNavigateEmailTemplate={() => setScreen("email-template")}
+          onNavigateReview={() => setScreen("review")}
         />
       )}
       {screen === "command-center-overview" && (
@@ -3676,7 +3717,6 @@ export default function App() {
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateHome={() => setScreen("home")}
-          onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateNewOverview={() => setScreen("new-overview")}
@@ -3684,6 +3724,8 @@ export default function App() {
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
+          onNavigateEmailTemplate={() => setScreen("email-template")}
+          onNavigateReview={() => setScreen("review")}
         />
       )}
       {screen === "command-center-email-view" && (
@@ -3691,7 +3733,6 @@ export default function App() {
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateHome={() => setScreen("home")}
-          onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateNewOverview={() => setScreen("new-overview")}
@@ -3699,17 +3740,32 @@ export default function App() {
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
+          onNavigateEmailTemplate={() => setScreen("email-template")}
+          onNavigateReview={() => setScreen("review")}
         />
       )}
       {screen === "email-workflow" && (
-        <WorkflowPage emailId={workflowEmailId} onBack={() => setScreen("command-center-overview")} />
+        <WorkflowPage
+          emailId={workflowEmailId}
+          onBack={() => setScreen(workflowReturnScreen)}
+          onLogout={() => setScreen("login")}
+          onViewAllNotifications={() => setScreen("notifications")}
+          onNavigateHome={() => setScreen("home")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
+          onNavigateHoldManagementOverview={() => setScreen("hold-management")}
+          onNavigateOrderListing={() => setScreen("order-listing")}
+          onNavigateReleasedOrders={() => setScreen("released-orders")}
+          onNavigateEmailTemplate={() => setScreen("email-template")}
+          onNavigateReview={() => setScreen("review")}
+        />
       )}
       {screen === "new-overview" && (
         <NewOverviewPage
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateHome={() => setScreen("home")}
-          onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateNewOverview={() => setScreen("new-overview")}
@@ -3717,6 +3773,8 @@ export default function App() {
           onNavigateHoldManagementOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
+          onNavigateEmailTemplate={() => setScreen("email-template")}
+          onNavigateReview={() => setScreen("review")}
         />
       )}
       {screen === "hold-management" && (
@@ -3724,13 +3782,14 @@ export default function App() {
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateHome={() => setScreen("home")}
-          onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateNewOverview={() => setScreen("new-overview")}
           onViewAllOrders={() => setScreen("order-listing")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
+          onNavigateEmailTemplate={() => setScreen("email-template")}
+          onNavigateReview={() => setScreen("review")}
         />
       )}
       {screen === "order-listing" && (
@@ -3738,7 +3797,6 @@ export default function App() {
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateHome={() => setScreen("home")}
-          onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateNewOverview={() => setScreen("new-overview")}
@@ -3746,6 +3804,8 @@ export default function App() {
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
           onNavigateOrderDetails={(id) => { setDetailOrderId(id); setScreen("order-details"); }}
+          onNavigateEmailTemplate={() => setScreen("email-template")}
+          onNavigateReview={() => setScreen("review")}
         />
       )}
       {screen === "order-details" && (
@@ -3754,13 +3814,14 @@ export default function App() {
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateHome={() => setScreen("home")}
-          onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateNewOverview={() => setScreen("new-overview")}
           onNavigateOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
+          onNavigateEmailTemplate={() => setScreen("email-template")}
+          onNavigateReview={() => setScreen("review")}
         />
       )}
       {screen === "released-orders" && (
@@ -3768,13 +3829,50 @@ export default function App() {
           onLogout={() => setScreen("login")}
           onViewAllNotifications={() => setScreen("notifications")}
           onNavigateHome={() => setScreen("home")}
-          onNavigateDashboard={() => setScreen("dashboard")}
           onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
           onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
           onNavigateNewOverview={() => setScreen("new-overview")}
           onNavigateOverview={() => setScreen("hold-management")}
           onNavigateOrderListing={() => setScreen("order-listing")}
           onNavigateReleasedOrders={() => setScreen("released-orders")}
+          onNavigateEmailTemplate={() => setScreen("email-template")}
+          onNavigateReview={() => setScreen("review")}
+        />
+      )}
+      {screen === "email-template" && (
+        <PlaceholderPage
+          title="Email Template"
+          description="Build and manage reusable email templates for outreach and case responses."
+          activeNav="Email Template"
+          onViewAllNotifications={() => setScreen("notifications")}
+          onLogout={() => setScreen("login")}
+          onNavigateHome={() => setScreen("home")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
+          onNavigateHoldManagementOverview={() => setScreen("hold-management")}
+          onNavigateOrderListing={() => setScreen("order-listing")}
+          onNavigateReleasedOrders={() => setScreen("released-orders")}
+          onNavigateEmailTemplate={() => setScreen("email-template")}
+          onNavigateReview={() => setScreen("review")}
+        />
+      )}
+      {screen === "review" && (
+        <PlaceholderPage
+          title="Review"
+          description="Review flagged items and approve or reject pending actions in one place."
+          activeNav="Review"
+          onViewAllNotifications={() => setScreen("notifications")}
+          onLogout={() => setScreen("login")}
+          onNavigateHome={() => setScreen("home")}
+          onNavigateCommandCenterOverview={() => setScreen("command-center-overview")}
+          onNavigateCommandCenterEmailView={() => setScreen("command-center-email-view")}
+          onNavigateNewOverview={() => setScreen("new-overview")}
+          onNavigateHoldManagementOverview={() => setScreen("hold-management")}
+          onNavigateOrderListing={() => setScreen("order-listing")}
+          onNavigateReleasedOrders={() => setScreen("released-orders")}
+          onNavigateEmailTemplate={() => setScreen("email-template")}
+          onNavigateReview={() => setScreen("review")}
         />
       )}
     </div>

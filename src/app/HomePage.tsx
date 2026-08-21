@@ -1,6 +1,5 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ArrowRight, CirclePause, LayoutGrid } from "lucide-react";
-import { NavDrawer } from "./components/NavDrawer";
 import { AppHeader } from "./components/AppHeader";
 
 function CommandCenterPreview() {
@@ -11,8 +10,8 @@ function CommandCenterPreview() {
     { color: "#823E81", w: "48%", pill: "Flagged", pillColor: "#d12e2e", pillBg: "rgba(209,46,46,0.12)" },
   ];
   return (
-    <div className="relative rounded-[16px] overflow-hidden h-full" style={{ background: "linear-gradient(135deg, #0F2A4A 0%, #1B3F6E 55%, #30578D 100%)" }}>
-      <div className="absolute inset-4 bg-white/95 rounded-[12px] p-4 flex flex-col gap-3 shadow-xl backdrop-blur-sm">
+    <div className="relative rounded-[8px] overflow-hidden h-full" style={{ background: "linear-gradient(135deg, #0F2A4A 0%, #1B3F6E 55%, #30578D 100%)" }}>
+      <div className="absolute inset-4 bg-white/95 rounded-[8px] p-4 flex flex-col gap-3 shadow-xl backdrop-blur-sm">
         <div className="flex items-center gap-1.5 pb-2 border-b border-[#eef0f3]">
           <span className="size-[9px] rounded-full bg-[#ff5f57]" />
           <span className="size-[9px] rounded-full bg-[#febc2e]" />
@@ -43,8 +42,8 @@ function HoldManagementPreview() {
     { label: "On Track", value: "48", color: "#468657", bg: "#EFF6F1" },
   ];
   return (
-    <div className="relative rounded-[16px] overflow-hidden h-full" style={{ background: "linear-gradient(135deg, #4A0F16 0%, #871518 55%, #E90029 100%)" }}>
-      <div className="absolute inset-4 bg-white/95 rounded-[12px] p-4 flex flex-col gap-3 shadow-xl backdrop-blur-sm">
+    <div className="relative rounded-[8px] overflow-hidden h-full" style={{ background: "linear-gradient(135deg, #4A0F16 0%, #871518 55%, #E90029 100%)" }}>
+      <div className="absolute inset-4 bg-white/95 rounded-[8px] p-4 flex flex-col gap-3 shadow-xl backdrop-blur-sm">
         <div className="flex items-center gap-1.5 pb-2 border-b border-[#eef0f3]">
           <span className="size-[9px] rounded-full bg-[#ff5f57]" />
           <span className="size-[9px] rounded-full bg-[#febc2e]" />
@@ -92,7 +91,7 @@ function HomeCard({
   return (
     <button
       onClick={onClick}
-      className="group text-left bg-white rounded-[24px] border-2 border-[#EEF0F3] p-7 sm:p-8 flex flex-col gap-5 w-full sm:w-[400px] cursor-pointer transition-all duration-300 hover:-translate-y-1.5"
+      className="group text-left bg-white rounded-[8px] border-2 border-[#EEF0F3] p-7 sm:p-8 flex flex-col gap-5 w-full sm:w-[400px] cursor-pointer transition-all duration-300 hover:-translate-y-1.5"
       style={{ ["--accent" as string]: accent }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = accent;
@@ -135,6 +134,8 @@ export function HomePage({
   onNavigateHoldManagementOverview,
   onNavigateOrderListing,
   onNavigateReleasedOrders,
+  onNavigateEmailTemplate,
+  onNavigateReview,
 }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
@@ -144,25 +145,25 @@ export function HomePage({
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateEmailTemplate?: () => void;
+  onNavigateReview?: () => void;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   return (
     <div className="bg-[#f5f6fa] flex size-full min-h-screen">
-      <NavDrawer
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onLogout={onLogout}
-        onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-        onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
-        onNavigateNewOverview={onNavigateNewOverview}
-        onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
-        onNavigateOrderListing={onNavigateOrderListing}
-        onNavigateReleasedOrders={onNavigateReleasedOrders}
-      />
-
       <div className="flex flex-col flex-1 min-w-0 min-h-screen">
-        <AppHeader onMenuClick={() => setSidebarOpen(true)} activeNav="Home" onViewAllNotifications={onViewAllNotifications} />
+        <AppHeader
+          activeNav="Home"
+          onViewAllNotifications={onViewAllNotifications}
+          onLogout={onLogout}
+          onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+          onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+          onNavigateNewOverview={onNavigateNewOverview}
+          onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
+          onNavigateOrderListing={onNavigateOrderListing}
+          onNavigateReleasedOrders={onNavigateReleasedOrders}
+          onNavigateEmailTemplate={onNavigateEmailTemplate}
+          onNavigateReview={onNavigateReview}
+        />
 
         <main className="relative flex-1 flex items-center justify-center px-4 py-12 overflow-hidden">
           {/* Decorative background glow */}
@@ -190,7 +191,7 @@ export function HomePage({
                 cta="Open Command Center"
                 description="Monitor emails, threats, and take action from a unified command view."
                 preview={<CommandCenterPreview />}
-                onClick={onNavigateCommandCenterOverview}
+                onClick={onNavigateNewOverview}
               />
               <HomeCard
                 icon={CirclePause}

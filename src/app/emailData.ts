@@ -56,6 +56,10 @@ export type Email = {
   assignedTo?: string;
   assignedInitials?: string;
   attachments?: { name: string; size: string }[];
+  // New Overview filter panel fields
+  sensitivity?: string;
+  languageDetected?: string;
+  source?: string;
 };
 
 const CSR_OWNERS = ["A. Sharma", "M. Chen", "R. Okafor", "L. Novak", "T. Reyes"];
@@ -80,13 +84,23 @@ const STATUS_NOTES = [
   "Customer confirmed details, proceeding with fulfillment.",
   "Awaiting updated documentation from requester.",
 ];
-export const CLASSIFICATIONS = ["Trade Order", "Service Contract", "Work Order", "Quote Request", "Info Required", "Review Required"];
+export const CLASSIFICATIONS = ["TRADE_ORDER", "SERVICE_CONTRACT", "WORK_ORDER", "QUOTE_REQUEST", "INFO_REQUIRED", "REVIEW_REQUIRED", "EXCLUDED"];
 export const REVIEW_STATUSES = ["Pending", "Approved", "Rejected"];
+export const SENSITIVITY_OPTIONS = ["GENERAL", "SENSITIVE"];
+// Deliberately messy — mirrors the real (uncleaned) language-detection values from production.
+export const LANGUAGE_DETECTED_OPTIONS = [
+  "de", "en", "EN", "English", "ENGLISH", "es", "ja", "Japanese", "ko", "Korean",
+  "Mixed (Chinese/English)", "mixed_korean_english", "Portuguese (pt)",
+  "{'primary': 'en', 'confidence': 1.0, 'secondary': None}",
+  "Spanish (es) and English (en)", "th",
+];
+export const SOURCE_OPTIONS = ["INTERNAL", "EXTERNAL"];
 const ASSIGNEES: { name: string; initials: string }[] = [
   { name: "Jagdish K.", initials: "JK" },
   { name: "Gaurish", initials: "G" },
   { name: "Maria Chen", initials: "MC" },
   { name: "AI", initials: "AI" },
+  { name: "Unassigned", initials: "?" },
 ];
 const ATTACHMENT_POOL = [
   { name: "Order_details.pdf", size: "1.2 MB" },
@@ -94,6 +108,24 @@ const ATTACHMENT_POOL = [
   { name: "Signed_SOW.docx", size: "840 KB" },
   { name: "Invoice.pdf", size: "310 KB" },
 ];
+
+// Listing-grid fields (classification, confidence, review status, assignee, etc.) — shared by root email
+// rows AND their nested CCC/reply rows so expanded rows show real, varied data rather than blank fallbacks.
+function deriveListingFields(seed: number, attachmentKeyPrefix: string) {
+  const assignee = ASSIGNEES[seed % ASSIGNEES.length];
+  const attachmentCount = seed % 3 === 0 ? 0 : (seed % 2) + 1;
+  return {
+    classification: CLASSIFICATIONS[seed % CLASSIFICATIONS.length],
+    confidencePct: 70 + ((seed * 7) % 30),
+    reviewStatus: REVIEW_STATUSES[seed % REVIEW_STATUSES.length],
+    assignedTo: assignee.name,
+    assignedInitials: assignee.initials,
+    sensitivity: SENSITIVITY_OPTIONS[seed % SENSITIVITY_OPTIONS.length],
+    languageDetected: LANGUAGE_DETECTED_OPTIONS[seed % LANGUAGE_DETECTED_OPTIONS.length],
+    source: SOURCE_OPTIONS[seed % SOURCE_OPTIONS.length],
+    attachments: ATTACHMENT_POOL.slice(0, attachmentCount).map((a, ai) => ({ ...a, name: ai === 0 ? a.name : `${attachmentKeyPrefix}_${a.name}` })),
+  };
+}
 
 // Fields shared by a CCC request and all of its thread replies — the request identity doesn't change reply to reply.
 function deriveRequestFields(i: number) {
@@ -144,7 +176,7 @@ function makeCcc(rootEmail: Email, cccSeed: number, replyPool: Email[]): Email {
   return {
     id: request.cccId,
     subject: `${request.cccRequestType} — ${request.cccRequestSubtype}`,
-    sender: "",
+    sender: rootEmail.sender,
     category: rootEmail.category,
     status: PREVIOUS_STATUSES[cccSeed % PREVIOUS_STATUSES.length],
     received: rootEmail.received,
@@ -152,6 +184,7 @@ function makeCcc(rootEmail: Email, cccSeed: number, replyPool: Email[]): Email {
     rootEmailId: rootEmail.id,
     ...request,
     ...deriveStatusFields(rootEmail, cccSeed),
+    ...deriveListingFields(cccSeed, request.cccId),
     replies: replyPool.map((reply, ri) => enrichReply(reply, request, cccSeed, ri, rootEmail.id)),
   };
 }
@@ -165,6 +198,7 @@ function enrichReply(reply: Email, request: ReturnType<typeof deriveRequestField
     ...reply,
     ...request,
     ...deriveStatusFields(reply, seed),
+    ...deriveListingFields(seed, request.cccId),
     rootEmailId,
     replies: reply.replies?.map((sub, si) => enrichReply(sub, request, seed, si, rootEmailId)),
   };
@@ -197,9 +231,6 @@ function withCccHierarchy(email: Email, i: number): Email {
   const linkedCccs = groups.map((group, ci) => makeCcc(email, i * 2 + ci, group));
   const [primaryCcc] = linkedCccs;
 
-  const assignee = ASSIGNEES[i % ASSIGNEES.length];
-  const attachmentCount = i % 3 === 0 ? 0 : (i % 2) + 1;
-
   // The root row surfaces its primary (first) linked CCC's data directly, so the main grid is informative
   // without expanding — expanding still reveals every linked CCC (including this one) and their own threads.
   return {
@@ -215,12 +246,7 @@ function withCccHierarchy(email: Email, i: number): Email {
     linkedCccs,
     rootEmailId: undefined,
     replies: undefined,
-    classification: CLASSIFICATIONS[i % CLASSIFICATIONS.length],
-    confidencePct: 70 + ((i * 7) % 30),
-    reviewStatus: REVIEW_STATUSES[i % REVIEW_STATUSES.length],
-    assignedTo: assignee.name,
-    assignedInitials: assignee.initials,
-    attachments: ATTACHMENT_POOL.slice(0, attachmentCount).map((a, ai) => ({ ...a, name: ai === 0 ? a.name : `${email.id}_${a.name}` })),
+    ...deriveListingFields(i, email.id),
   };
 }
 

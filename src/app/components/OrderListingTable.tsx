@@ -247,7 +247,7 @@ export function OrderListingTable<T>({
             <div className="h-[36px] relative shrink-0 w-[187px]">
               <button
                 onClick={() => setCategoryOpen(o => !o)}
-                className="absolute bg-white border border-[#d1d1d1] border-solid h-[36px] left-0 right-0 rounded-[4px] top-0 w-full cursor-pointer hover:bg-[#f8fafc] transition-colors z-10"
+                className="absolute bg-white border border-[#d1d1d1] border-solid h-[36px] left-0 right-0 rounded-[8px] top-0 w-full cursor-pointer hover:bg-[#f8fafc] transition-colors z-10"
               />
               <div className="absolute content-stretch flex items-center justify-between left-[9px] right-[8px] top-[8px] pointer-events-none z-20">
                 <div className="flex flex-col font-normal justify-center leading-[0] not-italic relative shrink-0 text-[#333] text-[14px] whitespace-nowrap">
@@ -269,7 +269,7 @@ export function OrderListingTable<T>({
               </div>
             </div>
             {categoryOpen && (
-              <div className="absolute right-0 top-[calc(100%+4px)] bg-white rounded-lg border border-[#e2e8f0] shadow-lg z-30 py-1 min-w-full max-h-[220px] overflow-y-auto">
+              <div className="absolute right-0 top-[calc(100%+4px)] bg-white rounded-[8px] border border-[#e2e8f0] shadow-lg z-30 py-1 min-w-full max-h-[220px] overflow-y-auto">
                 {categoryDropdown.options.map(t => (
                   <button key={t} onClick={() => { setCategoryFilter(t); setCategoryOpen(false); setPage(1); }}
                     className={`w-full text-left px-3 py-[7px] text-[13px] cursor-pointer transition-colors truncate ${categoryFilter === t ? "bg-[#f8f0f4] text-[#90003b] font-semibold" : "text-[#374151] hover:bg-[#f8fafc]"}`}
@@ -284,7 +284,7 @@ export function OrderListingTable<T>({
             <div className="h-[36px] relative shrink-0 w-[187px]">
               <button
                 onClick={() => setTypeOpen(o => !o)}
-                className="absolute bg-white border border-[#d1d1d1] border-solid h-[36px] left-0 right-0 rounded-[4px] top-0 w-full cursor-pointer hover:bg-[#f8fafc] transition-colors z-10"
+                className="absolute bg-white border border-[#d1d1d1] border-solid h-[36px] left-0 right-0 rounded-[8px] top-0 w-full cursor-pointer hover:bg-[#f8fafc] transition-colors z-10"
               />
               <div className="absolute content-stretch flex items-center justify-between left-[9px] right-[8px] top-[8px] pointer-events-none z-20">
                 <div className="flex flex-col font-normal justify-center leading-[0] not-italic relative shrink-0 text-[#333] text-[14px] whitespace-nowrap">
@@ -306,7 +306,7 @@ export function OrderListingTable<T>({
               </div>
             </div>
             {typeOpen && (
-              <div className="absolute right-0 top-[calc(100%+4px)] bg-white rounded-lg border border-[#e2e8f0] shadow-lg z-30 py-1 min-w-full">
+              <div className="absolute right-0 top-[calc(100%+4px)] bg-white rounded-[8px] border border-[#e2e8f0] shadow-lg z-30 py-1 min-w-full">
                 {typeDropdown.options.map(t => (
                   <button key={t} onClick={() => { setTypeFilter(t); setTypeOpen(false); setPage(1); }}
                     className={`w-full text-left px-3 py-[7px] text-[13px] cursor-pointer transition-colors ${typeFilter === t ? "bg-[#f8f0f4] text-[#90003b] font-semibold" : "text-[#374151] hover:bg-[#f8fafc]"}`}
@@ -320,7 +320,7 @@ export function OrderListingTable<T>({
 
           {/* View toggle: Grid / List — paired 36×36 buttons */}
           {renderGridItem && (
-            <div className="flex items-center border border-[#d1d1d1] rounded-[4px] overflow-hidden h-[36px]">
+            <div className="flex items-center border border-[#d1d1d1] rounded-[8px] overflow-hidden h-[36px]">
               <button
                 onClick={() => setViewMode("grid")}
                 className={`flex items-center justify-center w-[36px] h-full transition-colors cursor-pointer relative ${viewMode === "grid" ? "bg-white" : "bg-[#f8f8f8] hover:bg-[#f0f0f0]"}`}
@@ -347,7 +347,7 @@ export function OrderListingTable<T>({
           <div className="content-stretch flex items-center relative shrink-0">
             <div className="grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0">
               <button onClick={() => setFilterPanelOpen(o => !o)}
-                className="bg-white border border-[#d1d1d1] border-solid col-start-1 ml-0 mt-0 relative rounded-[4px] row-start-1 size-[36px] cursor-pointer hover:bg-[#f8fafc] transition-colors" />
+                className="bg-white border border-[#d1d1d1] border-solid col-start-1 ml-0 mt-0 relative rounded-[8px] row-start-1 size-[36px] cursor-pointer hover:bg-[#f8fafc] transition-colors" />
               <div className="col-start-1 ml-[8px] mt-[8px] relative row-start-1 size-[20px] pointer-events-none">
                 <div className="absolute inset-[9.38%_6.17%]">
                   <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 17.5332 16.25">
@@ -362,7 +362,7 @@ export function OrderListingTable<T>({
           <div className="content-stretch flex items-center relative shrink-0">
             <div className="grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0">
               <button onClick={() => { const opening = !colMgmtOpen; setColMgmtOpen(opening); if (opening) { setTempVisibleCols(new Set(visibleCols)); setTempColSortOrder([...colSortOrder]); if (filterPanelOpen) setFilterPanelOpen(false); } }}
-                className={`border border-solid col-start-1 ml-0 mt-0 relative rounded-[4px] row-start-1 size-[36px] cursor-pointer transition-colors ${colMgmtOpen ? "bg-[#c53e6c] border-[#c53e6c] hover:bg-[#a0334f]" : "bg-white border-[#d1d1d1] hover:bg-[#f8fafc]"}`} />
+                className={`border border-solid col-start-1 ml-0 mt-0 relative rounded-[8px] row-start-1 size-[36px] cursor-pointer transition-colors ${colMgmtOpen ? "bg-[#c53e6c] border-[#c53e6c] hover:bg-[#a0334f]" : "bg-white border-[#d1d1d1] hover:bg-[#f8fafc]"}`} />
               <div className="col-start-1 ml-[8px] mt-[8px] relative row-start-1 size-[20px] pointer-events-none">
                 <div className="absolute inset-[12.5%_9.38%_68.75%_9.38%]">
                   <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 16.25 3.75">
@@ -638,7 +638,7 @@ export function OrderListingTable<T>({
                     <div>
                       {selCount > 0 && (
                         <div className="flex items-center justify-between px-[16px] py-[7px] border-b border-[#f2f2f2] min-h-[32px]">
-                          <div className="bg-[#f2f2f2] flex gap-[4px] items-center px-[6px] py-[3px] rounded-[4px] shrink-0">
+                          <div className="bg-[#f2f2f2] flex gap-[4px] items-center px-[6px] py-[3px] rounded-[8px] shrink-0">
                             <p className="font-normal leading-[16px] text-[#686868] text-[10px] whitespace-nowrap">{String(selCount).padStart(2,"0")} Selected</p>
                             <button onClick={e => { e.stopPropagation(); setCheckedFilters(p => ({...p, [sec.key]: new Set()})); }}
                               className="relative size-[12px] shrink-0 cursor-pointer flex items-center justify-center">
@@ -654,7 +654,7 @@ export function OrderListingTable<T>({
                       )}
                       {opts.length > 3 && (
                         <div className="px-[16px] py-[10px] border-b border-[#f2f2f2]">
-                          <div className="relative flex h-[36px] rounded-[4px] border border-[#90003b] overflow-hidden">
+                          <div className="relative flex h-[36px] rounded-[8px] border border-[#90003b] overflow-hidden">
                             <input
                               value={sectionSearch[sec.key] ?? ""}
                               onChange={e => setSectionSearch(p => ({...p, [sec.key]: e.target.value}))}
@@ -840,7 +840,7 @@ export function OrderListingTable<T>({
               setTempVisibleCols(new Set(visibleCols));
               setTempColSortOrder([...colSortOrder]);
               setColMgmtOpen(false);
-            }} className="px-[14px] py-[6px] rounded-[4px] border border-[#c53e6c] text-[#c53e6c] text-[13px] font-medium cursor-pointer hover:bg-[#fdf2f6] transition-colors">
+            }} className="px-[14px] py-[6px] rounded-[8px] border border-[#c53e6c] text-[#c53e6c] text-[13px] font-medium cursor-pointer hover:bg-[#fdf2f6] transition-colors">
               Cancel
             </button>
             <button onClick={() => {
@@ -848,7 +848,7 @@ export function OrderListingTable<T>({
               setColSortOrder([...tempColSortOrder]);
               setColMgmtOpen(false);
               toast.success("Column settings saved");
-            }} className="px-[14px] py-[6px] rounded-[4px] bg-[#c53e6c] text-white text-[13px] font-medium cursor-pointer hover:bg-[#a0334f] transition-colors">
+            }} className="px-[14px] py-[6px] rounded-[8px] bg-[#c53e6c] text-white text-[13px] font-medium cursor-pointer hover:bg-[#a0334f] transition-colors">
               Save
             </button>
           </div>
@@ -858,11 +858,11 @@ export function OrderListingTable<T>({
       {/* Pagination */}
       <div className="flex items-center justify-end gap-[4px] px-5 py-3 border-t border-[#f2f2f2] shrink-0">
         <button onClick={() => setPage(1)} disabled={page === 1}
-          className="h-[30px] px-2 rounded-[4px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
+          className="h-[30px] px-2 rounded-[8px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
           «
         </button>
         <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-          className="h-[30px] px-2 rounded-[4px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
+          className="h-[30px] px-2 rounded-[8px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
           ‹
         </button>
         {paginationPages().map((p, i) =>
@@ -870,7 +870,7 @@ export function OrderListingTable<T>({
             <span key={`e${i}`} className="h-[30px] px-2 flex items-center text-[12px] text-[#686868]">…</span>
           ) : (
             <button key={p} onClick={() => setPage(p as number)}
-              className={`h-[30px] min-w-[30px] px-2 rounded-[4px] border text-[12px] cursor-pointer transition-colors ${
+              className={`h-[30px] min-w-[30px] px-2 rounded-[8px] border text-[12px] cursor-pointer transition-colors ${
                 page === p ? "bg-[#90003b] border-[#90003b] text-white font-semibold" : "border-[#d1d1d1] text-[#686868] hover:bg-[#f8fafc]"
               }`}>
               {p}
@@ -878,11 +878,11 @@ export function OrderListingTable<T>({
           )
         )}
         <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-          className="h-[30px] px-2 rounded-[4px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
+          className="h-[30px] px-2 rounded-[8px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
           ›
         </button>
         <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
-          className="h-[30px] px-2 rounded-[4px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
+          className="h-[30px] px-2 rounded-[8px] border border-[#d1d1d1] text-[12px] text-[#686868] disabled:opacity-30 hover:enabled:bg-[#f8fafc] cursor-pointer transition-colors">
           »
         </button>
       </div>

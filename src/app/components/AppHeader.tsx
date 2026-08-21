@@ -1,198 +1,299 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, LogOut, Menu, User, X } from "lucide-react";
 import headerSvg from "@/imports/IntellisightHeader/svg-55fm8fp6rz";
+import intellisightLogo from "@/imports/IntellisightHeader/intellisight_logo.png";
 import { NotificationPanel } from "./NotificationPanel";
 
-export function AppHeader({
-  onMenuClick,
-  activeNav,
-  activeSub,
-  onViewAllNotifications,
-  onNavigateDashboard,
-}: {
-  onMenuClick: () => void;
-  activeNav: string;
-  activeSub?: string;
-  onViewAllNotifications: () => void;
-  onNavigateDashboard?: () => void;
-}) {
-  const [searchCategory, setSearchCategory] = useState("Emails & Products");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
+type NavChild = { label: string; onClick?: () => void };
+type NavItem = { label: string; match: (activeNav: string) => boolean; onClick?: () => void; children?: NavChild[] };
 
-  const categories = ["Emails & Products", "Users", "Threat Intel", "Reports", "Analytics"];
+const CURRENT_USER = { email: "jagdish.kumar@intellisight.io", role: "Sales Ops Admin" };
+
+export function AppHeader({
+  activeNav,
+  onViewAllNotifications,
+  onLogout,
+  onNavigateHome,
+  onNavigateCommandCenterOverview,
+  onNavigateCommandCenterEmailView,
+  onNavigateNewOverview,
+  onNavigateHoldManagementOverview,
+  onNavigateOrderListing,
+  onNavigateReleasedOrders,
+  onNavigateEmailTemplate,
+  onNavigateReview,
+}: {
+  activeNav: string;
+  onViewAllNotifications: () => void;
+  onLogout?: () => void;
+  onNavigateHome?: () => void;
+  onNavigateCommandCenterOverview?: () => void;
+  onNavigateCommandCenterEmailView?: () => void;
+  onNavigateNewOverview?: () => void;
+  onNavigateHoldManagementOverview?: () => void;
+  onNavigateOrderListing?: () => void;
+  onNavigateReleasedOrders?: () => void;
+  onNavigateEmailTemplate?: () => void;
+  onNavigateReview?: () => void;
+}) {
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [mobileOpenSection, setMobileOpenSection] = useState<string | null>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
+  const mobileToggleRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (navRef.current && !navRef.current.contains(target)) setOpenMenu(null);
+      if (profileRef.current && !profileRef.current.contains(target)) setProfileOpen(false);
+      if (
+        mobileNavRef.current && !mobileNavRef.current.contains(target) &&
+        mobileToggleRef.current && !mobileToggleRef.current.contains(target)
+      ) setMobileNavOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Pages get moved in here on request (e.g. "move this page to old") — add a { label, onClick }
+  // entry per page, same shape as Command Center/Hold Mgmt's children below.
+  const oldPages: NavChild[] = [
+    { label: "Overview V1", onClick: onNavigateCommandCenterOverview },
+  ];
+
+  const navItems: NavItem[] = [
+    { label: "Home", match: (n) => n === "Home", onClick: onNavigateHome },
+    {
+      label: "Command Center",
+      match: (n) => n.startsWith("Command Center"),
+      children: [
+        { label: "Overview", onClick: onNavigateNewOverview },
+        { label: "Email View", onClick: onNavigateCommandCenterEmailView },
+      ],
+    },
+    {
+      label: "Hold Mgmt",
+      match: (n) => n.startsWith("Hold"),
+      children: [
+        { label: "Overview", onClick: onNavigateHoldManagementOverview },
+        { label: "Order Listing", onClick: onNavigateOrderListing },
+        { label: "Released Orders", onClick: onNavigateReleasedOrders },
+      ],
+    },
+    { label: "Email Template", match: (n) => n === "Email Template", onClick: onNavigateEmailTemplate },
+    { label: "Review", match: (n) => n === "Review", onClick: onNavigateReview },
+    { label: "Old Pages", match: (n) => n === "Old Pages", children: oldPages },
+  ];
+
+  const runMobileNav = (fn?: () => void) => {
+    setMobileNavOpen(false);
+    setMobileOpenSection(null);
+    fn?.();
+  };
 
   return (
-    <header className="bg-white border-b border-[#f2f2f2] flex items-center h-[64px] shrink-0 px-0 relative z-20">
-      {/* Logo */}
-      <div className="flex items-center shrink-0 pl-4 pr-3">
-        <svg className="w-[38px] h-[24px]" fill="none" viewBox="0 0 42 24">
-          <path
-            d="M2 20L9 8L15 20L21 4L27 20L33 12L41 12"
-            stroke="#E90029"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </div>
-
-      {/* Hamburger + Page title — visible on mobile, also on desktop when sidebar present */}
-      <div className="flex items-center gap-2 min-w-0 shrink-0 mr-4">
+    <header className="shrink-0 relative z-50 bg-white border-b border-[#f2f2f2]">
+      <div className="max-w-[1600px] mx-auto h-[56px] flex items-center px-4 sm:px-5 gap-1">
+        {/* Mobile nav toggle — the horizontal nav collapses below lg into this + the panel below */}
         <button
-          className="p-0.5 cursor-pointer"
-          onClick={onMenuClick}
-          aria-label="Open menu"
+          ref={mobileToggleRef}
+          onClick={() => { setMobileNavOpen((v) => !v); setMobileOpenSection(null); }}
+          aria-label="Toggle navigation"
+          className="lg:hidden flex items-center justify-center size-[36px] -ml-1.5 mr-1 rounded-[8px] text-[#4D4D4D] hover:bg-[#f7f7f7] cursor-pointer transition-colors shrink-0"
         >
-          <svg fill="none" viewBox="0 0 24 24" className="size-[24px]">
-            <path clipRule="evenodd" d="M3 6H21V4.5H3V6Z" fill="#686868" fillRule="evenodd" />
-            <path clipRule="evenodd" d="M3 12.75H21V11.25H3V12.75Z" fill="#686868" fillRule="evenodd" />
-            <path clipRule="evenodd" d="M3 19.5H21V18H3V19.5Z" fill="#686868" fillRule="evenodd" />
-          </svg>
+          {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
-        <div className="flex flex-col justify-center leading-none">
-          <p className="text-[16px] font-medium text-[#262626] whitespace-nowrap leading-[21px]">{activeNav}</p>
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-[5px]">
-            {/* Home icon */}
-            <span
-              className="flex items-center cursor-pointer text-[#CC0025] hover:opacity-75 transition-opacity"
-              onClick={onNavigateDashboard}
-              title="Go to Dashboard"
-            >
-              <svg fill="none" viewBox="0 0 14 14" className="size-[12px]">
-                <path d="M1 5.5L7 1l6 4.5V13a.5.5 0 01-.5.5H9v-4H5v4H1.5A.5.5 0 011 13V5.5z" stroke="#CC0025" strokeWidth="1.2" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <svg fill="none" viewBox="0 0 12 12" className="size-[12px] shrink-0">
-              <path clipRule="evenodd" d={headerSvg.p39b4900} fill="#CC0025" fillRule="evenodd" />
-            </svg>
-            <span className="text-[12px] text-[#666666] leading-[12px] whitespace-nowrap">{activeSub ?? activeNav}</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Search bar — hidden on small screens */}
-      <div className="hidden md:flex items-center rounded-[4px] flex-1 max-w-[515px] mx-auto">
-        {/* Category dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setSearchOpen(!searchOpen)}
-            className="bg-[#f2f2f2] flex items-center justify-between px-3 h-[40px] w-[165px] rounded-tl-[4px] rounded-bl-[4px] cursor-pointer"
-          >
-            <span className="text-[12px] text-[#686868] truncate">{searchCategory}</span>
-            <svg fill="none" viewBox="0 0 12 12" className="size-[12px] shrink-0 ml-1 opacity-50">
-              <path clipRule="evenodd" d={headerSvg.p31a26f00} fill="#686868" fillRule="evenodd" />
-            </svg>
-          </button>
-          {searchOpen && (
-            <div className="absolute top-full left-0 mt-1 bg-white border border-[#f2f2f2] rounded-lg shadow-lg z-30 w-[165px]">
-              {categories.map((cat) => (
+        {/* Logo */}
+        <div className="flex items-center gap-2 shrink-0 pr-2 sm:pr-4">
+          <img src={intellisightLogo} alt="IntelliSight" className="w-[34px] h-[20px] object-contain" />
+          <span className="text-[16px] font-bold whitespace-nowrap bg-gradient-to-r from-[#E90029] via-[#823E81] to-[#30578D] bg-clip-text text-transparent">IntelliSight</span>
+        </div>
+
+        {/* Divider */}
+        <div className="hidden lg:block w-px h-[24px] bg-[#EEF0F3] shrink-0 mr-3" />
+
+        {/* Nav — desktop only; collapses into the mobile panel below lg */}
+        <nav ref={navRef} className="hidden lg:flex items-center gap-1 h-full">
+          {navItems.map((item) => {
+            const active = item.match(activeNav);
+            return (
+              <div key={item.label} className="relative h-full">
                 <button
-                  key={cat}
-                  onClick={() => { setSearchCategory(cat); setSearchOpen(false); }}
-                  className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#f7f7f7] cursor-pointer ${cat === searchCategory ? "text-[#ba1c1c] font-medium" : "text-[#686868]"}`}
+                  onClick={() => {
+                    if (item.children) {
+                      setOpenMenu(openMenu === item.label ? null : item.label);
+                    } else {
+                      item.onClick?.();
+                    }
+                  }}
+                  className={`flex items-center gap-1 px-3 h-full text-[14px] font-medium cursor-pointer transition-colors border-b-2 ${
+                    active ? "text-[#CC0025] border-[#CC0025]" : "text-[#4D4D4D] border-transparent hover:text-[#262626]"
+                  }`}
                 >
-                  {cat}
+                  {item.label}
+                  {item.children && (
+                    <ChevronDown size={14} className={`transition-transform duration-150 ${openMenu === item.label ? "rotate-180" : ""}`} />
+                  )}
                 </button>
-              ))}
+                {item.children && openMenu === item.label && (
+                  <div className="absolute top-full left-0 bg-white border border-[#f2f2f2] rounded-[8px] shadow-lg py-1.5 min-w-[180px] z-30">
+                    {item.children.length === 0 ? (
+                      <p className="px-4 py-2 text-[13px] text-[#97999B] whitespace-nowrap">No pages yet</p>
+                    ) : (
+                      item.children.map((child) => (
+                        <button
+                          key={child.label}
+                          onClick={() => {
+                            setOpenMenu(null);
+                            child.onClick?.();
+                          }}
+                          className="w-full text-left px-4 py-2 text-[13px] text-[#4D4D4D] hover:bg-[#f7f7f7] hover:text-[#262626] cursor-pointer"
+                        >
+                          {child.label}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Right actions */}
+        <div className="flex items-center gap-2 sm:gap-4 ml-auto pr-1 sm:pr-4">
+          {/* Notification bell */}
+          <div className="relative">
+            <button
+              className="flex cursor-pointer hover:opacity-70 transition-opacity"
+              onClick={() => setNotifOpen((v) => !v)}
+            >
+              <svg fill="none" viewBox="0 0 20 20" className="size-[20px]">
+                <path clipRule="evenodd" d={headerSvg.p36a4ea00} fill="#686868" fillRule="evenodd" />
+                <path clipRule="evenodd" d={headerSvg.p30c2f600} fill="#686868" fillRule="evenodd" />
+              </svg>
+            </button>
+            <div className="absolute -top-1 -right-1.5 bg-[#bf0000] rounded-[40px] px-[4px] flex items-center justify-center min-w-[16px] h-[16px] pointer-events-none">
+              <span className="text-[10px] font-bold text-white leading-none">8</span>
             </div>
-          )}
-        </div>
-        {/* Search input */}
-        <div className="bg-[#f7f7f7] flex items-center justify-between px-3 h-[40px] flex-1 rounded-tr-[3px] rounded-br-[3px] border border-[#f7f7f7]">
-          <input
-            className="bg-transparent text-[13px] text-[#9c9c9c] outline-none placeholder:text-[#9c9c9c] w-full"
-            placeholder="Search by email, category etc..."
-          />
-          <svg fill="none" viewBox="0 0 14 14" className="size-[14px] shrink-0">
-            <path d={headerSvg.pe1e7a70} fill="#9C9C9C" />
-          </svg>
-        </div>
-      </div>
-
-      {/* Right actions */}
-      <div className="flex items-center gap-4 ml-auto pr-4 sm:pr-6">
-        {/* AI Chat */}
-        <button className="hidden sm:flex items-center rounded-full p-px bg-gradient-to-r from-[#E90029] via-[#823E81] to-[#30578D] cursor-pointer hover:opacity-90 transition-opacity">
-          <span className="flex items-center gap-[6px] bg-white rounded-full px-3 h-[30px]">
-            <svg viewBox="0 0 16 16" className="size-[14px] shrink-0">
-              <defs>
-                <linearGradient id="aiChatSparkleGradient" x1="0" y1="0" x2="16" y2="16">
-                  <stop offset="0%" stopColor="#E90029" />
-                  <stop offset="55%" stopColor="#823E81" />
-                  <stop offset="100%" stopColor="#30578D" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M8 0L9.8 6.2L16 8L9.8 9.8L8 16L6.2 9.8L0 8L6.2 6.2Z"
-                fill="url(#aiChatSparkleGradient)"
+            {notifOpen && (
+              <NotificationPanel
+                onClose={() => setNotifOpen(false)}
+                onViewAll={onViewAllNotifications}
               />
-            </svg>
-            <span className="text-[14px] font-medium bg-gradient-to-r from-[#E90029] via-[#823E81] to-[#30578D] bg-clip-text text-transparent whitespace-nowrap">
-              AI Chat
-            </span>
-          </span>
-        </button>
-
-        {/* Headset / support */}
-        <button className="hidden sm:flex cursor-pointer hover:opacity-70 transition-opacity" aria-label="Support">
-          <svg viewBox="0 0 24 24" fill="none" className="size-[20px]">
-            <path
-              d="M3 18v-6a9 9 0 0 1 18 0v6"
-              stroke="#686868"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3v5zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3v5z"
-              stroke="#686868"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-
-        {/* Notification bell */}
-        <div className="relative">
-          <button
-            className="flex cursor-pointer hover:opacity-70 transition-opacity"
-            onClick={() => setNotifOpen((v) => !v)}
-          >
-            <svg fill="none" viewBox="0 0 20 20" className="size-[20px]">
-              <path clipRule="evenodd" d={headerSvg.p36a4ea00} fill="#686868" fillRule="evenodd" />
-              <path clipRule="evenodd" d={headerSvg.p30c2f600} fill="#686868" fillRule="evenodd" />
-            </svg>
-          </button>
-          <div className="absolute -top-1 -right-1.5 bg-[#bf0000] rounded-[40px] px-[4px] flex items-center justify-center min-w-[16px] h-[16px] pointer-events-none">
-            <span className="text-[10px] font-bold text-white leading-none">8</span>
+            )}
           </div>
-          {notifOpen && (
-            <NotificationPanel
-              onClose={() => setNotifOpen(false)}
-              onViewAll={onViewAllNotifications}
-            />
-          )}
-        </div>
 
-        {/* Profile */}
-        <button
-          className="size-[32px] rounded-full bg-[#F1F2F4] flex items-center justify-center shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-          aria-label="Profile"
-        >
-          <svg viewBox="0 0 24 24" fill="none" className="size-[18px]">
-            <path
-              d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
-              stroke="#686868"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <circle cx="12" cy="7" r="4" stroke="#686868" strokeWidth="1.7" />
-          </svg>
-        </button>
+          {/* Divider */}
+          <div className="w-px h-[24px] bg-[#EEF0F3] shrink-0" />
+
+          {/* Profile */}
+          <div className="relative" ref={profileRef}>
+            <button
+              onClick={() => setProfileOpen((v) => !v)}
+              className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              <div className="size-[32px] rounded-full bg-[#F1F2F4] flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 24 24" fill="none" className="size-[18px]">
+                  <path
+                    d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+                    stroke="#686868"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="12" cy="7" r="4" stroke="#686868" strokeWidth="1.7" />
+                </svg>
+              </div>
+              <div className="hidden md:flex flex-col items-start leading-none">
+                <span className="text-[12.5px] font-medium text-[#262626] max-w-[170px] truncate">{CURRENT_USER.email}</span>
+                <span className="text-[11px] text-[#97999B] mt-0.5">{CURRENT_USER.role}</span>
+              </div>
+              <ChevronDown size={14} className={`hidden md:block text-[#686868] transition-transform duration-150 ${profileOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {profileOpen && (
+              <div className="absolute top-full right-0 mt-2 bg-white border border-[#f2f2f2] rounded-[8px] shadow-lg py-1.5 min-w-[200px] z-30">
+                <div className="px-4 py-2 border-b border-[#f2f2f2] md:hidden">
+                  <p className="text-[12.5px] font-medium text-[#262626] truncate">{CURRENT_USER.email}</p>
+                  <p className="text-[11px] text-[#97999B] mt-0.5">{CURRENT_USER.role}</p>
+                </div>
+                <button
+                  onClick={() => setProfileOpen(false)}
+                  className="w-full flex items-center gap-2.5 text-left px-4 py-2 text-[13px] text-[#4D4D4D] hover:bg-[#f7f7f7] hover:text-[#262626] cursor-pointer"
+                >
+                  <User size={14} />
+                  Profile
+                </button>
+                <button
+                  onClick={() => {
+                    setProfileOpen(false);
+                    onLogout?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 text-left px-4 py-2 text-[13px] text-[#4D4D4D] hover:bg-[#f7f7f7] hover:text-[#262626] cursor-pointer"
+                >
+                  <LogOut size={14} />
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Mobile nav panel — absolutely positioned so it overlays the page instead of pushing content down */}
+      {mobileNavOpen && (
+        <div
+          ref={mobileNavRef}
+          className="lg:hidden absolute top-full left-0 right-0 z-40 border-t border-[#f2f2f2] bg-white shadow-lg max-h-[calc(100vh-56px)] overflow-y-auto"
+        >
+          {navItems.map((item) => {
+            const active = item.match(activeNav);
+            const sectionOpen = mobileOpenSection === item.label;
+            return (
+              <div key={item.label} className="border-b border-[#f2f2f2] last:border-b-0">
+                <button
+                  onClick={() => {
+                    if (item.children) setMobileOpenSection(sectionOpen ? null : item.label);
+                    else runMobileNav(item.onClick);
+                  }}
+                  className={`w-full flex items-center justify-between gap-2 px-5 py-3 text-[14px] font-medium text-left cursor-pointer transition-colors ${
+                    active ? "text-[#CC0025]" : "text-[#4D4D4D] hover:bg-[#f7f7f7]"
+                  }`}
+                >
+                  {item.label}
+                  {item.children && (
+                    <ChevronDown size={14} className={`transition-transform duration-150 ${sectionOpen ? "rotate-180" : ""}`} />
+                  )}
+                </button>
+                {item.children && sectionOpen && (
+                  <div className="pb-1.5 bg-[#FAFAFA]">
+                    {item.children.length === 0 ? (
+                      <p className="px-7 py-2 text-[13px] text-[#97999B]">No pages yet</p>
+                    ) : (
+                      item.children.map((child) => (
+                        <button
+                          key={child.label}
+                          onClick={() => runMobileNav(child.onClick)}
+                          className="w-full text-left px-7 py-2.5 text-[13px] text-[#4D4D4D] hover:bg-[#f0f0f0] cursor-pointer"
+                        >
+                          {child.label}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </header>
   );
 }

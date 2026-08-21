@@ -47,7 +47,7 @@ export function NotificationPanel({
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-[calc(100%+10px)] w-[360px] bg-white rounded-xl border border-black/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.12)] flex flex-col z-50 overflow-hidden"
+      className="absolute right-0 top-[calc(100%+10px)] w-[360px] bg-white rounded-[8px] border border-black/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.12)] flex flex-col z-50 overflow-hidden"
       style={{ fontFamily: "Inter, sans-serif" }}
     >
       {/* Header */}
@@ -62,7 +62,7 @@ export function NotificationPanel({
           <button className="text-[11px] font-medium text-[#6b7380] hover:text-[#111827] transition-colors cursor-pointer whitespace-nowrap">
             Mark all read
           </button>
-          <button onClick={onClose} className="size-[24px] flex items-center justify-center rounded-md hover:bg-[#f3f3f5] transition-colors cursor-pointer">
+          <button onClick={onClose} className="size-[24px] flex items-center justify-center rounded-[8px] hover:bg-[#f3f3f5] transition-colors cursor-pointer">
             <svg fill="none" viewBox="0 0 12 12" className="size-[10px]">
               <path d={notifSvg.p25e81000} fill="#6b7380" />
             </svg>
@@ -91,7 +91,7 @@ export function NotificationPanel({
             )}
 
             {/* Icon */}
-            <div className="shrink-0 size-[32px] rounded-lg bg-[#f3f3f5] flex items-center justify-center mt-0.5">
+            <div className="shrink-0 size-[32px] rounded-[8px] bg-[#f3f3f5] flex items-center justify-center mt-0.5">
               <svg fill="none" viewBox="0 0 20 20" className="size-[16px]">
                 <path d={notifSvg.p1033e080} stroke={n.status === "Breached" ? "#ba1c1c" : n.status === "At Risk" ? "#b45309" : "#2e7d32"} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
               </svg>
