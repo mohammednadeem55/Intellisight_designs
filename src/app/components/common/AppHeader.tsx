@@ -66,19 +66,12 @@ export function AppHeader({
   // entry per page, same shape as Command Center/Hold Mgmt's children below.
   const oldPages: NavChild[] = [
     { label: "Overview V1", onClick: onNavigateCommandCenterOverview },
+    { label: "Email View", onClick: onNavigateCommandCenterEmailView },
   ];
 
   const navItems: NavItem[] = [
     { label: "Home", match: (n) => n === "Home", onClick: onNavigateHome },
-    {
-      label: "Command Center",
-      match: (n) => n.startsWith("Command Center"),
-      children: [
-        { label: "Overview", onClick: onNavigateNewOverview },
-        { label: "Email View", onClick: onNavigateCommandCenterEmailView },
-        { label: "Email Details", onClick: onNavigateEmailWorkflow },
-      ],
-    },
+    { label: "Command Center", match: (n) => n.startsWith("Command Center"), onClick: onNavigateNewOverview },
     {
       label: "Hold Mgmt",
       match: (n) => n.startsWith("Hold"),

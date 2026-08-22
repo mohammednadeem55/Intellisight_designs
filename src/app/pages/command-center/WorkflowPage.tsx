@@ -1,15 +1,22 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Archive, ArrowLeft, Check, ChevronDown, ChevronRight, CircleCheck, Copy, Download, FileImage, FileSpreadsheet, FileText, Lightbulb, Paperclip, Sparkles, User, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText, Lightbulb, Send, Sparkles, User, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
-import { EmailTableAssignModal } from "../../components/common/EmailTable";
+import { Button, IconButton } from "../../components/common/Button";
+import { PageLoaderOverlay } from "../../components/common/Loader";
+import { EmailTableAssignModal, EmailTableSendEmailModal } from "../../components/common/EmailTable";
+import { AiOrderValidationBody } from "./AiOrderValidationBody";
+import { CccCreationBody, type CccExtractionStatus } from "./CccCreationBody";
+import { OrderCreationBody } from "./OrderCreationBody";
+import { SoaBody } from "./SoaBody";
+import { EmailThreadCard, senderDisplayName } from "./emailThread";
 import { type Email, ALL_EMAILS_WITH_CCC, CLASSIFICATIONS } from "./emailData";
 
 const WORKFLOW_STAGES: { key: string; label: string }[] = [
   { key: "classify", label: "Email & Classify" },
   { key: "ccc", label: "CCC Creation" },
   { key: "validation", label: "AI Order Validation" },
-  { key: "order", label: "Order & Booking" },
+  { key: "order", label: "Order Creation" },
   { key: "soa", label: "SOA" },
 ];
 
@@ -25,15 +32,6 @@ const WORKFLOW_SUBCATEGORIES: Record<string, string[]> = {
   EXCLUDED: ["Spam", "Out of Scope", "Duplicate"],
 };
 
-// "priya.shah@acme.com" → "Priya Shah" — the data model only stores raw addresses, so the detail page's
-// "from" display name is derived from the local-part rather than added as a separate (redundant) field.
-function senderDisplayName(sender: string): string {
-  const local = sender.split("@")[0] ?? sender;
-  const words = local.split(/[._-]+/).filter(Boolean);
-  if (words.length === 0) return sender;
-  return words.map(w => w[0].toUpperCase() + w.slice(1)).join(" ");
-}
-
 function classificationLabel(v?: string): string {
   if (!v) return "Uncategorized";
   return v.toLowerCase().split("_").map(w => w[0].toUpperCase() + w.slice(1)).join(" ");
@@ -45,18 +43,6 @@ function confidenceBand(pct: number): { label: string; bg: string; text: string 
   return { label: "Low confidence", bg: "#FDECEA", text: "#BA1C1C" };
 }
 
-function isExternalSender(sender: string): boolean {
-  return !sender.endsWith("@intellisight.io");
-}
-
-// "Order_details.pdf" → "PDF", "lorem_ipsum.docx" → "DOCX", "notes.txt" → "PLAIN" (matches how mail clients
-// label plain-text attachments) — used next to the file size in the attachment chip.
-function attachmentTypeLabel(name: string): string {
-  const ext = name.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "txt") return "PLAIN";
-  return ext.toUpperCase();
-}
-
 // Clamps to 2 lines with a "View more" toggle — but only when the text is actually long enough to need it,
 // so short summaries don't show a pointless toggle that has nothing to expand.
 function ExpandableText({ text }: { text: string }) {
@@ -66,152 +52,11 @@ function ExpandableText({ text }: { text: string }) {
     <>
       <p className={`text-[12.5px] text-[#374151] leading-[1.6] ${!expanded && isLong ? "line-clamp-2" : ""}`}>{text}</p>
       {isLong && (
-        <button
-          onClick={() => setExpanded(v => !v)}
-          className="text-[11.5px] font-medium text-[#30578D] hover:underline cursor-pointer mt-1"
-        >
+        <Button variant="ghost" className="text-[11.5px] mt-1" onClick={() => setExpanded(v => !v)}>
           {expanded ? "View less" : "View more"}
-        </button>
+        </Button>
       )}
     </>
-  );
-}
-
-// Icon + color per file type, so the attachment list reads at a glance instead of every file looking the same.
-function attachmentMeta(name: string): { icon: typeof FileText; bg: string; fg: string } {
-  const ext = name.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "pdf") return { icon: FileText, bg: "#FDECEA", fg: "#DC2626" };
-  if (["xls", "xlsx", "csv"].includes(ext)) return { icon: FileSpreadsheet, bg: "#E8F5E9", fg: "#2E7D32" };
-  if (["png", "jpg", "jpeg", "gif", "svg"].includes(ext)) return { icon: FileImage, bg: "#EAF1FB", fg: "#30578D" };
-  if (["zip", "rar", "7z"].includes(ext)) return { icon: Archive, bg: "#FDF3E7", fg: "#92600B" };
-  return { icon: FileText, bg: "#f3f4f6", fg: "#6b7280" };
-}
-
-function AttachmentChip({ attachment }: { attachment: { name: string; size: string } }) {
-  const meta = attachmentMeta(attachment.name);
-  return (
-    <button
-      onClick={() => toast.info(`Downloading ${attachment.name}`)}
-      className="group flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] border border-[#ebebeb] w-[200px] hover:border-[#d1d5db] hover:bg-[#f8fafc] cursor-pointer transition-colors text-left"
-    >
-      <div className="size-[26px] rounded-[6px] flex items-center justify-center shrink-0" style={{ backgroundColor: meta.bg }}>
-        <meta.icon size={13} style={{ color: meta.fg }} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[12px] font-medium text-[#111827] truncate">{attachment.name}</p>
-        <p className="text-[10.5px] text-[#9ca3af]">{attachment.size} · {attachmentTypeLabel(attachment.name)}</p>
-      </div>
-      <Download size={13} className="text-[#9ca3af] group-hover:text-[#111827] cursor-pointer transition-colors shrink-0" />
-    </button>
-  );
-}
-
-// Shared by the latest message and each (expanded) history item: external-sender warning, subject + body,
-// attachments. Kept separate so the two message treatments below don't duplicate this rendering.
-function MessageBody({ message }: { message: Email }) {
-  const attachmentCount = message.attachments?.length ?? 0;
-  return (
-    <>
-      {isExternalSender(message.sender) && (
-        <div className="mb-3 flex items-center justify-between gap-3 flex-wrap px-3.5 py-2.5 rounded-[8px] bg-[#F5B8AC]">
-          <p className="text-[12px] font-semibold text-[#111827] leading-[1.5]">
-            This Message is From an External Sender: Use caution opening files, clicking links or responding to requests.
-          </p>
-          <button
-            onClick={() => toast.success("Reported as suspicious")}
-            className="shrink-0 px-3 py-1.5 rounded-[8px] border border-[#111827]/20 bg-white text-[12px] font-semibold text-[#111827] hover:bg-[#f8fafc] cursor-pointer transition-colors"
-          >
-            Report Suspicious
-          </button>
-        </div>
-      )}
-
-      <p className="text-[13.5px] font-bold text-[#111827] mb-1.5">{message.subject}</p>
-      <p className="text-[13px] text-[#374151] leading-[1.65] whitespace-pre-wrap">{message.body ?? "No content preview available."}</p>
-
-      {attachmentCount > 0 && (
-        <div className="mt-3">
-          <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wide mb-1.5">Attachments ({attachmentCount})</p>
-          <div className="flex flex-wrap gap-1.5">
-            {message.attachments!.map((a, i) => (
-              <AttachmentChip key={i} attachment={a} />
-            ))}
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-// The message being triaged right now — always fully visible, never collapsed, so there's no ambiguity
-// about what's the main content vs. reference history below it.
-function LatestMessage({ message }: { message: Email }) {
-  const name = senderDisplayName(message.sender);
-  const initials = name.split(" ").map(w => w[0]).slice(0, 2).join("");
-
-  return (
-    <div className="px-4 py-4">
-      <div className="flex items-start gap-3 pb-3.5 mb-3.5 border-b border-[#f3f4f6]">
-        <div className="size-[36px] rounded-full bg-[#30578D] flex items-center justify-center shrink-0 text-[12px] font-bold text-white">
-          {initials}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[13.5px] font-bold text-[#111827] truncate">{name}</p>
-            <p className="text-[11px] text-[#9ca3af] shrink-0">{message.received}</p>
-          </div>
-          <p className="text-[12px] text-[#6b7280] truncate">{message.sender}</p>
-        </div>
-      </div>
-      <MessageBody message={message} />
-    </div>
-  );
-}
-
-// One item in "Earlier in this thread" — collapsed to a single scannable row (sender, snippet, timestamp,
-// attachment count) by default; expands in place on click to show the full message via MessageBody. Each
-// item is its own white card against the section's grey backdrop, so adjacent messages are unmistakably
-// separate rather than one continuous list broken only by hairline dividers.
-function HistoryMessageItem({ message, expanded, onToggle }: { message: Email; expanded: boolean; onToggle: () => void }) {
-  const name = senderDisplayName(message.sender);
-  const initials = name.split(" ").map(w => w[0]).slice(0, 2).join("");
-  const attachmentCount = message.attachments?.length ?? 0;
-
-  return (
-    <div className="bg-white rounded-[8px] border border-[#ebebeb] overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-2.5 px-3 py-2 text-left cursor-pointer hover:bg-[#f8fafc] transition-colors"
-      >
-        <div className="size-[24px] rounded-full bg-[#9ca3af] flex items-center justify-center shrink-0 text-[9.5px] font-bold text-white">
-          {initials}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <p className="text-[12.5px] font-medium text-[#4b5563] truncate">{name}</p>
-            <span className="text-[11.5px] text-[#9ca3af] truncate">· {message.sender}</span>
-          </div>
-          {!expanded && (
-            <p className="text-[11.5px] text-[#9ca3af] truncate mt-0.5">{message.subject}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {attachmentCount > 0 && (
-            <span className="flex items-center gap-1 text-[10.5px] text-[#9ca3af]">
-              <Paperclip size={10} /> {attachmentCount}
-            </span>
-          )}
-          <p className="text-[10.5px] text-[#9ca3af] whitespace-nowrap">{message.received}</p>
-          <ChevronRight size={12} className={`text-[#9ca3af] transition-transform duration-200 ${expanded ? "rotate-90" : ""}`} />
-        </div>
-      </button>
-
-      {expanded && (
-        <div className="px-3 pb-3 pt-2.5 border-t border-[#f3f4f6]">
-          <MessageBody message={message} />
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -282,7 +127,52 @@ export function WorkflowPage({
   const senderName = senderDisplayName(email.sender);
   const assignedTo = email.assignedTo ?? "Unassigned";
   const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
+
+  // CCC Creation — "Create CCC Req." only succeeds once the extraction review has nothing left missing;
+  // otherwise it goes on hold and the same button stays available to retry after the data is fixed.
+  const [cccExtractionStatus, setCccExtractionStatus] = useState<CccExtractionStatus | null>(null);
+  const [cccOutcome, setCccOutcome] = useState<"idle" | "success" | "hold">("idle");
+  const [cccNumber, setCccNumber] = useState("");
+  const handleCreateCcc = () => {
+    if (cccExtractionStatus && cccExtractionStatus.totalMissing > 0) {
+      setCccOutcome("hold");
+      toast.error(`CCC creation on hold — ${cccExtractionStatus.totalMissing} required field${cccExtractionStatus.totalMissing > 1 ? "s" : ""} still missing`);
+      return;
+    }
+    const number = `CCC-${20000 + Math.floor(Math.random() * 9000)}`;
+    setCccNumber(number);
+    setCccOutcome("success");
+    toast.success(`${number} created successfully`);
+  };
+  const handleProceed = () => {
+    if (currentStageIndex < WORKFLOW_STAGES.length - 1) {
+      const next = WORKFLOW_STAGES[currentStageIndex + 1];
+      setCurrentStageIndex(currentStageIndex + 1);
+      toast.success(`${email.id} moved to ${next.label}`);
+    } else {
+      toast.success(`${email.id} workflow complete`);
+    }
+  };
+  const handleRevalidate = () => toast.success(`${email.id} re-validated`);
+  const handleQuoteUpdate = () => toast.success(`${email.id} quote updated`);
+  const handleSendEmail = () => toast.success(`${email.id} email sent`);
+
+  // Every footer action briefly shows a full-page loading overlay before actually running — there's no
+  // real network call behind any of these yet, but the delay keeps the interaction pattern honest for
+  // when one is wired in later, and gives the user a clear "this is doing something" signal.
+  const [pageLoadingLabel, setPageLoadingLabel] = useState<string | null>(null);
+  const withPageLoader = (label: string, action: () => void) => {
+    setPageLoadingLabel(label);
+    setTimeout(() => {
+      action();
+      setPageLoadingLabel(null);
+    }, 1300);
+  };
+  // The fade under the stepper should only show once there's actually content sliding underneath it —
+  // in the default (unscrolled) position it would otherwise overlap the top of the cards below for no reason.
+  const [scrolled, setScrolled] = useState(false);
 
   // Category/Sub Category — committed (what's saved + drives the top pill) vs. draft (what's live in the
   // dropdowns). Picking a different value only stages it as a draft; it doesn't take effect, and the top
@@ -323,22 +213,10 @@ export function WorkflowPage({
   const contentSummary = buildContentSummary(email);
   const reasoning = buildReasoning(email);
   const fullSummary = buildFullAiSummary(email);
-  const earlierMessages = [
-    ...(email.replies ?? []),
-    ...(email.linkedCccs ?? []).flatMap(c => c.replies ?? []),
-  ];
-  const threadCount = 1 + earlierMessages.length;
-  const [expandedThreadIds, setExpandedThreadIds] = useState<Set<string>>(new Set());
-  const toggleThreadMessage = (id: string) => {
-    setExpandedThreadIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
 
   return (
     <div className="bg-[#f5f6fa] flex size-full h-screen overflow-hidden" style={{ fontFamily: "Inter, sans-serif" }}>
+      {pageLoadingLabel && <PageLoaderOverlay label={pageLoadingLabel} />}
       <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
         <div className="shrink-0 shadow-[0_2px_6px_rgba(15,23,42,0.06)] relative z-50">
           <AppHeader
@@ -358,7 +236,7 @@ export function WorkflowPage({
           />
         </div>
 
-        <main className="flex-1 min-h-0 overflow-y-auto">
+        <main className="flex-1 min-h-0 overflow-y-auto" onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 0)}>
         <div className="max-w-[1600px] mx-auto px-5 py-5 flex flex-col gap-4">
 
         {/* Subject + classification/CCC/PO pills + assignee — plain, no card, scrolls away with the page */}
@@ -366,6 +244,13 @@ export function WorkflowPage({
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="min-w-0">
               <div className="flex items-center gap-2.5 flex-wrap">
+                <button
+                  onClick={onBack}
+                  title="Back to Overview"
+                  className="text-[#6b7280] hover:text-[#111827] cursor-pointer transition-colors shrink-0"
+                >
+                  <ArrowLeft size={20} />
+                </button>
                 <p className="text-[16px] font-bold text-[#111827] leading-snug">{email.subject}</p>
                 <span className="inline-flex items-center px-2.5 py-1 rounded-[8px] text-[11px] font-semibold bg-[#FDECEA] text-[#BA1C1C] whitespace-nowrap">
                   {classificationLabel(email.classification)}
@@ -381,27 +266,30 @@ export function WorkflowPage({
                   </span>
                 )}
               </div>
-              <p className="text-[12.5px] text-[#6b7280] mt-2.5 truncate">
+              <p className="text-[12.5px] text-[#6b7280] mt-2.5 truncate ml-[30px]">
                 {senderName.includes(" ") && <>{senderName} <span className="text-[#d1d1d1]">•</span> </>}
                 {email.sender} <span className="text-[#d1d1d1]">•</span> Received {email.received}
               </p>
             </div>
 
-            <div className="relative shrink-0 text-right">
-              <p className="text-[11px] font-medium text-[#9ca3af] mb-1.5">Assigned to</p>
-              <button
-                onClick={() => setAssignModalOpen(true)}
-                className="flex items-center gap-2 pl-2 pr-2.5 h-[38px] rounded-[8px] border border-[#e5e7eb] bg-white hover:bg-[#f8fafc] cursor-pointer transition-colors"
-              >
-                <span
-                  className="size-[24px] rounded-full flex items-center justify-center text-[10.5px] font-bold text-white shrink-0"
-                  style={{ backgroundColor: assignedTo === "Unassigned" ? "#9ca3af" : "#30578D" }}
+            <div className="flex items-center gap-2 shrink-0">
+              <IconButton onClick={() => setSendEmailModalOpen(true)} title="Send Email">
+                <Send size={15} />
+              </IconButton>
+              <div className="relative">
+                <button
+                  onClick={() => setAssignModalOpen(true)}
+                  className="flex items-center gap-2 pl-2 pr-2.5 h-[38px] rounded-[8px] border border-[#e5e7eb] bg-white hover:bg-[#f8fafc] cursor-pointer transition-colors"
                 >
-                  {assignedTo === "Unassigned" ? "?" : assignedTo.split(" ").map(w => w[0]).slice(0, 2).join("")}
-                </span>
-                <span className="text-[13px] font-semibold text-[#111827] whitespace-nowrap">{assignedTo}</span>
-                <ChevronDown size={13} className="text-[#9ca3af]" />
-              </button>
+                  <span
+                    className="size-[24px] rounded-full flex items-center justify-center text-[10.5px] font-bold text-white shrink-0"
+                    style={{ backgroundColor: assignedTo === "Unassigned" ? "#9ca3af" : "#30578D" }}
+                  >
+                    {assignedTo === "Unassigned" ? "?" : assignedTo.split(" ").map(w => w[0]).slice(0, 2).join("")}
+                  </span>
+                  <span className="text-[13px] font-semibold text-[#111827] whitespace-nowrap">{assignedTo}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -410,42 +298,55 @@ export function WorkflowPage({
           <EmailTableAssignModal email={email} onClose={() => setAssignModalOpen(false)} />
         )}
 
+        {sendEmailModalOpen && (
+          <EmailTableSendEmailModal email={email} onClose={() => setSendEmailModalOpen(false)} />
+        )}
+
         {/* Workflow track — sticky: once the subject scrolls out of view, this pins right below the header */}
-        <div className="sticky top-0 z-10 -mx-5 px-5 bg-[#f5f6fa] shrink-0">
-          <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-3.5 flex items-center gap-4">
-            <div className="flex items-center overflow-x-auto px-1.5 -mx-1.5 py-1 -my-1 flex-1 min-w-0">
+        <div className={`sticky top-0 z-10 -mx-5 px-5 bg-[#f5f6fa] shrink-0 transition-[padding-top] duration-150 ${scrolled ? "pt-5" : "pt-0"}`}>
+          <div className="bg-white rounded-[8px] border border-[#ebebeb] shadow-[0_2px_6px_rgba(15,23,42,0.05)] px-5 py-4 flex items-center gap-4">
+            <div className="flex items-center max-w-full overflow-x-auto px-2 -mx-2 py-2 -my-2">
               {WORKFLOW_STAGES.map((s, i) => {
                 const completed = i < currentStageIndex;
                 const active = i === currentStageIndex;
+                const inProgress = s.key === "ccc"; // preview only, hardcoded for now
                 return (
                   <div key={s.key} className={`flex items-center ${i < WORKFLOW_STAGES.length - 1 ? "flex-1" : "shrink-0"}`}>
                     <button
                       onClick={() => setCurrentStageIndex(i)}
                       title={`Jump to ${s.label}`}
-                      className={`group flex items-center gap-2 cursor-pointer rounded-[8px] px-2 py-1.5 shrink-0 transition-colors duration-200 ${
-                        active ? "bg-[#FDECEA]" : completed ? "hover:bg-[#EAF1FB]" : "hover:bg-[#f8fafc]"
-                      }`}
+                      className="group flex items-center gap-2.5 cursor-pointer shrink-0"
                     >
                       <span
-                        className={`flex items-center justify-center size-[20px] rounded-full shrink-0 transition-all duration-200 ${
+                        className={`flex items-center justify-center size-[28px] rounded-full shrink-0 transition-all duration-200 ${
                           completed
-                            ? "bg-[#30578D]"
+                            ? "bg-[#2E7D32]"
                             : active
-                            ? "bg-[#E90029]"
-                            : "border-2 border-[#d1d5db] bg-white group-hover:border-[#9ca3af]"
+                            ? "bg-[#E90029] ring-[5px] ring-[#E90029]/[0.14]"
+                            : inProgress
+                            ? "bg-[#E67919]"
+                            : "border-2 border-[#e0e2e6] bg-white group-hover:border-[#b8bcc4]"
                         }`}
                       >
                         {completed ? (
-                          <Check size={11} className="text-white" strokeWidth={3} />
+                          <Check size={14} className="text-white" strokeWidth={3} />
                         ) : active ? (
-                          <span className="size-[7px] rounded-full bg-white" />
+                          <span className="size-[9px] rounded-full bg-white" />
+                        ) : inProgress ? (
+                          <span className="size-[9px] rounded-full bg-white" />
                         ) : (
-                          <span className="text-[10px] font-semibold text-[#9ca3af] group-hover:text-[#6b7280]">{i + 1}</span>
+                          <span className="text-[11px] font-semibold text-[#9ca3af]">{i + 1}</span>
                         )}
                       </span>
                       <span
-                        className={`text-[13px] font-semibold whitespace-nowrap transition-colors duration-200 ${
-                          completed ? "text-[#30578D]" : active ? "text-[#BA1C1C]" : "text-[#9ca3af] group-hover:text-[#6b7280]"
+                        className={`text-[13.5px] whitespace-nowrap ${
+                          active
+                            ? "font-bold text-[#111827]"
+                            : completed
+                            ? "font-medium text-[#4b5563]"
+                            : inProgress
+                            ? "font-medium text-[#111827]"
+                            : "font-medium text-[#9ca3af] group-hover:text-[#6b7280]"
                         }`}
                       >
                         {s.label}
@@ -453,8 +354,8 @@ export function WorkflowPage({
                     </button>
                     {i < WORKFLOW_STAGES.length - 1 && (
                       <div
-                        className={`h-[2px] flex-1 min-w-6 mx-2.5 rounded-full shrink-0 transition-colors duration-300 ${
-                          i < currentStageIndex ? "bg-[#30578D]" : "bg-[#e5e7eb]"
+                        className={`h-[2px] flex-1 min-w-8 mx-3 rounded-full shrink-0 transition-colors duration-300 ${
+                          i < currentStageIndex ? "bg-[#2E7D32]" : "bg-[#e5e7eb]"
                         }`}
                       />
                     )}
@@ -462,49 +363,69 @@ export function WorkflowPage({
                 );
               })}
             </div>
-            <p className="text-[11px] font-semibold text-[#30578D] shrink-0 whitespace-nowrap">
+            <p className="ml-auto text-[11px] font-medium text-[#9ca3af] shrink-0 whitespace-nowrap pl-3 border-l border-[#e5e7eb]">
               {Math.round((currentStageIndex / (WORKFLOW_STAGES.length - 1)) * 100)}% complete
             </p>
           </div>
+          {scrolled && (
+            <div className="absolute left-5 right-5 top-full h-16 bg-gradient-to-b from-[#f5f6fa] to-transparent pointer-events-none" />
+          )}
         </div>
 
-        {/* Body: email thread (left) + Classify Intent (right) */}
+        {/* Body — swaps per stage; header/stepper/subject/footer stay identical across all of them */}
+        {currentStageIndex === 1 && (
+          <>
+            {cccOutcome !== "idle" && (
+              <div
+                className={`rounded-[8px] border px-4 py-3 flex items-center gap-3 ${
+                  cccOutcome === "success" ? "border-[#468657] bg-[#EFF6F1]" : "border-[#E67919] bg-[#FDF3E7]"
+                }`}
+              >
+                {cccOutcome === "success" ? (
+                  <>
+                    <CircleCheck size={18} className="text-[#468657] shrink-0" />
+                    <div>
+                      <p className="text-[13px] font-bold text-[#111827]">CCC Created Successfully</p>
+                      <p className="text-[12px] text-[#374151] mt-0.5">CCC Number: <span className="font-semibold">{cccNumber}</span></p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <CircleAlert size={18} className="text-[#E67919] shrink-0" />
+                    <div>
+                      <p className="text-[13px] font-bold text-[#111827]">CCC Creation On Hold</p>
+                      <p className="text-[12px] text-[#374151] mt-0.5">
+                        {cccExtractionStatus && cccExtractionStatus.totalMissing > 0
+                          ? `${cccExtractionStatus.totalMissing} required field${cccExtractionStatus.totalMissing > 1 ? "s are" : " is"} still missing. Resolve the extraction review below, then try again.`
+                          : "The data couldn't be validated. Review the extracted fields below, then try again."}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <CccCreationBody onStatusChange={setCccExtractionStatus} />
+          </>
+        )}
+
+        {currentStageIndex === 2 && <AiOrderValidationBody />}
+
+        {currentStageIndex === 3 && <OrderCreationBody />}
+
+        {currentStageIndex === 4 && <SoaBody email={email} />}
+
+        {currentStageIndex === 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
           {/* Email thread — the message being triaged, always open, plus a clearly separate history section */}
-          <div className="bg-white rounded-[8px] border border-[#ebebeb] flex flex-col min-h-0 h-fit">
-            {earlierMessages.length > 0 && (
-              <div className="px-5 py-4 border-b border-[#f3f4f6]">
-                <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wide">
-                  {threadCount} emails in this thread
-                </p>
-              </div>
-            )}
-
-            <LatestMessage message={email} />
-
-            {earlierMessages.length > 0 && (
-              <div className="border-t border-[#f3f4f6] bg-[#f7f8fa] rounded-b-[8px] px-3 py-3">
-                <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wide mb-2 px-1">
-                  Earlier in this thread ({earlierMessages.length})
-                </p>
-                <div className="flex flex-col gap-1.5">
-                  {earlierMessages.map((m) => (
-                    <HistoryMessageItem
-                      key={m.id}
-                      message={m}
-                      expanded={expandedThreadIds.has(m.id)}
-                      onToggle={() => toggleThreadMessage(m.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <EmailThreadCard email={email} />
 
           {/* Classify Intent */}
           <div className="bg-white rounded-[8px] border border-[#ebebeb] flex flex-col min-h-0 h-fit">
-            <div className="px-5 py-4 flex items-center justify-between gap-2 border-b border-[#f3f4f6]">
-              <p className="text-[14px] font-bold text-[#111827]">Classify Intent</p>
+            <div className="px-5 pt-4 flex items-start justify-between gap-2">
+              <div>
+                <p className="text-[14px] font-bold text-[#111827]">Classify Intent</p>
+                <p className="text-[12px] text-[#9ca3af] mt-0.5">AI classification for this email.</p>
+              </div>
               {classifiedBy === "ai" ? (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[8px] text-[11px] font-semibold bg-[#E8F5E9] text-[#2E7D32] whitespace-nowrap">
                   <CircleCheck size={12} /> AI Classified
@@ -516,7 +437,7 @@ export function WorkflowPage({
               )}
             </div>
 
-            <div className="px-5 py-4 flex flex-col gap-4">
+            <div className="px-5 pt-3 pb-4 flex flex-col gap-4">
               {classifiedBy === "ai" ? (() => {
                 const pct = email.confidencePct ?? 0;
                 const band = confidenceBand(pct);
@@ -618,20 +539,8 @@ export function WorkflowPage({
                     className="w-full px-3 py-2 rounded-[8px] border border-[#e5e7eb] text-[12.5px] text-[#111827] placeholder:text-[#9ca3af] outline-none focus:border-[#30578D] transition-colors resize-none bg-white"
                   />
                   <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={cancelOverride}
-                      className="px-3 py-1.5 rounded-[8px] border border-[#d1d1d1] text-[12px] font-medium text-[#374151] bg-white hover:bg-[#f8fafc] cursor-pointer transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={submitOverride}
-                      disabled={!overrideReason.trim()}
-                      className="px-3 py-1.5 rounded-[8px] text-white text-[12px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:opacity-100"
-                      style={{ backgroundColor: "#E90029" }}
-                    >
-                      Submit
-                    </button>
+                    <Button variant="secondary" size="sm" onClick={cancelOverride}>Cancel</Button>
+                    <Button variant="primary" size="sm" onClick={submitOverride} disabled={!overrideReason.trim()}>Submit</Button>
                   </div>
                 </div>
               )}
@@ -662,28 +571,23 @@ export function WorkflowPage({
                         <Sparkles size={13} className="text-[#30578D]" />
                         Full AI summary
                       </p>
-                      <button
-                        onClick={() => copyToClipboard("Summary", fullSummary)}
-                        className="flex items-center gap-1 text-[11px] font-medium text-[#30578D] bg-white border border-[#30578D]/20 rounded-[8px] px-2 py-1 hover:bg-[#f8fafc] cursor-pointer transition-colors"
-                      >
-                        <Copy size={11} /> Copy
-                      </button>
+                      <Button variant="outline" size="sm" accent="#30578D" icon={Copy} onClick={() => copyToClipboard("Summary", fullSummary)}>
+                        Copy
+                      </Button>
                     </div>
                     <p className="text-[12.5px] text-[#374151] leading-[1.6] whitespace-pre-line line-clamp-4">
                       {fullSummary}
                     </p>
-                    <button
-                      onClick={() => setSummaryModalOpen(true)}
-                      className="flex items-center gap-1 text-[11.5px] font-semibold text-[#30578D] bg-white border border-[#30578D]/20 rounded-[8px] px-2.5 py-1 hover:bg-[#f8fafc] cursor-pointer transition-colors mt-2"
-                    >
+                    <Button variant="outline" size="sm" accent="#30578D" className="mt-2" onClick={() => setSummaryModalOpen(true)}>
                       View full summary →
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+        )}
 
         {summaryModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -691,27 +595,20 @@ export function WorkflowPage({
             <div className="relative bg-white rounded-[8px] shadow-xl w-full max-w-[560px] max-h-[80vh] flex flex-col">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[#ebebeb] shrink-0">
                 <h2 className="text-[16px] font-bold text-[#111827]">Full AI Summary</h2>
-                <button onClick={() => setSummaryModalOpen(false)} className="text-[#9ca3af] hover:text-[#374151] cursor-pointer transition-colors">
+                <IconButton variant="ghost" onClick={() => setSummaryModalOpen(false)}>
                   <X size={18} />
-                </button>
+                </IconButton>
               </div>
               <div className="px-6 py-4 overflow-y-auto">
                 <p className="text-[13px] text-[#374151] leading-[1.7] whitespace-pre-line">{fullSummary}</p>
               </div>
               <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[#ebebeb] shrink-0">
-                <button
-                  onClick={() => copyToClipboard("Summary", fullSummary)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] border border-[#d1d1d1] text-[13px] font-medium text-[#374151] bg-white hover:bg-[#f8fafc] cursor-pointer transition-colors"
-                >
-                  <Copy size={13} /> Copy to clipboard
-                </button>
-                <button
-                  onClick={() => setSummaryModalOpen(false)}
-                  className="px-4 py-2 rounded-[8px] text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: "#30578D" }}
-                >
+                <Button variant="secondary" icon={Copy} onClick={() => copyToClipboard("Summary", fullSummary)}>
+                  Copy to clipboard
+                </Button>
+                <Button variant="primary" accent="#30578D" onClick={() => setSummaryModalOpen(false)}>
                   Close
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -723,34 +620,27 @@ export function WorkflowPage({
         {/* Footer actions — full-bleed bar flush with the bottom edge, mirroring the header's treatment */}
         <div className="shrink-0 bg-white border-t border-[#ebebeb]">
           <div className="max-w-[1600px] mx-auto px-5 py-3.5 flex items-center justify-between gap-3">
-            <button
-              onClick={onBack}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] border border-[#d1d1d1] text-[13px] font-medium text-[#374151] bg-white hover:bg-[#f8fafc] cursor-pointer transition-colors"
-            >
-              <ArrowLeft size={13} /> Back
-            </button>
+            <Button variant="secondary" icon={ArrowLeft} onClick={() => withPageLoader("Going back...", onBack)}>Back</Button>
             <div className="flex items-center gap-2.5">
-              <button
-                onClick={() => toast.success(`${email.id} saved`)}
-                className="px-4 py-2 rounded-[8px] border border-[#d1d1d1] text-[13px] font-medium text-[#374151] bg-white hover:bg-[#f8fafc] cursor-pointer transition-colors"
-              >
-                Save & Update
-              </button>
-              <button
-                onClick={() => {
-                  if (currentStageIndex < WORKFLOW_STAGES.length - 1) {
-                    const next = WORKFLOW_STAGES[currentStageIndex + 1];
-                    setCurrentStageIndex(currentStageIndex + 1);
-                    toast.success(`${email.id} moved to ${next.label}`);
-                  } else {
-                    toast.success(`${email.id} workflow complete`);
-                  }
-                }}
-                className="px-4 py-2 rounded-[8px] text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: "#E90029" }}
-              >
-                {currentStageIndex < WORKFLOW_STAGES.length - 1 ? "Proceed" : "Complete"}
-              </button>
+              <Button variant="secondary" onClick={() => withPageLoader("Saving...", () => toast.success(`${email.id} saved`))}>Save & Update</Button>
+              {currentStageIndex === 1 && cccOutcome !== "success" ? (
+                <Button variant="primary" onClick={() => withPageLoader("Creating CCC request...", handleCreateCcc)}>Create CCC Req.</Button>
+              ) : (
+                <>
+                  {currentStageIndex === 2 && (
+                    <Button variant="outline" accent="#E90029" onClick={() => withPageLoader("Re-validating...", handleRevalidate)}>Re-Validate</Button>
+                  )}
+                  {currentStageIndex === 3 && (
+                    <Button variant="outline" accent="#E90029" onClick={() => withPageLoader("Updating quote...", handleQuoteUpdate)}>Quote Update</Button>
+                  )}
+                  {currentStageIndex === 4 && (
+                    <Button variant="outline" accent="#E90029" onClick={() => withPageLoader("Sending email...", handleSendEmail)}>Send Email</Button>
+                  )}
+                  <Button variant="primary" onClick={() => withPageLoader("Proceeding...", handleProceed)}>
+                    {currentStageIndex < WORKFLOW_STAGES.length - 1 ? "Proceed" : "Complete"}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

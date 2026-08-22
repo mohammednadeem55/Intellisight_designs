@@ -1,0 +1,18 @@
+/* Waveform loader — the Keysight logo mark breathing in and out, like a live trace pulsing. Identical
+   0%/100% keyframes so the loop is seamless (no jump-cut on restart). See Loader.tsx. */
+@keyframes ks-pulse {
+  0%,
+  100% {
+    transform: scale(0.86);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+.animate-ks-pulse {
+  animation: ks-pulse 1.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  transform-origin: center;
+}

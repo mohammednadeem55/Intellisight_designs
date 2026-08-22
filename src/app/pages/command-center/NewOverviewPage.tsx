@@ -263,7 +263,11 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
     return () => document.removeEventListener("mousedown", handler);
   }, [searchOpen, searchQuery]);
   const [kpisExpanded, setKpisExpanded] = useState(true);
-  const rowsPerPage = 10;
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const changeRowsPerPage = (n: number) => {
+    setRowsPerPage(n);
+    setPage(1);
+  };
 
   // Reactions/reviews live here (not in the table) because the "Reviewed By" column's value — used for
   // both rendering and column filtering — has to be computed at this level, same as every other column.
@@ -834,6 +838,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                   </div>
                 )}
 
+                {/* Table view / Email view toggle — hidden for now, viewMode stays locked to "grid" (table).
                 <div className="w-px h-5 bg-[#E2E6E9]" />
 
                 <div className="flex items-center border border-[#E2E6E9] rounded-[8px] overflow-hidden h-[36px]">
@@ -855,6 +860,9 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                     <LayoutGrid size={15} />
                   </button>
                 </div>
+                */}
+
+                <div className="w-px h-5 bg-[#E2E6E9]" />
 
                 {/* Filter — opens the slide-in Filters panel below */}
                 <button
@@ -1186,6 +1194,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                     Displaying {pageRows.length} of {rows.length}
                   </p>
                   <div className="w-px h-5 bg-[#E2E6E9]" />
+                  <p className="text-[12px] text-[#666666] whitespace-nowrap">Density:</p>
                   <div className="flex items-center gap-[3px] p-[3px] bg-[#F1F2F4] rounded-[8px] h-[30px]">
                     {(
                       [
@@ -1197,17 +1206,35 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                       <EmailTableTooltip key={opt.key} label={opt.label}>
                         <button
                           onClick={() => setRowDensity(opt.key)}
-                          className={`flex items-center justify-center w-[30px] h-full rounded-[6px] transition-all cursor-pointer ${
+                          className={`flex items-center justify-center w-[30px] h-[24px] rounded-[6px] outline-none transition-all cursor-pointer ${
                             rowDensity === opt.key
                               ? "bg-white shadow-sm"
                               : "text-[#8A8D93] hover:bg-white/70 hover:text-[#4D4D4D]"
                           }`}
                           style={rowDensity === opt.key ? { color: EMAIL_TABLE_NAVY } : undefined}
                         >
-                          <opt.Icon size={17} strokeWidth={2.4} />
+                          <opt.Icon size={14} strokeWidth={2.2} />
                         </button>
                       </EmailTableTooltip>
                     ))}
+                  </div>
+                  <div className="w-px h-5 bg-[#E2E6E9]" />
+                  <div className="flex items-center gap-2">
+                    <p className="text-[12px] text-[#666666] whitespace-nowrap">Rows:</p>
+                    <div className="flex items-center gap-[3px] p-[3px] bg-[#F1F2F4] rounded-[8px] h-[30px]">
+                      {[10, 20, 30].map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => changeRowsPerPage(n)}
+                          className={`flex items-center justify-center px-2.5 h-full rounded-[6px] text-[12px] outline-none transition-all cursor-pointer ${
+                            rowsPerPage === n ? "bg-white shadow-sm font-semibold" : "text-[#8A8D93] hover:bg-white/70 hover:text-[#4D4D4D]"
+                          }`}
+                          style={rowsPerPage === n ? { color: EMAIL_TABLE_NAVY } : undefined}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-[4px]">

@@ -37,7 +37,7 @@ type NavCallbacks = {
 function WorkflowRoute({ nav }: { nav: NavCallbacks }) {
   const { emailId } = useParams<{ emailId: string }>();
   const navigate = useNavigate();
-  return <WorkflowPage emailId={emailId ?? ""} onBack={() => navigate(-1)} {...nav} />;
+  return <WorkflowPage emailId={emailId ?? ""} onBack={() => navigate("/command-center/overview")} {...nav} />;
 }
 
 function OrderDetailsRoute({ nav, onNavigateOverview }: { nav: NavCallbacks; onNavigateOverview: () => void }) {
@@ -115,7 +115,22 @@ export default function App() {
   return (
     <BrowserRouter>
       <div className="size-full">
-        <Toaster position="bottom-right" richColors />
+        <Toaster
+          position="top-right"
+          closeButton
+          toastOptions={{
+            classNames: {
+              toast: "!bg-white !border !border-[#e5e7eb] !shadow-[0_10px_30px_-6px_rgba(15,23,42,0.15)] !rounded-[10px]",
+              title: "!text-[#111827] !font-semibold !text-[13px]",
+              description: "!text-[#6b7280] !text-[12.5px]",
+              closeButton: "!bg-white !border !border-[#e5e7eb] !text-[#9ca3af] hover:!text-[#111827] hover:!bg-[#f8fafc]",
+              success: "[&_[data-icon]_svg]:!fill-[#468657]",
+              error: "[&_[data-icon]_svg]:!fill-[#BA1C1C]",
+              warning: "[&_[data-icon]_svg]:!fill-[#E67919]",
+              info: "[&_[data-icon]_svg]:!fill-[#30578D]",
+            },
+          }}
+        />
         <AppRoutes />
       </div>
     </BrowserRouter>

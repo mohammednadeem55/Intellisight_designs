@@ -91,7 +91,7 @@ function HomeCard({
   return (
     <button
       onClick={onClick}
-      className="group text-left bg-white rounded-[8px] border-2 border-[#EEF0F3] p-7 sm:p-8 flex flex-col gap-5 w-full sm:w-[400px] cursor-pointer transition-all duration-300 hover:-translate-y-1.5"
+      className="group text-left bg-white rounded-[8px] border-2 border-[#EEF0F3] p-7 sm:p-8 flex flex-col gap-5 w-full min-w-0 sm:flex-1 sm:max-w-[400px] cursor-pointer transition-all duration-300 hover:-translate-y-1.5"
       style={{ ["--accent" as string]: accent }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = accent;
@@ -102,12 +102,13 @@ function HomeCard({
         e.currentTarget.style.boxShadow = "none";
       }}
     >
-      <Icon size={30} className="text-[#8a8f98] transition-colors duration-300 group-hover:[color:var(--accent)]" />
-
       <div className="flex flex-col gap-2">
-        <h3 className="text-[22px] font-bold text-[#1a1a1a] leading-tight transition-colors duration-300 group-hover:[color:var(--accent)]">
-          {title}
-        </h3>
+        <div className="flex items-center gap-3">
+          <Icon size={26} className="shrink-0 text-[#8a8f98] transition-colors duration-300 group-hover:[color:var(--accent)]" />
+          <h3 className="text-[22px] font-bold text-[#1a1a1a] leading-tight transition-colors duration-300 group-hover:[color:var(--accent)]">
+            {title}
+          </h3>
+        </div>
         <p className="text-[14.5px] text-[#666666] leading-[22px] transition-colors duration-300 group-hover:text-[#1a1a1a]">
           {description}
         </p>
@@ -168,15 +169,17 @@ export function HomePage({
           onNavigateEmailWorkflow={onNavigateEmailWorkflow}
         />
 
-        <main className="relative flex-1 flex items-center justify-center px-4 py-12 overflow-hidden">
+        <main className="relative flex-1 overflow-y-auto">
           {/* Decorative background glow */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <div className="absolute -top-24 left-1/2 -translate-x-[62%] size-[420px] rounded-full bg-[#30578D] opacity-[0.07] blur-[110px]" />
             <div className="absolute -top-16 left-1/2 translate-x-[8%] size-[380px] rounded-full bg-[#E90029] opacity-[0.06] blur-[110px]" />
           </div>
 
-          <div className="relative flex flex-col items-center gap-12 w-full max-w-[900px]">
-            <div className="flex flex-col items-center text-center">
+          {/* min-h-full (not a centered flex item) so overflow grows the box downward from the top instead
+              of pushing content above scroll position 0, which is what hid the heading on short viewports. */}
+          <div className="relative min-h-full flex flex-col items-center justify-center gap-12 px-4 py-12">
+            <div className="flex flex-col items-center text-center w-full max-w-[900px]">
               <h1 className="text-[26px] sm:text-[30px] font-semibold text-[#111827] tracking-tight">
                 Welcome to{" "}
                 <span className="bg-gradient-to-r from-[#E90029] via-[#823E81] to-[#30578D] bg-clip-text text-transparent">
@@ -186,7 +189,7 @@ export function HomePage({
               <p className="text-[14.5px] text-[#6b7380] mt-2">Where would you like to start today?</p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch justify-center gap-7 w-full">
+            <div className="flex flex-col sm:flex-row items-stretch justify-center gap-7 w-full max-w-[900px]">
               <HomeCard
                 icon={LayoutGrid}
                 accent="#30578D"

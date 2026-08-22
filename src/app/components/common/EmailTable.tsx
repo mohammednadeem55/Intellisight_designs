@@ -437,7 +437,7 @@ export function EmailTableAssignModal({ email, onClose }: { email: Email; onClos
 }
 
 // Send Email modal — placeholder for now, opens empty so the action is wired up ahead of the real compose UI.
-function EmailTableSendEmailModal({ email, onClose }: { email: Email; onClose: () => void }) {
+export function EmailTableSendEmailModal({ email, onClose }: { email: Email; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
