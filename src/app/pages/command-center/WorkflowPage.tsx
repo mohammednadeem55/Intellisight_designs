@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText, Lightbulb, Send, Sparkles, User, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText, Lightbulb, Sparkles, User, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Button, IconButton } from "../../components/common/Button";
 import { PageLoaderOverlay } from "../../components/common/Loader";
-import { EmailTableAssignModal, EmailTableSendEmailModal } from "../../components/common/EmailTable";
+import { EmailTableAssignModal, EmailTableSendEmailModal, EmailTableCommentModal, EmailTableMoreActionsButton } from "../../components/common/EmailTable";
 import { AiOrderValidationBody } from "./AiOrderValidationBody";
 import { CccCreationBody, type CccExtractionStatus } from "./CccCreationBody";
 import { OrderCreationBody } from "./OrderCreationBody";
@@ -128,6 +128,9 @@ export function WorkflowPage({
   const assignedTo = email.assignedTo ?? "Unassigned";
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [reaction, setReaction] = useState<"like" | "dislike" | undefined>(undefined);
+  const toggleReaction = (r: "like" | "dislike") => setReaction(prev => (prev === r ? undefined : r));
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
 
   // CCC Creation — "Create CCC Req." only succeeds once the extraction review has nothing left missing;
@@ -273,9 +276,6 @@ export function WorkflowPage({
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <IconButton onClick={() => setSendEmailModalOpen(true)} title="Send Email">
-                <Send size={15} />
-              </IconButton>
               <div className="relative">
                 <button
                   onClick={() => setAssignModalOpen(true)}
@@ -290,6 +290,14 @@ export function WorkflowPage({
                   <span className="text-[13px] font-semibold text-[#111827] whitespace-nowrap">{assignedTo}</span>
                 </button>
               </div>
+              <EmailTableMoreActionsButton
+                reaction={reaction}
+                onToggleReaction={toggleReaction}
+                onSendEmail={() => setSendEmailModalOpen(true)}
+                onComment={() => setCommentModalOpen(true)}
+                size={38}
+                colorClassName="bg-white border-[#e5e7eb] text-[#6b7280] hover:bg-[#f8fafc] hover:text-[#111827]"
+              />
             </div>
           </div>
         </div>
@@ -300,6 +308,17 @@ export function WorkflowPage({
 
         {sendEmailModalOpen && (
           <EmailTableSendEmailModal email={email} onClose={() => setSendEmailModalOpen(false)} />
+        )}
+
+        {commentModalOpen && (
+          <EmailTableCommentModal
+            email={email}
+            onClose={() => setCommentModalOpen(false)}
+            onSubmit={() => {
+              setCommentModalOpen(false);
+              toast.success("Comment added");
+            }}
+          />
         )}
 
         {/* Workflow track — sticky: once the subject scrolls out of view, this pins right below the header */}

@@ -494,7 +494,7 @@ export function EmailTableSendEmailModal({ email, onClose }: { email: Email; onC
 }
 
 // Comment modal — 200 character limit with a live counter; Submit is disabled until there's text.
-function EmailTableCommentModal({ email, onClose, onSubmit }: { email: Email; onClose: () => void; onSubmit: (text: string, entity: Email) => void }) {
+export function EmailTableCommentModal({ email, onClose, onSubmit }: { email: Email; onClose: () => void; onSubmit: (text: string, entity: Email) => void }) {
   const [text, setText] = useState("");
   const remaining = 200 - text.length;
 
@@ -772,22 +772,28 @@ function EmailTableIconButton({
   );
 }
 
-function EmailTableActionCell({
-  entity,
+// The ellipsis "More actions" trigger + its dropdown (Send Email, Comment, React) — split out from
+// EmailTableActionCell so other pages (e.g. the Email Details workflow header) can drop the exact same
+// menu in next to their own Assign button instead of pulling in the whole row-action cell.
+export function EmailTableMoreActionsButton({
   reaction,
   onToggleReaction,
-  onAssign,
   onSendEmail,
   onComment,
+  size = 28,
+  colorClassName = "border-[#E2E6E9] text-[#666666] hover:bg-[#F7F7F7]",
 }: {
-  entity: Email;
   reaction: "like" | "dislike" | undefined;
   onToggleReaction: (reaction: "like" | "dislike") => void;
-  onAssign: () => void;
   onSendEmail: () => void;
   onComment: () => void;
+  /** Trigger button's size in px — defaults to the table row's 28px; pass a taller value to match a
+      page-level button group (e.g. 38px next to the Email Details header's Assign button). */
+  size?: number;
+  /** Border/text/hover color classes — defaults to the table's own grey palette; override to match
+      whatever button group this is sitting next to on a given page. */
+  colorClassName?: string;
 }) {
-  const isAssigned = !!entity.assignedTo && entity.assignedTo !== "Unassigned";
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -815,20 +821,13 @@ function EmailTableActionCell({
   const run = (fn: () => void) => { fn(); setOpen(false); };
 
   return (
-    <div className="flex items-center gap-1.5">
-      <EmailTableIconButton
-        icon={isAssigned ? UserCheck : UserPlus}
-        label={isAssigned ? `Assigned to ${entity.assignedTo} — click to reassign` : "Assign"}
-        onClick={onAssign}
-        active={isAssigned}
-        activeColor={EMAIL_TABLE_NAVY}
-        activeBg="#E9EEF5"
-      />
+    <>
       <EmailTableTooltip label="More actions">
         <button
           ref={btnRef}
           onClick={(e) => { e.stopPropagation(); toggleOpen(); }}
-          className="relative flex items-center justify-center size-[28px] rounded-[8px] border border-[#E2E6E9] text-[#666666] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+          style={{ width: size, height: size }}
+          className={`relative flex items-center justify-center rounded-[8px] border cursor-pointer transition-colors ${colorClassName}`}
         >
           <EllipsisVertical size={14} />
           {reaction && (
@@ -883,6 +882,37 @@ function EmailTableActionCell({
         </div>,
         document.body
       )}
+    </>
+  );
+}
+
+function EmailTableActionCell({
+  entity,
+  reaction,
+  onToggleReaction,
+  onAssign,
+  onSendEmail,
+  onComment,
+}: {
+  entity: Email;
+  reaction: "like" | "dislike" | undefined;
+  onToggleReaction: (reaction: "like" | "dislike") => void;
+  onAssign: () => void;
+  onSendEmail: () => void;
+  onComment: () => void;
+}) {
+  const isAssigned = !!entity.assignedTo && entity.assignedTo !== "Unassigned";
+  return (
+    <div className="flex items-center gap-1.5">
+      <EmailTableIconButton
+        icon={isAssigned ? UserCheck : UserPlus}
+        label={isAssigned ? `Assigned to ${entity.assignedTo} — click to reassign` : "Assign"}
+        onClick={onAssign}
+        active={isAssigned}
+        activeColor={EMAIL_TABLE_NAVY}
+        activeBg="#E9EEF5"
+      />
+      <EmailTableMoreActionsButton reaction={reaction} onToggleReaction={onToggleReaction} onSendEmail={onSendEmail} onComment={onComment} />
     </div>
   );
 }
