@@ -30,7 +30,9 @@ import {
   X,
 } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
-import { type Email, ALL_EMAILS_WITH_CCC, CLASSIFICATIONS } from "./emailData";
+import { WaveLoader } from "../../components/common/Loader";
+import { type Email, CLASSIFICATIONS } from "./emailData";
+import { useWorklistEmails } from "./useWorklistEmails";
 import {
   EMAIL_TABLE_NAVY,
   EMAIL_TABLE_COLUMN_CATEGORIES,
@@ -241,10 +243,14 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
+  const { data: worklistData, loading: worklistLoading, error: worklistError, reload: reloadWorklist } = useWorklistEmails();
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [rowDensity, setRowDensity] = useState<"small" | "medium" | "large">("large");
   const [emailScope, setEmailScope] = useState<"mine" | "all">("mine");
-  const [selectedId, setSelectedId] = useState(ALL_EMAILS_WITH_CCC[0].id);
+  const [selectedId, setSelectedId] = useState("");
+  useEffect(() => {
+    if (!selectedId && worklistData && worklistData.length > 0) setSelectedId(worklistData[0].id);
+  }, [worklistData, selectedId]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -434,7 +440,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
   };
 
   const isInternal = (e: Email) => e.sender.endsWith("@intellisight.io");
-  const allRows = ALL_EMAILS_WITH_CCC;
+  const allRows = worklistData ?? [];
 
   const filterSectionOptions = NEW_OVERVIEW_FILTER_SECTIONS.map((sec) => ({
     ...sec,
@@ -531,6 +537,51 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
     { label: "Internal Mails", value: allRows.filter(isInternal).length, icon: Building2, accent: "#387D85" },
     { label: "External Mails", value: allRows.filter((r) => !isInternal(r)).length, icon: Globe, accent: "#823E81" },
   ];
+
+  // Real data-fetching means real loading/error states — the rest of this component assumes `selected`
+  // and `allRows` are populated, so neither branch below falls through to it.
+  if (worklistLoading || worklistError) {
+    return (
+      <div className="bg-[#f5f6fa] flex size-full h-screen overflow-hidden" style={{ fontFamily: "Inter, sans-serif" }}>
+        <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
+          <div className="shrink-0 shadow-[0_2px_6px_rgba(15,23,42,0.06)] relative z-50">
+            <AppHeader
+              activeNav="Command Center"
+              onViewAllNotifications={onViewAllNotifications}
+              onLogout={onLogout}
+              onNavigateHome={onNavigateHome}
+              onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+              onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+              onNavigateNewOverview={onNavigateNewOverview}
+              onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
+              onNavigateOrderListing={onNavigateOrderListing}
+              onNavigateReleasedOrders={onNavigateReleasedOrders}
+              onNavigateEmailTemplate={onNavigateEmailTemplate}
+              onNavigateReview={onNavigateReview}
+              onNavigateEmailWorkflow={onNavigateEmailWorkflow}
+            />
+          </div>
+          <main className="flex-1 flex items-center justify-center">
+            {worklistError ? (
+              <div className="flex flex-col items-center gap-3 text-center px-4">
+                <p className="text-[14px] font-semibold text-[#262626]">Couldn't load the worklist</p>
+                <p className="text-[12.5px] text-[#97999B] max-w-[360px]">{worklistError}</p>
+                <button
+                  onClick={reloadWorklist}
+                  className="mt-1 px-4 py-2 rounded-[8px] text-white text-[13px] font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+                  style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <WaveLoader size={44} />
+            )}
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#f5f6fa] flex size-full h-screen overflow-hidden" style={{ fontFamily: "Inter, sans-serif" }}>

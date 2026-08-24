@@ -1,32 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Calendar, ChevronDown, Copy, Download, FileText, Link, Mail, MapPin, Phone, User, X } from "lucide-react";
 import { TextField } from "../../components/common/TextField";
 import { EmailTableTooltip, TruncateTooltip } from "../../components/common/EmailTable";
-
-const SHIP_TO = {
-  company: "MACOM Technology Solutions Inc.",
-  address: "100 Chelmsford Street",
-  cityState: "Lowell, MA 01851",
-  country: "United States",
-};
-
-const ORDER_SUMMARY = {
-  requestDate: "05 Aug 2026",
-  salesOrderOwner: "Jagdish K.",
-  billTo: { name: "Julie Magner", email: "julie.magner@keysight.com", phone: "+1 (978) 656-2500" },
-  shipTo: { name: "野中 良美", email: "y-nonaka@keisokuki-land.co.jp", phone: "03-3255-9920" },
-};
-
-const SHIPPING_INSTRUCTIONS = `Ship via FCA (Free Carrier) terms to the freight forwarder listed below. Freight forwarder must be notified at least 48 hours before the scheduled pickup date.
-
-Freight Forwarder: Nippon Express Co., Ltd.
-Contact: logistics@nipponexpress.co.jp
-Pickup Window: 09:00–17:00 JST, Mon–Fri
-
-Special handling: Fragile — calibration equipment. Do not stack. Keep upright at all times.`;
-
-const DOCUMENTS = [{ name: "Order_Summary.pdf", size: "1.4 MB" }];
+import { WaveLoader } from "../../components/common/Loader";
+import { Button } from "../../components/common/Button";
+import { useOrderCreation } from "./useOrderCreation";
 
 // Same collapsible-section chrome as CCC Creation's and AI Order Validation's field groups — chevron,
 // title, optional "X/Y matched" badge, divider only while open — so every stage's cards read identically.
@@ -49,7 +28,7 @@ function Section({ title, badge, children }: { title: string; badge?: string; ch
 
 // Viewable-in-place instructions, not a file to download — same overlay/card chrome as the app's other
 // modals (see EmailTable.tsx's review-history modal).
-function ShippingInstructionsModal({ onClose }: { onClose: () => void }) {
+function ShippingInstructionsModal({ instructions, onClose }: { instructions: string; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
@@ -61,27 +40,57 @@ function ShippingInstructionsModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <div className="px-6 py-4 overflow-y-auto">
-          <p className="text-[13px] text-[#374151] leading-[1.7] whitespace-pre-line">{SHIPPING_INSTRUCTIONS}</p>
+          <p className="text-[13px] text-[#374151] leading-[1.7] whitespace-pre-line">{instructions}</p>
         </div>
       </div>
     </div>
   );
 }
 
-export function OrderCreationBody() {
+export function OrderCreationBody({ emailId }: { emailId: string }) {
+  const { data: creation, loading, error, reload } = useOrderCreation(emailId);
   const [quoteNumber, setQuoteNumber] = useState("");
-  const [quoteVersion, setQuoteVersion] = useState("1");
-  const [shipToCity, setShipToCity] = useState("東京都昭島市");
-  const [accountName, setAccountName] = useState("東洋計測器株式会社");
-  const [contactName, setContactName] = useState("野中 良美");
-  const [email, setEmail] = useState("y-nonaka@keisokuki-land.co.jp");
-  const [phone, setPhone] = useState("03-3255-9920");
+  const [quoteVersion, setQuoteVersion] = useState("");
+  const [shipToCity, setShipToCity] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [instructionsOpen, setInstructionsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!creation) return;
+    setQuoteNumber(creation.quoteFields.quoteNumber);
+    setQuoteVersion(creation.quoteFields.quoteVersion);
+    setShipToCity(creation.quoteFields.shipToCity);
+    setAccountName(creation.quoteFields.accountName);
+    setContactName(creation.quoteFields.contactName);
+    setEmail(creation.quoteFields.email);
+    setPhone(creation.quoteFields.phone);
+  }, [creation]);
 
   const copyToClipboard = (label: string, text: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied`);
   };
+
+  if (loading || error) {
+    return (
+      <div className="bg-white rounded-[8px] border border-[#ebebeb] flex items-center justify-center py-20">
+        {error ? (
+          <div className="flex flex-col items-center gap-3 text-center px-4">
+            <p className="text-[14px] font-semibold text-[#111827]">Couldn't load order creation data</p>
+            <p className="text-[12.5px] text-[#9ca3af] max-w-[360px]">{error}</p>
+            <Button variant="primary" onClick={reload}>Retry</Button>
+          </div>
+        ) : (
+          <WaveLoader size={40} />
+        )}
+      </div>
+    );
+  }
+
+  const c = creation!; // guaranteed non-null past the loading/error guard above
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
@@ -119,7 +128,7 @@ export function OrderCreationBody() {
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] text-[#9ca3af]">Request Date</p>
-                <p className="text-[12.5px] font-semibold text-[#111827] truncate">{ORDER_SUMMARY.requestDate}</p>
+                <p className="text-[12.5px] font-semibold text-[#111827] truncate">{c.orderSummary.requestDate}</p>
               </div>
             </div>
             <div className="flex items-center gap-2.5 rounded-[8px] bg-[#f7f8fa] px-3 py-2.5">
@@ -128,7 +137,7 @@ export function OrderCreationBody() {
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] text-[#9ca3af]">Sales Order Owner</p>
-                <p className="text-[12.5px] font-semibold text-[#111827] truncate">{ORDER_SUMMARY.salesOrderOwner}</p>
+                <p className="text-[12.5px] font-semibold text-[#111827] truncate">{c.orderSummary.salesOrderOwner}</p>
               </div>
             </div>
           </div>
@@ -136,13 +145,13 @@ export function OrderCreationBody() {
           <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="rounded-[8px] bg-[#f7f8fa] px-3.5 py-3 min-w-0">
               <p className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-wide mb-1.5">Bill To Contact</p>
-              <TruncateTooltip label={ORDER_SUMMARY.billTo.name} className="text-[12.5px] font-semibold text-[#111827]" />
+              <TruncateTooltip label={c.orderSummary.billTo.name} className="text-[12.5px] font-semibold text-[#111827]" />
               <p className="flex items-center gap-1.5 text-[11.5px] text-[#6b7280] mt-1.5">
                 <Mail size={11} className="shrink-0" />
-                <TruncateTooltip label={ORDER_SUMMARY.billTo.email} className="flex-1" />
+                <TruncateTooltip label={c.orderSummary.billTo.email} className="flex-1" />
                 <EmailTableTooltip label="Copy email">
                   <button
-                    onClick={() => copyToClipboard("Email", ORDER_SUMMARY.billTo.email)}
+                    onClick={() => copyToClipboard("Email", c.orderSummary.billTo.email)}
                     className="text-[#9ca3af] hover:text-[#111827] cursor-pointer transition-colors shrink-0"
                   >
                     <Copy size={11} />
@@ -151,18 +160,18 @@ export function OrderCreationBody() {
               </p>
               <p className="flex items-center gap-1.5 text-[11.5px] text-[#6b7280] mt-1">
                 <Phone size={11} className="shrink-0" />
-                <TruncateTooltip label={ORDER_SUMMARY.billTo.phone} className="flex-1" />
+                <TruncateTooltip label={c.orderSummary.billTo.phone} className="flex-1" />
               </p>
             </div>
             <div className="rounded-[8px] bg-[#f7f8fa] px-3.5 py-3 min-w-0">
               <p className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-wide mb-1.5">Ship To Contact</p>
-              <TruncateTooltip label={ORDER_SUMMARY.shipTo.name} className="text-[12.5px] font-semibold text-[#111827]" />
+              <TruncateTooltip label={c.orderSummary.shipTo.name} className="text-[12.5px] font-semibold text-[#111827]" />
               <p className="flex items-center gap-1.5 text-[11.5px] text-[#6b7280] mt-1.5">
                 <Mail size={11} className="shrink-0" />
-                <TruncateTooltip label={ORDER_SUMMARY.shipTo.email} className="flex-1" />
+                <TruncateTooltip label={c.orderSummary.shipTo.email} className="flex-1" />
                 <EmailTableTooltip label="Copy email">
                   <button
-                    onClick={() => copyToClipboard("Email", ORDER_SUMMARY.shipTo.email)}
+                    onClick={() => copyToClipboard("Email", c.orderSummary.shipTo.email)}
                     className="text-[#9ca3af] hover:text-[#111827] cursor-pointer transition-colors shrink-0"
                   >
                     <Copy size={11} />
@@ -171,7 +180,7 @@ export function OrderCreationBody() {
               </p>
               <p className="flex items-center gap-1.5 text-[11.5px] text-[#6b7280] mt-1">
                 <Phone size={11} className="shrink-0" />
-                <TruncateTooltip label={ORDER_SUMMARY.shipTo.phone} className="flex-1" />
+                <TruncateTooltip label={c.orderSummary.shipTo.phone} className="flex-1" />
               </p>
             </div>
           </div>
@@ -198,11 +207,11 @@ export function OrderCreationBody() {
               <MapPin size={16} className="text-[#30578D]" />
             </div>
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-[#111827] truncate">{SHIP_TO.company}</p>
+              <p className="text-[13px] font-semibold text-[#111827] truncate">{c.shipTo.company}</p>
               <p className="text-[12px] text-[#6b7280] mt-1 leading-[1.6]">
-                {SHIP_TO.address}<br />
-                {SHIP_TO.cityState}<br />
-                {SHIP_TO.country}
+                {c.shipTo.address}<br />
+                {c.shipTo.cityState}<br />
+                {c.shipTo.country}
               </p>
             </div>
           </div>
@@ -210,9 +219,9 @@ export function OrderCreationBody() {
 
         <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
           <h3 className="text-[14px] font-bold text-[#111827]">Documents</h3>
-          <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">{DOCUMENTS.length} file{DOCUMENTS.length !== 1 ? "s" : ""} attached</p>
+          <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">{c.documents.length} file{c.documents.length !== 1 ? "s" : ""} attached</p>
           <div className="flex flex-col gap-2">
-            {DOCUMENTS.map(doc => (
+            {c.documents.map(doc => (
               <button
                 key={doc.name}
                 onClick={() => toast.info(`Downloading ${doc.name}`)}
@@ -232,7 +241,7 @@ export function OrderCreationBody() {
         </div>
       </div>
 
-      {instructionsOpen && <ShippingInstructionsModal onClose={() => setInstructionsOpen(false)} />}
+      {instructionsOpen && <ShippingInstructionsModal instructions={c.shippingInstructions} onClose={() => setInstructionsOpen(false)} />}
     </div>
   );
 }

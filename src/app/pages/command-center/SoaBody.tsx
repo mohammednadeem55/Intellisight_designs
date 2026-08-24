@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlignCenter,
@@ -28,14 +28,11 @@ import {
   X,
 } from "lucide-react";
 import { EmailTableTooltip } from "../../components/common/EmailTable";
+import { WaveLoader } from "../../components/common/Loader";
+import { Button } from "../../components/common/Button";
 import { CollapsedEmailThread, senderDisplayName } from "./emailThread";
 import { type Email } from "./emailData";
-
-const FROM_OPTIONS = ["orders@intellisight.io", "trade-desk@intellisight.io", "support@intellisight.io", "no-reply@intellisight.io"];
-const TO = ["priya.shah@acme.com"];
-const CC = ["R. Nair - Order Desk", "trade.compliance@macom.com"];
-const BCC = ["soa.archive@macom.com"];
-const SUBJECT = "Service Order Agreement — Order ORD-88401732 (PO 304617)";
+import { useSoaComposer } from "./useSoaComposer";
 
 // Same icon + color per file type used throughout the app's document rows/chips.
 function docMeta(name: string): { icon: typeof FileText; bg: string; fg: string } {
@@ -53,22 +50,6 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-
-type EmailTemplate = { label: string; recommended?: boolean; mostUsed?: boolean };
-const TEMPLATES: EmailTemplate[] = [
-  { label: "AP Standard SOA (EN)", recommended: true },
-  { label: "AP Summary SOA (EN)", mostUsed: true },
-  { label: "AP SOA with Export Conditions" },
-  { label: "AP SOA with Extended Warranty" },
-  { label: "AP SOA with Multi-Currency Terms" },
-  { label: "EMEA Standard SOA (EN)" },
-  { label: "EMEA SOA with Export Conditions" },
-  { label: "APAC Standard SOA (JP)" },
-  { label: "Service Renewal Agreement" },
-  { label: "Service Renewal with Extended Support" },
-  { label: "Custom Template — Legal Review" },
-];
-const DEFAULT_TEMPLATE = TEMPLATES.find(t => t.recommended) ?? TEMPLATES[0];
 
 function buildTemplateBody(label: string, senderName: string, subjectLine: string): string {
   return `Dear ${senderName},\n\nPlease find attached the ${label.toLowerCase()} regarding "${subjectLine}".\n\nKind regards,\nCustomer Service — Trade Orders`;
@@ -223,23 +204,32 @@ function ToolbarButton({ icon: Icon, label, active, onClick }: { icon: typeof Bo
 }
 
 export function SoaBody({ email }: { email: Email }) {
-  const [from, setFrom] = useState(FROM_OPTIONS[0]);
-  const [to, setTo] = useState(TO);
-  const [subject, setSubject] = useState(SUBJECT);
-  const [cc, setCc] = useState(CC);
+  const { data: composer, loading, error, reload } = useSoaComposer(email.id);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState<string[]>([]);
+  const [subject, setSubject] = useState("");
+  const [cc, setCc] = useState<string[]>([]);
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
-  const [bcc, setBcc] = useState(BCC);
-  const [body, setBody] = useState(() => buildTemplateBody(DEFAULT_TEMPLATE.label, senderDisplayName(email.sender), SUBJECT));
+  const [bcc, setBcc] = useState<string[]>([]);
+  const [body, setBody] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<{ name: string; size: string }[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(DEFAULT_TEMPLATE.label);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [format, setFormat] = useState({ bold: false, italic: false, underline: false, align: "left" as "left" | "center" | "right" });
   const [templateQuery, setTemplateQuery] = useState("");
   const [templatesScrolled, setTemplatesScrolled] = useState(false);
 
-  const filteredTemplates = TEMPLATES.filter(t => t.label.toLowerCase().includes(templateQuery.toLowerCase())).sort(
-    (a, b) => (b.recommended ? 1 : 0) - (a.recommended ? 1 : 0)
-  );
+  useEffect(() => {
+    if (!composer) return;
+    const defaultTemplate = composer.templates.find(t => t.recommended) ?? composer.templates[0];
+    setFrom(composer.fromOptions[0]);
+    setTo(composer.to);
+    setSubject(composer.subject);
+    setCc(composer.cc);
+    setBcc(composer.bcc);
+    setSelectedTemplate(defaultTemplate?.label ?? null);
+    setBody(defaultTemplate ? buildTemplateBody(defaultTemplate.label, senderDisplayName(email.sender), composer.subject) : "");
+  }, [composer, email.sender]);
 
   const applyTemplate = (label: string) => {
     setSelectedTemplate(label);
@@ -273,6 +263,28 @@ export function SoaBody({ email }: { email: Email }) {
     });
   };
 
+  if (loading || error) {
+    return (
+      <div className="bg-white rounded-[8px] border border-[#ebebeb] flex items-center justify-center py-20">
+        {error ? (
+          <div className="flex flex-col items-center gap-3 text-center px-4">
+            <p className="text-[14px] font-semibold text-[#111827]">Couldn't load the SOA composer</p>
+            <p className="text-[12.5px] text-[#9ca3af] max-w-[360px]">{error}</p>
+            <Button variant="primary" onClick={reload}>Retry</Button>
+          </div>
+        ) : (
+          <WaveLoader size={40} />
+        )}
+      </div>
+    );
+  }
+
+  const c = composer!; // guaranteed non-null past the loading/error guard above
+
+  const filteredTemplates = c.templates.filter(t => t.label.toLowerCase().includes(templateQuery.toLowerCase())).sort(
+    (a, b) => (b.recommended ? 1 : 0) - (a.recommended ? 1 : 0)
+  );
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4 items-start">
       {/* Left: composer + reference strip */}
@@ -299,7 +311,7 @@ export function SoaBody({ email }: { email: Email }) {
           </div>
 
           <div className="divide-y divide-[#f3f4f6] border-b border-[#f3f4f6]">
-            <ComposerSelectRow label="From" value={from} options={FROM_OPTIONS} onChange={setFrom} />
+            <ComposerSelectRow label="From" value={from} options={c.fromOptions} onChange={setFrom} />
             <RecipientPillField
               label="To"
               values={to}

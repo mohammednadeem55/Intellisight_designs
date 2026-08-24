@@ -62,6 +62,19 @@ export type Email = {
   source?: string;
 };
 
+// Safe placeholder for pages that need a valid `Email` object to compute state from (e.g. hook
+// initializers) before the real fetch has resolved — never actually rendered, since those pages gate
+// their visible UI on the fetch's own loading state instead.
+export const EMPTY_EMAIL: Email = {
+  id: "",
+  subject: "",
+  sender: "",
+  category: "",
+  status: "",
+  received: "",
+  size: "",
+};
+
 const CSR_OWNERS = ["A. Sharma", "M. Chen", "R. Okafor", "L. Novak", "T. Reyes"];
 export const BUSINESS_GROUPS = ["Enterprise", "Mid-Market", "Public Sector", "SMB"];
 const ACCOUNT_MANAGERS = ["J. Patel (FE-2201)", "K. Summers (FE-1187)", "D. Alvarez (FE-3042)", "S. Kim (FE-0925)"];

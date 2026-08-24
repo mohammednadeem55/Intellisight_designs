@@ -2,48 +2,9 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Check, ChevronDown, Download, FileText, HelpCircle, MapPin } from "lucide-react";
 import { TextField, ReviewField } from "../../components/common/TextField";
-
-// Mock extraction-review data for the CCC Creation step — matched/review/missing per field, same shape
-// regardless of section, so one field component can render all three states consistently. `resolvedFrom`
-// is set when a review/missing field gets resolved (Use / Apply) so it can be reverted back to that state
-// without losing the original extracted/systemValue/suggestions data.
-type CccFieldStatus = "matched" | "review" | "missing";
-type CccField = {
-  label: string;
-  status: CccFieldStatus;
-  value: string; // matched — the current, editable value
-  extracted?: string; // review — the extracted value
-  systemValue?: string; // review — the trusted/system-of-record value; if absent, there's nothing to compare and the field is just editable
-  suggestions?: string[]; // missing — AI-suggested values to pick from; omit/empty for no suggestions
-  resolvedFrom?: "review" | "missing"; // set once Use/Apply is clicked — enables the revert icon
-};
-
-const ACCOUNT_CONTACT_FIELDS: CccField[] = [
-  { label: "Account Name", status: "matched", value: "Keysight Technology Solutions Inc." },
-  { label: "Contact Name", status: "matched", value: "Julie Magner" },
-  { label: "Email", status: "review", value: "", extracted: "julie.magner@macom.com.invalid", systemValue: "julie.magner@keysight.com" },
-  { label: "Phone", status: "review", value: "", extracted: "+1 978 656-2514", systemValue: "+1 (978) 656-2500" },
-  { label: "Job Title", status: "review", value: "", extracted: "VP of Engineering" },
-  { label: "Address", status: "matched", value: "100 Chelmsford St, Lowell, MA 01851" },
-  { label: "Shipping Instructions", status: "missing", value: "", suggestions: ["10083C-001", "10083C-002", "10083C-003"] },
-  { label: "Address", status: "matched", value: "100 Chelmsford St, Lowell, MA 01851" },
-  { label: "Billing Instructions", status: "missing", value: "" },
-];
-
-const EXTRACTED_NUMBER_FIELDS: CccField[] = [
-  { label: "PO Number", status: "matched", value: "1514444" },
-  { label: "Quote Number", status: "missing", value: "", suggestions: ["10083C-001", "Q-2026-441"] },
-  { label: "Ship Number", status: "missing", value: "" },
-  { label: "Sales Order", status: "missing", value: "" },
-];
-
-const ORDER_INFO_FIELDS: CccField[] = [
-  { label: "PO Date", status: "matched", value: "03 Aug 2026" },
-  { label: "Quote Expiry", status: "missing", value: "" },
-  { label: "Payment Terms", status: "review", value: "", extracted: "Net 30" },
-];
-
-const PRODUCT_NUMBERS = ["10083C-001", "20094D-002", "30056E-003"];
+import { WaveLoader } from "../../components/common/Loader";
+import { Button } from "../../components/common/Button";
+import { useCccExtraction, type CccField } from "./useCccExtraction";
 
 const AI_SUGGESTION_GROUPS: { label: string; options: string[] }[] = [
   { label: "Trade Quote Number", options: ["Q-12345", "Q-67890", "Q-54321"] },
@@ -51,15 +12,6 @@ const AI_SUGGESTION_GROUPS: { label: string; options: string[] }[] = [
   { label: "Dest Country", options: ["United States", "Germany", "France"] },
   { label: "Product", options: ["N1055A Probe", "Calibration Service"] },
 ];
-
-const SHIP_TO = {
-  company: "MACOM Technology Solutions Inc.",
-  address: "100 Chelmsford Street",
-  cityState: "Lowell, MA 01851",
-  country: "United States",
-};
-
-const DOCUMENTS = [{ name: "Order_details.pdf", size: "1.2 MB" }];
 
 function extractionBand(pct: number): { label: string; bg: string; text: string } {
   if (pct >= 80) return { label: "Nearly complete", bg: "#E8F5E9", text: "#2E7D32" };
@@ -145,10 +97,20 @@ function CccSection({ title, matched, total, children }: { title: string; matche
 
 export type CccExtractionStatus = { totalMissing: number; totalReview: number };
 
-export function CccCreationBody({ onStatusChange }: { onStatusChange?: (status: CccExtractionStatus) => void }) {
-  const [accountFields, setAccountFields] = useState(ACCOUNT_CONTACT_FIELDS);
-  const [numberFields, setNumberFields] = useState(EXTRACTED_NUMBER_FIELDS);
-  const [orderFields, setOrderFields] = useState(ORDER_INFO_FIELDS);
+export function CccCreationBody({ emailId, onStatusChange }: { emailId: string; onStatusChange?: (status: CccExtractionStatus) => void }) {
+  const { data: extraction, loading, error, reload } = useCccExtraction(emailId);
+
+  // Editable local copies, seeded once the fetch resolves — separate from `extraction` itself so field
+  // edits (Use/Apply/typing) don't need to round-trip through the hook on every keystroke.
+  const [accountFields, setAccountFields] = useState<CccField[]>([]);
+  const [numberFields, setNumberFields] = useState<CccField[]>([]);
+  const [orderFields, setOrderFields] = useState<CccField[]>([]);
+  useEffect(() => {
+    if (!extraction) return;
+    setAccountFields(extraction.accountFields);
+    setNumberFields(extraction.numberFields);
+    setOrderFields(extraction.orderFields);
+  }, [extraction]);
 
   const updateField = (setter: typeof setAccountFields, index: number) => (next: CccField) => {
     setter(prev => prev.map((f, i) => (i === index ? next : f)));
@@ -168,6 +130,26 @@ export function CccCreationBody({ onStatusChange }: { onStatusChange?: (status: 
     onStatusChange?.({ totalMissing, totalReview });
   }, [totalMissing, totalReview]);
 
+  if (loading || error) {
+    return (
+      <div className="bg-white rounded-[8px] border border-[#ebebeb] flex items-center justify-center py-20">
+        {error ? (
+          <div className="flex flex-col items-center gap-3 text-center px-4">
+            <p className="text-[14px] font-semibold text-[#111827]">Couldn't load extraction data</p>
+            <p className="text-[12.5px] text-[#9ca3af] max-w-[360px]">{error}</p>
+            <Button variant="primary" onClick={reload}>Retry</Button>
+          </div>
+        ) : (
+          <WaveLoader size={40} />
+        )}
+      </div>
+    );
+  }
+
+  const productNumbers = extraction?.productNumbers ?? [];
+  const shipTo = extraction!.shipTo;
+  const documents = extraction!.documents;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
       {/* Left: extraction review sections */}
@@ -182,7 +164,7 @@ export function CccCreationBody({ onStatusChange }: { onStatusChange?: (status: 
           <div className="sm:col-span-2">
             <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wide mb-1.5">Product Number</p>
             <div className="flex items-center gap-2 flex-wrap px-3.5 py-2 min-h-[42px] rounded-[8px] border border-[#468657] bg-[#EFF6F1]">
-              {PRODUCT_NUMBERS.map((p, i) => (
+              {productNumbers.map((p, i) => (
                 <span key={i} className="text-[12.5px] font-medium text-[#111827] bg-white/70 px-2 py-1 rounded-[6px]">{p}</span>
               ))}
               <Check size={15} className="text-[#468657] shrink-0 ml-auto" strokeWidth={3} />
@@ -271,11 +253,11 @@ export function CccCreationBody({ onStatusChange }: { onStatusChange?: (status: 
               <MapPin size={16} className="text-[#30578D]" />
             </div>
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-[#111827] truncate">{SHIP_TO.company}</p>
+              <p className="text-[13px] font-semibold text-[#111827] truncate">{shipTo.company}</p>
               <p className="text-[12px] text-[#6b7280] mt-1 leading-[1.6]">
-                {SHIP_TO.address}<br />
-                {SHIP_TO.cityState}<br />
-                {SHIP_TO.country}
+                {shipTo.address}<br />
+                {shipTo.cityState}<br />
+                {shipTo.country}
               </p>
             </div>
           </div>
@@ -283,9 +265,9 @@ export function CccCreationBody({ onStatusChange }: { onStatusChange?: (status: 
 
         <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
           <h3 className="text-[14px] font-bold text-[#111827]">Documents</h3>
-          <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">{DOCUMENTS.length} file{DOCUMENTS.length !== 1 ? "s" : ""} attached</p>
+          <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">{documents.length} file{documents.length !== 1 ? "s" : ""} attached</p>
           <div className="flex flex-col gap-2">
-            {DOCUMENTS.map(doc => (
+            {documents.map(doc => (
               <button
                 key={doc.name}
                 onClick={() => toast.info(`Downloading ${doc.name}`)}

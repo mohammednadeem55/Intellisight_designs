@@ -3,14 +3,15 @@ import { toast } from "sonner";
 import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText, Lightbulb, Sparkles, User, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Button, IconButton } from "../../components/common/Button";
-import { PageLoaderOverlay } from "../../components/common/Loader";
+import { PageLoaderOverlay, WaveLoader } from "../../components/common/Loader";
 import { EmailTableAssignModal, EmailTableSendEmailModal, EmailTableCommentModal, EmailTableMoreActionsButton } from "../../components/common/EmailTable";
 import { AiOrderValidationBody } from "./AiOrderValidationBody";
 import { CccCreationBody, type CccExtractionStatus } from "./CccCreationBody";
 import { OrderCreationBody } from "./OrderCreationBody";
 import { SoaBody } from "./SoaBody";
 import { EmailThreadCard, senderDisplayName } from "./emailThread";
-import { type Email, ALL_EMAILS_WITH_CCC, CLASSIFICATIONS } from "./emailData";
+import { type Email, EMPTY_EMAIL, CLASSIFICATIONS } from "./emailData";
+import { useWorkflowEmail } from "./useWorkflowEmail";
 
 const WORKFLOW_STAGES: { key: string; label: string }[] = [
   { key: "classify", label: "Email & Classify" },
@@ -123,7 +124,11 @@ export function WorkflowPage({
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
-  const email = ALL_EMAILS_WITH_CCC.find(e => e.id === emailId) ?? ALL_EMAILS_WITH_CCC[0];
+  // `email` falls back to a safe empty placeholder while the fetch is in flight, purely so the state below
+  // (several useState initializers read email.* directly) has something valid to compute from — the actual
+  // visible UI is gated on emailLoading/emailError further down, so the placeholder never gets shown.
+  const { data: workflowEmail, loading: emailLoading, error: emailError, reload: reloadEmail } = useWorkflowEmail(emailId);
+  const email = workflowEmail ?? EMPTY_EMAIL;
   const senderName = senderDisplayName(email.sender);
   const assignedTo = email.assignedTo ?? "Unassigned";
   const [assignModalOpen, setAssignModalOpen] = useState(false);
@@ -229,6 +234,48 @@ export function WorkflowPage({
   const contentSummary = buildContentSummary(email);
   const reasoning = buildReasoning(email);
   const fullSummary = buildFullAiSummary(email);
+
+  // Real data-fetching means a real loading/error state — everything above computed safely against the
+  // EMPTY_EMAIL placeholder, but the visible page only ever shows the real thing or one of these two.
+  if (emailLoading || emailError) {
+    return (
+      <div className="bg-[#f5f6fa] flex size-full h-screen overflow-hidden" style={{ fontFamily: "Inter, sans-serif" }}>
+        <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
+          <div className="shrink-0 shadow-[0_2px_6px_rgba(15,23,42,0.06)] relative z-50">
+            <AppHeader
+              activeNav="Command Center"
+              onViewAllNotifications={onViewAllNotifications}
+              onLogout={onLogout}
+              onNavigateHome={onNavigateHome}
+              onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+              onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+              onNavigateNewOverview={onNavigateNewOverview}
+              onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
+              onNavigateOrderListing={onNavigateOrderListing}
+              onNavigateReleasedOrders={onNavigateReleasedOrders}
+              onNavigateEmailTemplate={onNavigateEmailTemplate}
+              onNavigateReview={onNavigateReview}
+              onNavigateEmailWorkflow={onNavigateEmailWorkflow}
+            />
+          </div>
+          <main className="flex-1 flex items-center justify-center">
+            {emailError ? (
+              <div className="flex flex-col items-center gap-3 text-center px-4">
+                <p className="text-[14px] font-semibold text-[#111827]">Couldn't load this email</p>
+                <p className="text-[12.5px] text-[#9ca3af] max-w-[360px]">{emailError}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Button variant="secondary" icon={ArrowLeft} onClick={onBack}>Back</Button>
+                  <Button variant="primary" onClick={reloadEmail}>Retry</Button>
+                </div>
+              </div>
+            ) : (
+              <WaveLoader size={44} />
+            )}
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#f5f6fa] flex size-full h-screen overflow-hidden" style={{ fontFamily: "Inter, sans-serif" }}>
@@ -436,13 +483,13 @@ export function WorkflowPage({
                 )}
               </div>
             )}
-            <CccCreationBody onStatusChange={setCccExtractionStatus} />
+            <CccCreationBody emailId={email.id} onStatusChange={setCccExtractionStatus} />
           </>
         )}
 
-        {currentStageIndex === 2 && <AiOrderValidationBody />}
+        {currentStageIndex === 2 && <AiOrderValidationBody emailId={email.id} />}
 
-        {currentStageIndex === 3 && <OrderCreationBody />}
+        {currentStageIndex === 3 && <OrderCreationBody emailId={email.id} />}
 
         {currentStageIndex === 4 && <SoaBody email={email} />}
 
