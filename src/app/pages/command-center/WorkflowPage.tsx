@@ -159,8 +159,21 @@ export function WorkflowPage({
     }
   };
   const handleRevalidate = () => toast.success(`${email.id} re-validated`);
-  const handleQuoteUpdate = () => toast.success(`${email.id} quote updated`);
   const handleSendEmail = () => toast.success(`${email.id} email sent`);
+
+  // Order Creation — Quote Update can be clicked any number of times, but Proceed only becomes available
+  // once Create Order has actually run; before that, Create Order is the only primary action in its place.
+  // Updating the quote again after the order was created invalidates it — order data may now be stale
+  // against the new quote — so it flips back to requiring Create Order before Proceed reappears.
+  const [orderCreated, setOrderCreated] = useState(false);
+  const handleQuoteUpdate = () => {
+    setOrderCreated(false);
+    toast.success(`${email.id} quote updated`);
+  };
+  const handleCreateOrder = () => {
+    setOrderCreated(true);
+    toast.success(`${email.id} order created`);
+  };
 
   // Every footer action briefly shows a full-page loading overlay before actually running — there's no
   // real network call behind any of these yet, but the delay keeps the interaction pattern honest for
@@ -644,6 +657,11 @@ export function WorkflowPage({
               <Button variant="secondary" onClick={() => withPageLoader("Saving...", () => toast.success(`${email.id} saved`))}>Save & Update</Button>
               {currentStageIndex === 1 && cccOutcome !== "success" ? (
                 <Button variant="primary" onClick={() => withPageLoader("Creating CCC request...", handleCreateCcc)}>Create CCC Req.</Button>
+              ) : currentStageIndex === 3 && !orderCreated ? (
+                <>
+                  <Button variant="outline" accent="#E90029" onClick={() => withPageLoader("Updating quote...", handleQuoteUpdate)}>Quote Update</Button>
+                  <Button variant="primary" onClick={() => withPageLoader("Creating order...", handleCreateOrder)}>Create Order</Button>
+                </>
               ) : (
                 <>
                   {currentStageIndex === 2 && (

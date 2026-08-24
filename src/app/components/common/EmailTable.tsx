@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
+  ArrowDown,
+  ArrowUp,
   Building2,
   Check,
   ChevronDown,
@@ -209,6 +211,7 @@ function emailTableHashSeed(id: string): number {
 // page's column-filter option computation and row-filtering pipeline need it too.
 export function getEmailTableColumnValue(key: string, row: Email, reviews: Record<string, EmailTableReviewEntry[]> = {}): string {
   switch (key) {
+    case "sender": return row.sender;
     case "classification": return row.classification ?? "—";
     case "confidence": return `${row.confidencePct ?? 0}%`;
     case "age": return EMAIL_TABLE_AGE_POOL[emailTableHashSeed(row.id) % EMAIL_TABLE_AGE_POOL.length];
@@ -744,6 +747,46 @@ export function EmailTableTooltip({ label, children }: { label: string; children
   );
 }
 
+// A single line of text that truncates with an ellipsis, and only shows the same dark tooltip as
+// EmailTableTooltip when it's actually cut off (scrollWidth > clientWidth) — never on text that fits.
+// Renders the truncating element itself (rather than wrapping arbitrary children) so the overflow check
+// runs on the real rendered box, and so it can be dropped straight into a flex row as its own shrinkable
+// item without an extra wrapper layer fighting the truncation.
+export function TruncateTooltip({ label, className = "" }: { label: string; className?: string }) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  const show = () => {
+    const el = ref.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    const rect = el.getBoundingClientRect();
+    setPos({ top: rect.bottom + 8, left: rect.left + rect.width / 2 });
+  };
+
+  return (
+    <span
+      ref={ref}
+      onMouseEnter={show}
+      onMouseLeave={() => setPos(null)}
+      className={`block min-w-0 truncate ${className}`}
+    >
+      {label}
+      {pos && createPortal(
+        <div
+          className="fixed flex flex-col items-center pointer-events-none z-[100]"
+          style={{ top: pos.top, left: pos.left, transform: "translateX(-50%)" }}
+        >
+          <span className="w-[7px] h-[7px] bg-[#262626] rotate-45 -mb-[3.5px]" />
+          <span className="whitespace-nowrap px-2.5 py-1.5 rounded-[6px] bg-[#262626] text-white text-[10.5px] font-medium shadow-lg">
+            {label}
+          </span>
+        </div>,
+        document.body
+      )}
+    </span>
+  );
+}
+
 function EmailTableIconButton({
   icon: Icon,
   label,
@@ -1047,6 +1090,9 @@ export function EmailTable({
   reviews,
   onToggleReaction,
   onAddComment,
+  sortKey,
+  sortDirection,
+  onSort,
 }: {
   rows: Email[];
   expandedIds: Set<string>;
@@ -1061,6 +1107,12 @@ export function EmailTable({
   reactions: Record<string, "like" | "dislike" | undefined>;
   reviews: Record<string, EmailTableReviewEntry[]>;
   onToggleReaction: (id: string, reaction: "like" | "dislike") => void;
+  /** Column currently sorted by, if any — null means unsorted (rows render in their given order). */
+  sortKey?: string | null;
+  sortDirection?: "asc" | "desc";
+  /** Clicking a sortable column header calls this with its key; the caller owns the actual sort logic
+      since it needs to run before pagination slices the rows. */
+  onSort?: (key: string) => void;
   onAddComment: (id: string, text: string) => void;
 }) {
   const subjectPadY = rowDensity === "small" ? "py-1" : rowDensity === "medium" ? "py-1.5" : "py-2";
@@ -1079,22 +1131,58 @@ export function EmailTable({
           <tr className="bg-[#F7F7F7]">
             <th className="sticky top-0 left-0 z-30 bg-[#F7F7F7] w-[40px] h-[42px] border-b border-[#DEDEDE]" />
             <th className="sticky top-0 left-[40px] z-30 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.15)]">
-              <span className="text-[12px] font-semibold text-[#4D4D4D]">From/Subject</span>
+              <div className="flex items-center gap-1.5">
+                {onSort ? (
+                  <button onClick={() => onSort("sender")} className="flex items-center gap-1 cursor-pointer">
+                    <span className={`text-[12px] font-semibold ${sortKey === "sender" ? "text-[#262626]" : "text-[#4D4D4D]"}`}>
+                      From/Subject
+                    </span>
+                    {sortKey === "sender" && (
+                      (() => {
+                        const SortIcon = sortDirection === "desc" ? ArrowDown : ArrowUp;
+                        return <SortIcon size={12} style={{ color: EMAIL_TABLE_NAVY }} />;
+                      })()
+                    )}
+                  </button>
+                ) : (
+                  <span className="text-[12px] font-semibold text-[#4D4D4D]">From/Subject</span>
+                )}
+                <EmailTableColumnFilterButton
+                  colKey="sender"
+                  getOptions={columnFilterOptions}
+                  selected={columnFilters.sender ?? EMPTY_SET}
+                  onToggle={(v) => onToggleColumnFilterValue("sender", v)}
+                  onClear={() => onClearColumnFilter("sender")}
+                />
+              </div>
             </th>
-            {additionalColumns.map((key) => (
-              <th key={key} className="sticky top-0 z-20 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[12px] font-semibold text-[#4D4D4D]">{EMAIL_TABLE_ADDITIONAL_COLUMN_LABELS[key]}</span>
-                  <EmailTableColumnFilterButton
-                    colKey={key}
-                    getOptions={columnFilterOptions}
-                    selected={columnFilters[key] ?? EMPTY_SET}
-                    onToggle={(v) => onToggleColumnFilterValue(key, v)}
-                    onClear={() => onClearColumnFilter(key)}
-                  />
-                </div>
-              </th>
-            ))}
+            {additionalColumns.map((key) => {
+              const active = sortKey === key;
+              const SortIcon = sortDirection === "desc" ? ArrowDown : ArrowUp;
+              return (
+                <th key={key} className="sticky top-0 z-20 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
+                  <div className="flex items-center gap-1.5">
+                    {onSort ? (
+                      <button onClick={() => onSort(key)} className="flex items-center gap-1 cursor-pointer">
+                        <span className={`text-[12px] font-semibold ${active ? "text-[#262626]" : "text-[#4D4D4D]"}`}>
+                          {EMAIL_TABLE_ADDITIONAL_COLUMN_LABELS[key]}
+                        </span>
+                        {active && <SortIcon size={12} style={{ color: EMAIL_TABLE_NAVY }} />}
+                      </button>
+                    ) : (
+                      <span className="text-[12px] font-semibold text-[#4D4D4D]">{EMAIL_TABLE_ADDITIONAL_COLUMN_LABELS[key]}</span>
+                    )}
+                    <EmailTableColumnFilterButton
+                      colKey={key}
+                      getOptions={columnFilterOptions}
+                      selected={columnFilters[key] ?? EMPTY_SET}
+                      onToggle={(v) => onToggleColumnFilterValue(key, v)}
+                      onClear={() => onClearColumnFilter(key)}
+                    />
+                  </div>
+                </th>
+              );
+            })}
             <th className="sticky top-0 right-0 z-30 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
               <span className="text-[12px] font-semibold text-[#4D4D4D]">Action</span>
             </th>

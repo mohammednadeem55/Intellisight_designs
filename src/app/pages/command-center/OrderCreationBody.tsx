@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Calendar, ChevronDown, Download, FileText, Link, Mail, MapPin, Phone, User, X } from "lucide-react";
+import { Calendar, ChevronDown, Copy, Download, FileText, Link, Mail, MapPin, Phone, User, X } from "lucide-react";
 import { TextField } from "../../components/common/TextField";
+import { EmailTableTooltip, TruncateTooltip } from "../../components/common/EmailTable";
 
 const SHIP_TO = {
   company: "MACOM Technology Solutions Inc.",
@@ -77,11 +78,40 @@ export function OrderCreationBody() {
   const [phone, setPhone] = useState("03-3255-9920");
   const [instructionsOpen, setInstructionsOpen] = useState(false);
 
+  const copyToClipboard = (label: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied`);
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
-      {/* Left: order summary + quote / order creation details */}
+      {/* Left: quote / order creation details */}
       <div className="flex flex-col gap-4">
-        <Section title="Order Summary">
+        <Section title="Quote" badge="6/7 matched">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            <TextField
+              label="Quote Number"
+              required
+              variant="missing"
+              value={quoteNumber}
+              onChange={setQuoteNumber}
+              placeholder="Required - enter value"
+            />
+            <TextField label="Ship To City" required variant="matched" value={shipToCity} onChange={setShipToCity} />
+            <TextField label="Quote Version" required variant="matched" value={quoteVersion} onChange={setQuoteVersion} />
+            <TextField label="Account Name" variant="matched" value={accountName} onChange={setAccountName} />
+            <TextField label="Contact Name" variant="matched" value={contactName} onChange={setContactName} />
+            <TextField label="Email" variant="matched" value={email} onChange={setEmail} />
+            <TextField label="Phone" variant="matched" value={phone} onChange={setPhone} />
+          </div>
+        </Section>
+      </div>
+
+      {/* Right: order summary + ship-to + documents */}
+      <div className="flex flex-col gap-4">
+        <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
+          <h3 className="text-[14px] font-bold text-[#111827]">Order Summary</h3>
+          <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">Key details captured for this order.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="flex items-center gap-2.5 rounded-[8px] bg-[#f7f8fa] px-3 py-2.5">
               <div className="size-[30px] rounded-[8px] bg-[#EAF1FB] flex items-center justify-center shrink-0">
@@ -104,28 +134,44 @@ export function OrderCreationBody() {
           </div>
 
           <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-[8px] bg-[#f7f8fa] px-3.5 py-3">
+            <div className="rounded-[8px] bg-[#f7f8fa] px-3.5 py-3 min-w-0">
               <p className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-wide mb-1.5">Bill To Contact</p>
-              <p className="text-[12.5px] font-semibold text-[#111827]">{ORDER_SUMMARY.billTo.name}</p>
-              <p className="flex items-center gap-1.5 text-[11.5px] text-[#6b7280] mt-1.5 truncate">
+              <TruncateTooltip label={ORDER_SUMMARY.billTo.name} className="text-[12.5px] font-semibold text-[#111827]" />
+              <p className="flex items-center gap-1.5 text-[11.5px] text-[#6b7280] mt-1.5">
                 <Mail size={11} className="shrink-0" />
-                {ORDER_SUMMARY.billTo.email}
+                <TruncateTooltip label={ORDER_SUMMARY.billTo.email} className="flex-1" />
+                <EmailTableTooltip label="Copy email">
+                  <button
+                    onClick={() => copyToClipboard("Email", ORDER_SUMMARY.billTo.email)}
+                    className="text-[#9ca3af] hover:text-[#111827] cursor-pointer transition-colors shrink-0"
+                  >
+                    <Copy size={11} />
+                  </button>
+                </EmailTableTooltip>
               </p>
               <p className="flex items-center gap-1.5 text-[11.5px] text-[#6b7280] mt-1">
                 <Phone size={11} className="shrink-0" />
-                {ORDER_SUMMARY.billTo.phone}
+                <TruncateTooltip label={ORDER_SUMMARY.billTo.phone} className="flex-1" />
               </p>
             </div>
-            <div className="rounded-[8px] bg-[#f7f8fa] px-3.5 py-3">
+            <div className="rounded-[8px] bg-[#f7f8fa] px-3.5 py-3 min-w-0">
               <p className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-wide mb-1.5">Ship To Contact</p>
-              <p className="text-[12.5px] font-semibold text-[#111827]">{ORDER_SUMMARY.shipTo.name}</p>
-              <p className="flex items-center gap-1.5 text-[11.5px] text-[#6b7280] mt-1.5 truncate">
+              <TruncateTooltip label={ORDER_SUMMARY.shipTo.name} className="text-[12.5px] font-semibold text-[#111827]" />
+              <p className="flex items-center gap-1.5 text-[11.5px] text-[#6b7280] mt-1.5">
                 <Mail size={11} className="shrink-0" />
-                {ORDER_SUMMARY.shipTo.email}
+                <TruncateTooltip label={ORDER_SUMMARY.shipTo.email} className="flex-1" />
+                <EmailTableTooltip label="Copy email">
+                  <button
+                    onClick={() => copyToClipboard("Email", ORDER_SUMMARY.shipTo.email)}
+                    className="text-[#9ca3af] hover:text-[#111827] cursor-pointer transition-colors shrink-0"
+                  >
+                    <Copy size={11} />
+                  </button>
+                </EmailTableTooltip>
               </p>
               <p className="flex items-center gap-1.5 text-[11.5px] text-[#6b7280] mt-1">
                 <Phone size={11} className="shrink-0" />
-                {ORDER_SUMMARY.shipTo.phone}
+                <TruncateTooltip label={ORDER_SUMMARY.shipTo.phone} className="flex-1" />
               </p>
             </div>
           </div>
@@ -142,30 +188,8 @@ export function OrderCreationBody() {
               <p className="text-[12.5px] font-semibold text-[#30578D] group-hover:underline">View shipping instructions</p>
             </div>
           </button>
-        </Section>
+        </div>
 
-        <Section title="Quote" badge="6/7 matched">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-            <TextField
-              label="Quote Number"
-              required
-              variant="missing"
-              value={quoteNumber}
-              onChange={setQuoteNumber}
-              placeholder="Required - enter value"
-            />
-            <TextField label="Ship To City" required variant="matched" value={shipToCity} onChange={setShipToCity} />
-            <TextField label="Quote Version" required variant="matched" value={quoteVersion} onChange={setQuoteVersion} />
-            <TextField label="Account Name" variant="matched" value={accountName} onChange={setAccountName} />
-            <TextField label="Contact Name" variant="matched" value={contactName} onChange={setContactName} />
-            <TextField label="Email" variant="matched" value={email} onChange={setEmail} />
-            <TextField label="Phone" variant="matched" value={phone} onChange={setPhone} />
-          </div>
-        </Section>
-      </div>
-
-      {/* Right: ship-to + documents */}
-      <div className="flex flex-col gap-4">
         <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
           <h3 className="text-[14px] font-bold text-[#111827]">Ship To</h3>
           <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">Products shipping address</p>

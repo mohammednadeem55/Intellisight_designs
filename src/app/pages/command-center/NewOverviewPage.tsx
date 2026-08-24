@@ -17,6 +17,7 @@ import {
   Maximize2,
   Minimize2,
   Paperclip,
+  RefreshCw,
   RotateCcw,
   Rows2,
   Rows3,
@@ -263,10 +264,34 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
     return () => document.removeEventListener("mousedown", handler);
   }, [searchOpen, searchQuery]);
   const [kpisExpanded, setKpisExpanded] = useState(true);
+  const [lastSynced, setLastSynced] = useState("10:45 AM");
+  const [syncing, setSyncing] = useState(false);
+  const handleRefresh = () => {
+    if (syncing) return;
+    setSyncing(true);
+    setTimeout(() => {
+      setLastSynced(new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+      setSyncing(false);
+      toast.success("Synced");
+    }, 900);
+  };
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const changeRowsPerPage = (n: number) => {
     setRowsPerPage(n);
     setPage(1);
+  };
+
+  // Sorting runs on the full filtered set before pagination slices it — otherwise clicking a header would
+  // just reorder whatever happens to be on the current page instead of the whole result set.
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const toggleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDirection("asc");
+    }
   };
 
   // Reactions/reviews live here (not in the table) because the "Reviewed By" column's value — used for
@@ -467,9 +492,18 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
     return true;
   });
 
+  const sortedRows = !sortKey ? rows : [...rows].sort((a, b) => {
+    // Confidence has a real numeric field behind its "NN%" display string — sort on that directly instead
+    // of comparing the strings, which would put "9%" after "85%".
+    const cmp = sortKey === "confidence"
+      ? (a.confidencePct ?? 0) - (b.confidencePct ?? 0)
+      : getEmailTableColumnValue(sortKey, a, reviews).localeCompare(getEmailTableColumnValue(sortKey, b, reviews));
+    return sortDirection === "asc" ? cmp : -cmp;
+  });
+
   const selected = allRows.find((r) => r.id === selectedId) ?? allRows[0];
-  const totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage));
-  const pageRows = rows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / rowsPerPage));
+  const pageRows = sortedRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   const paginationPages = () => {
     const pages: (number | "...")[] = [];
@@ -601,8 +635,16 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
             <div className="flex items-center gap-2.5 flex-wrap">
               <span className="flex items-center gap-1.5 text-[12px] text-[#4D4D4D]">
                 <span className="size-[7px] rounded-full bg-[#468657]" />
-                Last synced 10:45 AM
+                Last synced {lastSynced}
               </span>
+              <button
+                onClick={handleRefresh}
+                disabled={syncing}
+                title="Refresh"
+                className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
+              </button>
               <button
                 onClick={() => setKpisExpanded((v) => !v)}
                 title={kpisExpanded ? "Collapse KPIs" : "Expand KPIs"}
@@ -640,7 +682,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
             {/* Toolbar */}
             <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-[#DEDEDE] flex-wrap">
               <div className="flex items-center gap-2.5 flex-wrap">
-              {/* My Tasks / All Mails — scopes the table to the current user's assigned queue vs everyone's */}
+              {/* My Tasks / All Tasks — scopes the table to the current user's assigned queue vs everyone's */}
               <div className="flex items-center gap-[3px] p-[3px] bg-[#F1F2F4] border border-[#E2E6E9] rounded-[8px] h-[36px] shrink-0">
                 <button
                   onClick={() => { setEmailScope("mine"); setPage(1); }}
@@ -656,7 +698,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                   style={emailScope === "all" ? { color: EMAIL_TABLE_NAVY } : undefined}
                 >
                   <Users size={13} />
-                  All Mails
+                  All Tasks
                 </button>
               </div>
 
@@ -926,6 +968,9 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                   reviews={reviews}
                   onToggleReaction={toggleReaction}
                   onAddComment={addComment}
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  onSort={toggleSort}
                 />
               ) : (
                 <NewOverviewListView

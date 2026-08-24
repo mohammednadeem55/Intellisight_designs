@@ -11,14 +11,15 @@ export function WaveLoader({ size = 32, className = "" }: { size?: number; class
   );
 }
 
-// Full-page loading state — a tinted, blurred backdrop with the waveform centered over it. Used while an
-// action (Proceed, Save, etc.) is "in flight" so the whole page reads as busy rather than just one button.
+// Full-page loading state — same dark backdrop as the app's modals (bg-black/40), with the waveform
+// centered over it. Used while an action (Proceed, Save, etc.) is "in flight" so the whole page reads as
+// busy rather than just one button.
 export function PageLoaderOverlay({ label = "Loading..." }: { label?: string }) {
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-white/75 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40">
       <div className="flex flex-col items-center gap-4">
         <WaveLoader size={44} />
-        <p className="text-[13px] font-medium text-[#6b7280]">{label}</p>
+        <p className="text-[13px] font-medium text-white/90">{label}</p>
       </div>
     </div>
   );
