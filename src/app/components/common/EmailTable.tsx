@@ -8,6 +8,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  ChevronsUpDown,
   CircleAlert,
   CircleCheck,
   CirclePause,
@@ -176,7 +177,7 @@ function EmailTableConfidenceBar({ pct }: { pct?: number }) {
 }
 
 const EMAIL_TABLE_AGE_POOL = ["22h 46m", "1d 2h 38m", "23h 0m", "23h 2m", "18h 12m", "2d 1h 5m"];
-const EMPTY_SET = new Set<string>();
+export const EMPTY_SET = new Set<string>();
 
 // A "review" is any Like/Dislike/Comment left on a row — multiple team members can each leave one, so it's
 // stored as a per-row list rather than a single value. The "Reviewed By" column surfaces just the latest
@@ -964,7 +965,7 @@ function EmailTableActionCell({
 // unique values. Options are only computed when opened (cheap for small tables, avoids doing it per column
 // on every render). Uses the same fixed-position + portal pattern as the tooltip, for the same reason: a
 // dropdown anchored inside a sticky header cell would get clipped/overlapped by the scroll container.
-function EmailTableColumnFilterButton({
+export function EmailTableColumnFilterButton({
   colKey,
   getOptions,
   selected,
@@ -1012,7 +1013,9 @@ function EmailTableColumnFilterButton({
       <button
         ref={btnRef}
         onClick={(e) => { e.stopPropagation(); toggleOpen(); }}
-        className="flex items-center justify-center size-[20px] rounded-[4px] transition-colors cursor-pointer"
+        className={`flex items-center justify-center size-[20px] rounded-[4px] transition-colors cursor-pointer ${
+          selected.size > 0 || open ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+        }`}
         style={selected.size > 0 ? { backgroundColor: EMAIL_TABLE_NAVY, color: "white" } : { color: "#97999B" }}
       >
         <Filter size={11} />
@@ -1130,18 +1133,20 @@ export function EmailTable({
         <thead>
           <tr className="bg-[#F7F7F7]">
             <th className="sticky top-0 left-0 z-30 bg-[#F7F7F7] w-[40px] h-[42px] border-b border-[#DEDEDE]" />
-            <th className="sticky top-0 left-[40px] z-30 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.15)]">
+            <th className="group sticky top-0 left-[40px] z-30 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.15)]">
               <div className="flex items-center gap-1.5">
                 {onSort ? (
                   <button onClick={() => onSort("sender")} className="flex items-center gap-1 cursor-pointer">
                     <span className={`text-[12px] font-semibold ${sortKey === "sender" ? "text-[#262626]" : "text-[#4D4D4D]"}`}>
                       From/Subject
                     </span>
-                    {sortKey === "sender" && (
+                    {sortKey === "sender" ? (
                       (() => {
                         const SortIcon = sortDirection === "desc" ? ArrowDown : ArrowUp;
                         return <SortIcon size={12} style={{ color: EMAIL_TABLE_NAVY }} />;
                       })()
+                    ) : (
+                      <ChevronsUpDown size={12} className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity" style={{ color: "#97999B" }} />
                     )}
                   </button>
                 ) : (
@@ -1160,14 +1165,18 @@ export function EmailTable({
               const active = sortKey === key;
               const SortIcon = sortDirection === "desc" ? ArrowDown : ArrowUp;
               return (
-                <th key={key} className="sticky top-0 z-20 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
+                <th key={key} className="group sticky top-0 z-20 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
                   <div className="flex items-center gap-1.5">
                     {onSort ? (
                       <button onClick={() => onSort(key)} className="flex items-center gap-1 cursor-pointer">
                         <span className={`text-[12px] font-semibold ${active ? "text-[#262626]" : "text-[#4D4D4D]"}`}>
                           {EMAIL_TABLE_ADDITIONAL_COLUMN_LABELS[key]}
                         </span>
-                        {active && <SortIcon size={12} style={{ color: EMAIL_TABLE_NAVY }} />}
+                        {active ? (
+                          <SortIcon size={12} style={{ color: EMAIL_TABLE_NAVY }} />
+                        ) : (
+                          <ChevronsUpDown size={12} className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity" style={{ color: "#97999B" }} />
+                        )}
                       </button>
                     ) : (
                       <span className="text-[12px] font-semibold text-[#4D4D4D]">{EMAIL_TABLE_ADDITIONAL_COLUMN_LABELS[key]}</span>

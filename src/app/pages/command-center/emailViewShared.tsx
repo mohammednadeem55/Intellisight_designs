@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { ChevronDown, CornerDownRight, FileText, Mail, UserPlus } from "lucide-react";
+import { ChevronDown, CornerDownRight, Download, FileText, Mail, UserPlus } from "lucide-react";
+import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
 import { type Email, ALL_EMAILS_WITH_CCC } from "./emailData";
 
 // Shared by CommandCenterOverviewPage ("Overview V1") and EmailViewPage, so the two never drift apart.
@@ -257,6 +258,7 @@ export function CccDetailCard({ ccc, expanded, onToggleExpand }: { ccc: Email; e
 export function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmailId?: string; onOpenWorkflow?: (emailId: string) => void }) {
   const [activeTab, setActiveTab] = useState("All");
   const [selectedId, setSelectedId] = useState(initialEmailId ?? ALL_EMAILS_WITH_CCC[0].id);
+  const [previewAttachment, setPreviewAttachment] = useState<{ name: string; size: string } | null>(null);
   const [expandedCccIds, setExpandedCccIds] = useState<Set<string>>(new Set());
 
   const selected = ALL_EMAILS_WITH_CCC.find((e) => e.id === selectedId) ?? ALL_EMAILS_WITH_CCC[0];
@@ -306,6 +308,7 @@ export function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmail
   };
 
   return (
+    <>
     <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* ── Left sidebar ── */}
@@ -518,8 +521,8 @@ export function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmail
                   {selected.attachments!.map((a) => (
                     <button
                       key={a.name}
-                      onClick={() => toast.info(`Opening ${a.name}`)}
-                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] border border-[#e5e7eb] hover:bg-[#fafafa] transition-colors cursor-pointer text-left"
+                      onClick={() => setPreviewAttachment(a)}
+                      className="group flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] border border-[#e5e7eb] hover:bg-[#fafafa] transition-colors cursor-pointer text-left"
                     >
                       <div className="size-[30px] rounded-[8px] bg-[#f3f4f6] flex items-center justify-center shrink-0">
                         <FileText size={14} className="text-[#6b7280]" />
@@ -528,6 +531,11 @@ export function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmail
                         <p className="text-[12.5px] font-semibold text-[#111827] truncate max-w-[160px]">{a.name}</p>
                         <p className="text-[11px] text-[#9ca3af]">{a.size}</p>
                       </div>
+                      <Download
+                        size={13}
+                        className="text-[#9ca3af] group-hover:text-[#111827] cursor-pointer transition-colors shrink-0"
+                        onClick={(e) => { e.stopPropagation(); toast.info(`Downloading ${a.name}`); }}
+                      />
                     </button>
                   ))}
                 </div>
@@ -607,5 +615,7 @@ export function EmailViewBody({ initialEmailId, onOpenWorkflow }: { initialEmail
         </div>
 
       </div>
+    <AttachmentPreviewModal attachment={previewAttachment} onClose={() => setPreviewAttachment(null)} />
+    </>
   );
 }

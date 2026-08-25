@@ -7,6 +7,8 @@ import { EmailViewPage } from "./pages/command-center/EmailViewPage";
 import { HomePage } from "./pages/home/HomePage";
 import { NotificationsPage } from "./pages/home/NotificationsPage";
 import { PlaceholderPage } from "./pages/placeholder/PlaceholderPage";
+import { EmailTemplatePage } from "./pages/email-templates/EmailTemplatePage";
+import { EmailTemplateEditorPage } from "./pages/email-templates/EmailTemplateEditorPage";
 import { WorkflowPage } from "./pages/command-center/WorkflowPage";
 import { HoldManagementOverview } from "./pages/hold-management/HoldManagementOverview";
 import { OrderListingPage } from "./pages/hold-management/OrderListingPage";
@@ -80,20 +82,20 @@ function AppRoutes() {
 
       <Route path="/hold-management" element={<HoldManagementOverview {...nav} onViewAllOrders={() => navigate("/hold-management/orders")} />} />
       <Route path="/hold-management/orders" element={<OrderListingPage {...nav} onNavigateOverview={onNavigateOverview} onNavigateOrderDetails={onNavigateOrderDetails} />} />
-      <Route path="/hold-management/orders/released" element={<ReleasedOrdersPage {...nav} onNavigateOverview={onNavigateOverview} />} />
+      <Route path="/hold-management/orders/released" element={<ReleasedOrdersPage {...nav} onNavigateOverview={onNavigateOverview} onNavigateOrderDetails={onNavigateOrderDetails} />} />
       <Route path="/hold-management/orders/:orderId" element={<OrderDetailsRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />
 
       <Route
         path="/email-template"
         element={
-          <PlaceholderPage
-            title="Email Template"
-            description="Build and manage reusable email templates for outreach and case responses."
-            activeNav="Email Template"
+          <EmailTemplatePage
             {...nav}
+            onNavigateCreateEmailTemplate={() => navigate("/email-template/new")}
+            onNavigateEditEmailTemplate={(template) => navigate("/email-template/new", { state: template })}
           />
         }
       />
+      <Route path="/email-template/new" element={<EmailTemplateEditorPage {...nav} onBack={() => navigate("/email-template")} />} />
       <Route
         path="/review"
         element={

@@ -4,6 +4,7 @@ import { Archive, ArrowRight, ChevronDown, ChevronRight, CircleCheck, CircleX, D
 import { TextField } from "../../components/common/TextField";
 import { WaveLoader } from "../../components/common/Loader";
 import { Button } from "../../components/common/Button";
+import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
 import { useOrderValidation, type CheckStatus, type ValidationCheck } from "./useOrderValidation";
 
 // Same icon + color per file type as the Workflow email thread's attachment chips, so a document reads
@@ -112,6 +113,7 @@ export function AiOrderValidationBody({ emailId }: { emailId: string }) {
   const [resultsOpen, setResultsOpen] = useState(true);
   const [freightTerms, setFreightTerms] = useState("");
   const [discountApproval, setDiscountApproval] = useState("");
+  const [previewAttachment, setPreviewAttachment] = useState<{ name: string; size: string } | null>(null);
 
   if (loading || error) {
     return (
@@ -135,6 +137,7 @@ export function AiOrderValidationBody({ emailId }: { emailId: string }) {
   const reviewCount = v.failedAndReviewChecks.filter(c => c.status === "warning").length;
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
       {/* Left: check results + collapsed secondary sections */}
       <div className="flex flex-col gap-4">
@@ -241,7 +244,7 @@ export function AiOrderValidationBody({ emailId }: { emailId: string }) {
               return (
                 <button
                   key={doc.name}
-                  onClick={() => toast.info(`Downloading ${doc.name}`)}
+                  onClick={() => setPreviewAttachment(doc)}
                   className="group flex items-center gap-2.5 px-3 py-2 rounded-[8px] border border-[#ebebeb] hover:border-[#d1d5db] hover:bg-[#f8fafc] cursor-pointer transition-colors text-left w-full"
                 >
                   <div className="size-[32px] rounded-[8px] flex items-center justify-center shrink-0" style={{ backgroundColor: meta.bg }}>
@@ -251,7 +254,11 @@ export function AiOrderValidationBody({ emailId }: { emailId: string }) {
                     <p className="text-[12.5px] font-medium text-[#111827] truncate">{doc.name}</p>
                     <p className="text-[11px] text-[#9ca3af]">{doc.size}</p>
                   </div>
-                  <Download size={14} className="text-[#9ca3af] group-hover:text-[#111827] transition-colors shrink-0" />
+                  <Download
+                    size={14}
+                    className="text-[#9ca3af] group-hover:text-[#111827] cursor-pointer transition-colors shrink-0"
+                    onClick={(e) => { e.stopPropagation(); toast.info(`Downloading ${doc.name}`); }}
+                  />
                 </button>
               );
             })}
@@ -259,5 +266,7 @@ export function AiOrderValidationBody({ emailId }: { emailId: string }) {
         </div>
       </div>
     </div>
+    <AttachmentPreviewModal attachment={previewAttachment} onClose={() => setPreviewAttachment(null)} />
+    </>
   );
 }

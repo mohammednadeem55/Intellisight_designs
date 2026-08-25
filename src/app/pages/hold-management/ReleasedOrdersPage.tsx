@@ -1,17 +1,38 @@
-import { toast } from "sonner";
-import releasedSvg from "@/imports/HoldManagementListingColumn-2/svg-j76i53zjwx";
+import { useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
-import {
-  OrderListingTable,
-  type OrderListingColumn,
-  type OrderListingFilterSection,
-  type OrderListingDropdownFilter,
-} from "../../components/common/OrderListingTable";
+import { EMAIL_TABLE_NAVY, EMPTY_SET, EmailTableColumnFilterButton, TruncateTooltip } from "../../components/common/EmailTable";
+import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch, useExclusiveOpen, useStagedMultiSelect } from "../../components/common/TableToolbar";
+import { TableFilterPanel, TableFilterTrigger } from "../../components/common/TableFilterPanel";
+import { TableColumnMgmtPanel, TableColumnMgmtTrigger } from "../../components/common/TableColumnMgmtPanel";
+import { TablePagination, type RowDensity } from "../../components/common/TablePagination";
 import { ALL_RELEASED } from "./holdManagementData";
 
-const RELEASED_ROWS_PER_PAGE = 17;
+type ReleasedOrder = (typeof ALL_RELEASED)[number];
+type ColumnKey = keyof ReleasedOrder | "status";
 
-export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+const COLUMNS: { key: ColumnKey; label: string }[] = [
+  { key: "status", label: "Status" },
+  { key: "id", label: "Order Id" },
+  { key: "holdType", label: "Hold Type" },
+  { key: "customer", label: "Customer Name" },
+  { key: "poId", label: "Customer PO ID" },
+  { key: "value", label: "Value" },
+  { key: "title", label: "Title" },
+];
+
+// Every row is released, so "status" isn't a real field on the data — it's synthesized as a constant here
+// (and from `releasedDays` for display) purely so the column behaves like every other column for
+// filtering/sorting purposes.
+function columnValue(o: ReleasedOrder, key: ColumnKey): string {
+  return key === "status" ? "Released" : String(o[key]);
+}
+
+const HOLD_CATEGORIES = Array.from(new Set(ALL_RELEASED.map((o) => o.holdType)));
+// Mirrors the original page's dropdown exactly: labeled "Hold Type" but filters on `title`.
+const HOLD_TYPES = Array.from(new Set(ALL_RELEASED.map((o) => o.title)));
+
+export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -21,165 +42,282 @@ export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigat
   onNavigateOverview: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateOrderDetails?: (orderId: string) => void;
   onNavigateEmailTemplate?: () => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
-  const columns: OrderListingColumn[] = [
-    { key: "releasedDays", label: "Status" },
-    { key: "id",           label: "Order Id" },
-    { key: "holdType",     label: "Hold Type" },
-    { key: "customer",     label: "Customer Name" },
-    { key: "poId",         label: "Customer PO ID" },
-    { key: "value",        label: "Value" },
-    { key: "title",        label: "Title" },
-  ];
+  const [page, setPage] = useState(1);
 
-  const fixedColumns = ["Status", "Order Id", "Hold Type", "Customer Name"];
-  const scrollableColumns = ["Customer PO ID", "Value", "Title"];
+  // Search — shared toolbar search box, live filtering (no debounce) since this is local mock data.
+  const [searchQuery, setSearchQuery] = useState("");
+  const updateSearch = (v: string) => { setSearchQuery(v); setPage(1); };
 
-  const filterSections: OrderListingFilterSection<typeof ALL_RELEASED[0]>[] = [
-    { key: "HoldType", label: "Hold Type", getValue: (r) => r.holdType },
-    { key: "Customer", label: "Customer",  getValue: (r) => r.customer },
-    { key: "Title",    label: "Title",     getValue: (r) => r.title },
-  ];
+  // Hold Category / Hold Type — staged multi-select toolbar dropdowns sharing one Apply/Reset pair.
+  const { openKey, setOpenKey, registerRef } = useExclusiveOpen();
+  const category = useStagedMultiSelect(HOLD_CATEGORIES);
+  const holdType = useStagedMultiSelect(HOLD_TYPES);
+  const toolbarFiltersDirty = category.dirty || holdType.dirty;
+  const applyToolbarFilters = () => { category.apply(); holdType.apply(); setOpenKey(null); setPage(1); };
+  const resetToolbarFilters = () => { category.reset(); holdType.reset(); };
 
-  const categoryDropdown: OrderListingDropdownFilter<typeof ALL_RELEASED[0]> = {
-    placeholder: "Hold Category",
-    allLabel: "All Categories",
-    options: ["All Categories", ...Array.from(new Set(ALL_RELEASED.map(o => o.holdType)))],
-    getValue: (r) => r.holdType,
+  // Per-column filters — same funnel-icon-in-header convention as EmailTable/OrderListingPage.
+  const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
+  const columnFilterOptions = (key: string): [string, number][] => {
+    const counts: Record<string, number> = {};
+    for (const o of ALL_RELEASED) {
+      const v = columnValue(o, key as ColumnKey);
+      counts[v] = (counts[v] ?? 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   };
-
-  const typeDropdown: OrderListingDropdownFilter<typeof ALL_RELEASED[0]> = {
-    placeholder: "Hold Type",
-    allLabel: "All Types",
-    options: ["All Types", ...Array.from(new Set(ALL_RELEASED.map(o => o.title)))],
-    getValue: (r) => r.title,
+  const toggleColumnFilterValue = (key: string, value: string) => {
+    setColumnFilters((prev) => {
+      const next = { ...prev };
+      const set = new Set(next[key] ?? []);
+      if (set.has(value)) set.delete(value); else set.add(value);
+      next[key] = set;
+      return next;
+    });
+    setPage(1);
   };
+  const clearColumnFilter = (key: string) => {
+    setColumnFilters((prev) => ({ ...prev, [key]: new Set() }));
+    setPage(1);
+  };
+  const activeFilterCount = Object.values(columnFilters).reduce((sum, set) => sum + set.size, 0);
 
-  const renderCell = (label: string, row: typeof ALL_RELEASED[0]) => {
-    switch (label) {
-      case "Status":
-        return (
-          <span className="inline-flex items-center justify-center px-2 py-1 rounded-[8px] text-[11px] font-medium whitespace-nowrap"
-            style={{ color: "#10a957", backgroundColor: "rgba(16,169,87,0.1)" }}>
-            Released {row.releasedDays}
-          </span>
-        );
-      case "Order Id":        return <span className="text-[#c53e6c] text-[14px] hover:underline cursor-pointer">{row.id}</span>;
-      case "Hold Type":       return <span className="text-[#333] text-[14px]">{row.holdType}</span>;
-      case "Customer Name":   return <span className="text-[#333] text-[14px]">{row.customer}</span>;
-      case "Customer PO ID":  return <span className="text-[#333] text-[14px] block max-w-[160px] truncate">{row.poId}</span>;
-      case "Value":           return <span className="text-[#333] text-[14px] font-semibold">{row.value}</span>;
-      case "Title":           return <span className="text-[#333] text-[14px]">{row.title}</span>;
-      default:                return null;
+  // Filter panel / Column Mgmt panel — only one of these two slide-ins open at a time.
+  const [openPanel, setOpenPanel] = useState<"filter" | "columns" | null>(null);
+
+  const [sortKey, setSortKey] = useState<ColumnKey>("id");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const toggleSort = (key: ColumnKey) => {
+    if (sortKey === key) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDirection("asc");
     }
   };
 
-  const renderGridItem = (row: typeof ALL_RELEASED[0]) => (
-    <div className="bg-white border border-[#f2f2f2] rounded-[8px] p-4 flex flex-col gap-4 hover:shadow-md transition-shadow cursor-pointer">
-      {/* Row 1: icon + id + menu */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="shrink-0 size-[18px]">
-            <svg fill="none" viewBox="0 0 18 15" className="size-full">
-              <path d={releasedSvg.p3924ac80} fill="#686868" />
-            </svg>
-          </div>
-          <span className="text-[#c53e6c] text-[14px] font-semibold hover:underline">{row.id}</span>
-        </div>
-        <button className="flex flex-col items-center gap-[3px] p-1 rounded hover:bg-[#f5f5f5] cursor-pointer transition-colors"
-          onClick={e => { e.stopPropagation(); toast.info("Order actions"); }}>
-          {[0, 1, 2].map(i => (
-            <svg key={i} fill="none" viewBox="0 0 4 4" className="size-[4px]">
-              <path d={releasedSvg.p20a3a900} fill="#686868" />
-            </svg>
-          ))}
-        </button>
-      </div>
+  const [colOrder, setColOrder] = useState<ColumnKey[]>(COLUMNS.map((c) => c.key));
+  const visibleColumnList = colOrder.map((key) => COLUMNS.find((c) => c.key === key)).filter((c): c is { key: ColumnKey; label: string } => Boolean(c));
 
-      {/* Row 2: company + value */}
-      <div className="flex items-center justify-between">
-        <span className="text-[#686868] text-[13px] truncate max-w-[65%]">{row.customer}</span>
-        <span className="text-[#333] text-[14px] font-bold">{row.value}</span>
-      </div>
+  const [rowDensity, setRowDensity] = useState<RowDensity>("large");
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const changeRowsPerPage = (n: number) => { setRowsPerPage(n); setPage(1); };
 
-      {/* Row 3: hold type + released badge */}
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[#686868] text-[12px] font-medium truncate">{row.holdType}</span>
-        <span className="shrink-0 px-2 py-1 rounded-[8px] text-[11px] font-medium whitespace-nowrap"
-          style={{ color: "#10a957", backgroundColor: "rgba(16,169,87,0.1)" }}>
-          Released {row.releasedDays}
-        </span>
-      </div>
-    </div>
-  );
+  const sortedRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    let filtered = ALL_RELEASED.filter((o) => {
+      if (q && !o.id.toLowerCase().includes(q) && !o.customer.toLowerCase().includes(q) && !o.poId.toLowerCase().includes(q) && !o.title.toLowerCase().includes(q)) return false;
+      if (category.applied.length > 0 && !category.applied.includes(o.holdType)) return false;
+      if (holdType.applied.length > 0 && !holdType.applied.includes(o.title)) return false;
+      for (const col of COLUMNS) {
+        const active = columnFilters[col.key];
+        if (active && active.size > 0 && !active.has(columnValue(o, col.key))) return false;
+      }
+      return true;
+    });
+    filtered = filtered.slice().sort((a, b) => {
+      const cmp = columnValue(a, sortKey).localeCompare(columnValue(b, sortKey), undefined, { numeric: true, sensitivity: "base" });
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+    return filtered;
+  }, [searchQuery, category.applied, holdType.applied, columnFilters, sortKey, sortDirection]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / rowsPerPage));
+  const pageRows = sortedRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+  const rowPadY = rowDensity === "small" ? "py-1.5" : rowDensity === "medium" ? "py-2.5" : "py-3.5";
+
+  const renderCell = (key: ColumnKey, row: ReleasedOrder) => {
+    switch (key) {
+      case "status":
+        return (
+          <span className="inline-flex items-center justify-center px-2 py-1 rounded-[8px] text-[12px] font-medium whitespace-nowrap" style={{ color: "#468657", backgroundColor: "#EFF6F1" }}>
+            Released {row.releasedDays}
+          </span>
+        );
+      case "id":
+        return (
+          <button
+            onClick={(e) => { e.stopPropagation(); onNavigateOrderDetails?.(row.id); }}
+            className="text-[#30578D] text-[12.5px] font-semibold hover:underline cursor-pointer bg-transparent border-0 p-0"
+          >
+            {row.id}
+          </button>
+        );
+      case "poId":
+        return <TruncateTooltip label={row.poId} className="text-[12.5px] text-[#4D4D4D] max-w-[160px]" />;
+      case "value":
+        return <span className="text-[12.5px] font-semibold text-[#262626]">{row.value}</span>;
+      default:
+        return <span className="text-[12.5px] text-[#4D4D4D]">{row[key]}</span>;
+    }
+  };
 
   return (
-    <div className="bg-[#f5f6fa] flex size-full min-h-screen">
+    <div className="bg-[#f5f6fa] flex size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
       <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-auto">
-        <AppHeader
-          activeNav="Hold Management"
-          onViewAllNotifications={onViewAllNotifications}
-          onLogout={onLogout}
-          onNavigateHome={onNavigateHome}
-          onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-          onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
-          onNavigateNewOverview={onNavigateNewOverview}
-          onNavigateHoldManagementOverview={onNavigateOverview}
-          onNavigateOrderListing={onNavigateOrderListing}
-          onNavigateReleasedOrders={onNavigateReleasedOrders}
-          onNavigateEmailTemplate={onNavigateEmailTemplate}
-          onNavigateReview={onNavigateReview}
-          onNavigateEmailWorkflow={onNavigateEmailWorkflow}
-        />
+        <div className="shrink-0 shadow-[0_2px_6px_rgba(15,23,42,0.06)] relative z-50">
+          <AppHeader
+            activeNav="Hold Management"
+            onViewAllNotifications={onViewAllNotifications}
+            onLogout={onLogout}
+            onNavigateHome={onNavigateHome}
+            onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+            onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+            onNavigateNewOverview={onNavigateNewOverview}
+            onNavigateHoldManagementOverview={onNavigateOverview}
+            onNavigateOrderListing={onNavigateOrderListing}
+            onNavigateReleasedOrders={onNavigateReleasedOrders}
+            onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateReview={onNavigateReview}
+            onNavigateEmailWorkflow={onNavigateEmailWorkflow}
+          />
+        </div>
 
-        <main className="flex-1 w-full max-w-[1600px] mx-auto px-5 py-5 flex flex-col">
+        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 py-5 gap-4">
           {/* Page header */}
-          <div className="flex items-center gap-3 mb-4">
-
+          <div>
+            <h1 className="text-[18px] font-semibold text-[#262626] leading-tight">Released Orders</h1>
+            <p className="text-[12px] text-[#97999B] mt-0.5">Orders that have been released from hold</p>
           </div>
 
-          {/* White card containing toolbar + content + pagination */}
-          <div className="flex-1 bg-white mx-0 mb-0 rounded-[8px] border border-[#ebebeb] overflow-hidden flex flex-col">
-            <OrderListingTable
-              rows={ALL_RELEASED}
-              columns={columns}
-              fixedColumns={fixedColumns}
-              scrollableColumns={scrollableColumns}
-              filterSections={filterSections}
-              categoryDropdown={categoryDropdown}
-              typeDropdown={typeDropdown}
-              renderCell={renderCell}
-              getRowKey={(row) => row.id}
-              rowsPerPage={RELEASED_ROWS_PER_PAGE}
-              showSpacer={false}
-              renderGridItem={renderGridItem}
-              defaultView="grid"
-              toolbarExtra={(
-                <div className="content-stretch flex items-center relative shrink-0">
-                  <div className="grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0">
-                    <button onClick={() => toast.success("Download started")}
-                      className="bg-white border border-[#d1d1d1] border-solid col-start-1 ml-0 mt-0 relative rounded-[8px] row-start-1 size-[36px] cursor-pointer hover:bg-[#f8fafc] transition-colors" />
-                    <div className="col-start-1 ml-[8px] mt-[8px] relative row-start-1 size-[20px] pointer-events-none">
-                      <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 17.5 15.625">
-                        <path d={releasedSvg.p15e5a800} fill="#c53e6c" />
-                      </svg>
-                    </div>
-                  </div>
+          {/* Content card: toolbar + table */}
+          <div className="flex-1 min-h-0 bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden flex flex-col">
+            <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-[#DEDEDE] flex-wrap">
+              <TableToolbarSearch value={searchQuery} onCommit={updateSearch} placeholder="Search orders..." />
+
+              <div className="flex items-center gap-2.5 ml-auto flex-wrap">
+                <TableToolbarMultiSelect
+                  label="Hold Category"
+                  options={HOLD_CATEGORIES}
+                  pending={category.pending}
+                  onToggle={category.toggle}
+                  onToggleAll={category.toggleAll}
+                  onClear={category.clear}
+                  open={openKey === "category"}
+                  onOpenChange={(o) => setOpenKey(o ? "category" : null)}
+                  containerRef={registerRef("category")}
+                  appliedCount={category.applied.length}
+                  dirty={category.dirty}
+                  width={240}
+                />
+
+                <TableToolbarMultiSelect
+                  label="Hold Type"
+                  options={HOLD_TYPES}
+                  pending={holdType.pending}
+                  onToggle={holdType.toggle}
+                  onToggleAll={holdType.toggleAll}
+                  onClear={holdType.clear}
+                  open={openKey === "holdType"}
+                  onOpenChange={(o) => setOpenKey(o ? "holdType" : null)}
+                  containerRef={registerRef("holdType")}
+                  appliedCount={holdType.applied.length}
+                  dirty={holdType.dirty}
+                  width={220}
+                />
+
+                <TableToolbarApplyReset dirty={toolbarFiltersDirty} onApply={applyToolbarFilters} onReset={resetToolbarFilters} />
+
+                <div className="w-px h-5 bg-[#E2E6E9]" />
+
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <TableFilterTrigger open={openPanel === "filter"} onOpenChange={(o) => setOpenPanel(o ? "filter" : null)} activeCount={activeFilterCount} />
+                  <TableColumnMgmtTrigger open={openPanel === "columns"} onOpenChange={(o) => setOpenPanel(o ? "columns" : null)} />
                 </div>
-              )}
-              gridViewIcon={(active) => (
-                <svg fill="none" viewBox="0 0 17 17" className="size-[18px]">
-                  <path d={releasedSvg.p2868a700} fill={active ? "#90003b" : "#686868"} />
-                </svg>
-              )}
-              listViewIcon={(active) => (
-                <svg fill="none" viewBox="0 0 17 12" className="size-[18px]">
-                  <path d={releasedSvg.p1baef080} fill={active ? "#90003b" : "#686868"} />
-                </svg>
-              )}
+              </div>
+            </div>
+
+            {/* View body — Filter and Column Mgmt slide-in panels overlay this area only */}
+            <div className="flex-1 min-h-0 relative overflow-hidden">
+              <div className="h-full min-h-0 overflow-auto">
+                <table className="w-full min-w-[1100px] border-separate border-spacing-0">
+                  <thead>
+                    <tr className="bg-[#F7F7F7]">
+                      {visibleColumnList.map((col) => {
+                        const active = sortKey === col.key;
+                        const SortIcon = sortDirection === "desc" ? ArrowDown : ArrowUp;
+                        return (
+                          <th key={col.key} className="group sticky top-0 z-10 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
+                            <div className="flex items-center gap-1.5">
+                              <button onClick={() => toggleSort(col.key)} className="flex items-center gap-1 cursor-pointer">
+                                <span className={`text-[12px] font-semibold ${active ? "text-[#262626]" : "text-[#4D4D4D]"}`}>{col.label}</span>
+                                {active ? (
+                                  <SortIcon size={12} style={{ color: EMAIL_TABLE_NAVY }} />
+                                ) : (
+                                  <ChevronsUpDown size={12} className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity" style={{ color: "#97999B" }} />
+                                )}
+                              </button>
+                              <EmailTableColumnFilterButton
+                                colKey={col.key}
+                                getOptions={columnFilterOptions}
+                                selected={columnFilters[col.key] ?? EMPTY_SET}
+                                onToggle={(v) => toggleColumnFilterValue(col.key, v)}
+                                onClear={() => clearColumnFilter(col.key)}
+                              />
+                            </div>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={visibleColumnList.length} className="px-4 py-16 text-center text-[13px] text-[#97999B]">No released orders match your filters</td>
+                      </tr>
+                    ) : (
+                      pageRows.map((row) => (
+                        <tr
+                          key={row.id}
+                          onClick={() => onNavigateOrderDetails?.(row.id)}
+                          className="hover:bg-[#F7F7F7] transition-colors cursor-pointer"
+                        >
+                          {visibleColumnList.map((col) => (
+                            <td key={col.key} className={`px-4 ${rowPadY} whitespace-nowrap border-b border-[#DEDEDE]`}>
+                              {renderCell(col.key, row)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <TableFilterPanel
+                open={openPanel === "filter"}
+                onOpenChange={(o) => setOpenPanel(o ? "filter" : null)}
+                columns={COLUMNS}
+                columnFilters={columnFilters}
+                getOptions={columnFilterOptions}
+                onApply={(next) => { setColumnFilters(next); setPage(1); }}
+              />
+
+              <TableColumnMgmtPanel
+                open={openPanel === "columns"}
+                onOpenChange={(o) => setOpenPanel(o ? "columns" : null)}
+                columns={COLUMNS}
+                value={colOrder}
+                onApply={(next) => setColOrder(next as ColumnKey[])}
+              />
+            </div>
+
+            <TablePagination
+              showing={pageRows.length}
+              total={sortedRows.length}
+              density={rowDensity}
+              onDensityChange={setRowDensity}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={changeRowsPerPage}
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
             />
           </div>
         </main>
@@ -187,4 +325,3 @@ export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigat
     </div>
   );
 }
-

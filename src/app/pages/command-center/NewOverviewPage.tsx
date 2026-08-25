@@ -6,8 +6,8 @@ import {
   ChevronDown,
   ChevronRight,
   CornerDownRight,
+  Download,
   FileText,
-  Filter,
   Globe,
   GripVertical,
   Inbox,
@@ -18,11 +18,6 @@ import {
   Minimize2,
   Paperclip,
   RefreshCw,
-  RotateCcw,
-  Rows2,
-  Rows3,
-  Rows4,
-  Search,
   SlidersHorizontal,
   User,
   UserPlus,
@@ -31,6 +26,7 @@ import {
 } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { WaveLoader } from "../../components/common/Loader";
+import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
 import { type Email, CLASSIFICATIONS } from "./emailData";
 import { useWorklistEmails } from "./useWorklistEmails";
 import {
@@ -40,10 +36,12 @@ import {
   getEmailTableColumnValue,
   type EmailTableReviewEntry,
   EmailTableAvatar,
-  EmailTableTooltip,
   EmailTableAssignModal,
   EmailTable,
 } from "../../components/common/EmailTable";
+import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch } from "../../components/common/TableToolbar";
+import { TableFilterPanel, TableFilterTrigger } from "../../components/common/TableFilterPanel";
+import { TablePagination, type RowDensity } from "../../components/common/TablePagination";
 
 // ─── New Overview (fresh build, matching the shared reference design) ──────────
 // Deliberately does not reuse OrderListingTable, CccDetailCard, or EmailViewBody — its own table, toolbar,
@@ -89,6 +87,7 @@ function NewOverviewListView({ rows, selectedId, selected, onSelect, expandedIds
 }) {
   const earlier = (selected.linkedCccs ?? []).flatMap((c) => c.replies ?? []).slice(0, 3);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<{ name: string; size: string } | null>(null);
 
   return (
     <>
@@ -176,8 +175,8 @@ function NewOverviewListView({ rows, selectedId, selected, onSelect, expandedIds
                 {selected.attachments!.map((a) => (
                   <button
                     key={a.name}
-                    onClick={() => toast.info(`Opening ${a.name}`)}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] border border-[#E2E6E9] hover:bg-[#F7F7F7] transition-colors cursor-pointer text-left"
+                    onClick={() => setPreviewAttachment(a)}
+                    className="group flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] border border-[#E2E6E9] hover:bg-[#F7F7F7] transition-colors cursor-pointer text-left"
                   >
                     <div className="size-[30px] rounded-[8px] bg-[#f1f2f4] flex items-center justify-center shrink-0">
                       <FileText size={14} className="text-[#666666]" />
@@ -186,6 +185,11 @@ function NewOverviewListView({ rows, selectedId, selected, onSelect, expandedIds
                       <p className="text-[12.5px] font-semibold text-[#262626] truncate max-w-[160px]">{a.name}</p>
                       <p className="text-[11px] text-[#97999B]">{a.size}</p>
                     </div>
+                    <Download
+                      size={13}
+                      className="text-[#97999B] group-hover:text-[#4D4D4D] cursor-pointer transition-colors shrink-0"
+                      onClick={(e) => { e.stopPropagation(); toast.info(`Downloading ${a.name}`); }}
+                    />
                   </button>
                 ))}
               </div>
@@ -224,6 +228,7 @@ function NewOverviewListView({ rows, selectedId, selected, onSelect, expandedIds
     {assignModalOpen && (
       <EmailTableAssignModal email={selected} onClose={() => setAssignModalOpen(false)} />
     )}
+    <AttachmentPreviewModal attachment={previewAttachment} onClose={() => setPreviewAttachment(null)} />
     </>
   );
 }
@@ -245,7 +250,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
 }) {
   const { data: worklistData, loading: worklistLoading, error: worklistError, reload: reloadWorklist } = useWorklistEmails();
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
-  const [rowDensity, setRowDensity] = useState<"small" | "medium" | "large">("large");
+  const [rowDensity, setRowDensity] = useState<RowDensity>("large");
   const [emailScope, setEmailScope] = useState<"mine" | "all">("mine");
   const [selectedId, setSelectedId] = useState("");
   useEffect(() => {
@@ -253,22 +258,10 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
   }, [worklistData, selectedId]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
+  // `searchQuery` is the committed value that actually drives filtering (stands in for what would be a
+  // server-side query in the real app) — TableToolbarSearch owns the draft/open/debounce state and only
+  // calls back here once a value is ready to commit.
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [pendingSearchQuery, setPendingSearchQuery] = useState("");
-  const searchRef = useRef<HTMLDivElement>(null);
-  const applySearch = () => { setSearchQuery(pendingSearchQuery); setPage(1); };
-  const clearSearch = () => { setPendingSearchQuery(""); setSearchQuery(""); setPage(1); };
-  useEffect(() => {
-    if (!searchOpen) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (searchRef.current?.contains(target)) return;
-      if (!searchQuery.trim()) setSearchOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [searchOpen, searchQuery]);
   const [kpisExpanded, setKpisExpanded] = useState(true);
   const [lastSynced, setLastSynced] = useState("10:45 AM");
   const [syncing, setSyncing] = useState(false);
@@ -364,7 +357,6 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
     (pendingToolbarInterval === "Custom" && (pendingCustomStart !== appliedCustomStart || pendingCustomEnd !== appliedCustomEnd));
   const filtersAreDirty = classificationDirty || intervalDirty;
   const allClassificationsSelected = pendingClassifications.length === CLASSIFICATIONS.length;
-  const someClassificationsSelected = pendingClassifications.length > 0 && !allClassificationsSelected;
   const toggleAllClassifications = () => setPendingClassifications(allClassificationsSelected ? [] : [...CLASSIFICATIONS]);
 
   const formatShortDate = (d: string) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "");
@@ -408,23 +400,12 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
     return () => document.removeEventListener("mousedown", handler);
   }, [mailboxOpen, classificationOpen, toolbarIntervalOpen]);
 
-  // Filter panel — a slide-in accordion (mirrors Overview V1's layout, plus Column Mgmt's Save/Cancel staging).
+  // Filter panel — a slide-in accordion, now the shared TableFilterPanel component (owns its own
+  // pending/expanded/search state; this page just holds the committed `checkedFilters`).
   const [filterOpen, setFilterOpen] = useState(false);
-  const [expandedFilterSection, setExpandedFilterSection] = useState<string | null>(NEW_OVERVIEW_FILTER_SECTIONS[0].key);
   const [checkedFilters, setCheckedFilters] = useState<Record<string, Set<string>>>({});
-  const [pendingCheckedFilters, setPendingCheckedFilters] = useState<Record<string, Set<string>>>({});
-  const [filterSectionSearch, setFilterSectionSearch] = useState<Record<string, string>>({});
   const activeFilterCount = Object.values(checkedFilters).reduce((sum, set) => sum + set.size, 0);
   const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
-  const toggleFilterItem = (sectionKey: string, value: string) => {
-    setPendingCheckedFilters((prev) => {
-      const next = { ...prev };
-      const set = new Set(next[sectionKey] ?? []);
-      if (set.has(value)) set.delete(value); else set.add(value);
-      next[sectionKey] = set;
-      return next;
-    });
-  };
 
   // Column Mgmt panel — slide-in with "Additional Columns" (categorized checklist) and "Sort Columns"
   // (drag-reorder, enabled columns only) tabs, plus Save/Cancel staging.
@@ -510,19 +491,6 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
   const selected = allRows.find((r) => r.id === selectedId) ?? allRows[0];
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / rowsPerPage));
   const pageRows = sortedRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
-
-  const paginationPages = () => {
-    const pages: (number | "...")[] = [];
-    if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) pages.push(i); }
-    else {
-      pages.push(1);
-      if (page > 3) pages.push("...");
-      for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
-      if (page < totalPages - 2) pages.push("...");
-      pages.push(totalPages);
-    }
-    return pages;
-  };
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
@@ -753,111 +721,24 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                 </button>
               </div>
 
-              <div className="relative shrink-0" ref={searchRef}>
-                {searchOpen ? (
-                  <div className="flex items-center gap-1.5 h-[36px] pl-[10px] pr-[8px] rounded-[8px] border border-[#30578D] bg-white w-[240px]">
-                    <button
-                      onClick={applySearch}
-                      aria-label="Run search"
-                      className="shrink-0 text-[#666666] hover:text-[#30578D] cursor-pointer transition-colors"
-                    >
-                      <Search size={14} />
-                    </button>
-                    <input
-                      autoFocus
-                      value={pendingSearchQuery}
-                      onChange={(e) => setPendingSearchQuery(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") applySearch();
-                        if (e.key === "Escape") { clearSearch(); setSearchOpen(false); }
-                      }}
-                      placeholder="Search Email"
-                      className="flex-1 min-w-0 h-full text-[13px] text-[#262626] placeholder:text-[#97999B] outline-none bg-transparent"
-                    />
-                    {pendingSearchQuery && (
-                      <button
-                        onClick={clearSearch}
-                        aria-label="Clear search"
-                        className="shrink-0 text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors"
-                      >
-                        <X size={13} />
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setSearchOpen(true)}
-                    aria-label="Search"
-                    className="relative flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7] transition-colors cursor-pointer"
-                  >
-                    <Search size={14} />
-                    {searchQuery && <span className="absolute -top-[3px] -right-[3px] size-[8px] rounded-full bg-[#E67919] ring-2 ring-white" />}
-                  </button>
-                )}
-              </div>
+              <TableToolbarSearch value={searchQuery} onCommit={(v) => { setSearchQuery(v); setPage(1); }} placeholder="Search Email" debounceMs={400} />
               </div>
               <div className="flex items-center gap-2.5 flex-wrap">
                 {/* Classification — multi-select, staged behind Apply */}
-                <div className="relative" ref={classificationRef}>
-                  <button
-                    onClick={() => setClassificationOpen((v) => !v)}
-                    className={`relative flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-medium transition-colors cursor-pointer ${classificationOpen ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7]"}`}
-                  >
-                    Classification
-                    {appliedClassifications.length > 0 && (
-                      <span className="flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-[8px] text-white text-[10px] font-bold" style={{ backgroundColor: EMAIL_TABLE_NAVY }}>
-                        {appliedClassifications.length}
-                      </span>
-                    )}
-                    <ChevronDown size={13} className={`transition-transform duration-200 ${classificationOpen ? "rotate-180" : ""}`} />
-                    {classificationDirty && <span className="absolute -top-[3px] -right-[3px] size-[8px] rounded-full bg-[#E67919] ring-2 ring-white" />}
-                  </button>
-                  {classificationOpen && (
-                    <>
-                      <div className="absolute top-full left-0 mt-1 bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-40 w-[220px] py-1.5">
-                        <button
-                          onClick={toggleAllClassifications}
-                          className="w-full flex items-center gap-2.5 text-left px-3.5 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors border-b border-[#E2E6E9] mb-1"
-                        >
-                          <span
-                            className={`flex items-center justify-center size-[15px] rounded-[8px] border shrink-0 transition-colors ${allClassificationsSelected || someClassificationsSelected ? "border-transparent" : "border-[#D9D9D6]"}`}
-                            style={allClassificationsSelected || someClassificationsSelected ? { backgroundColor: EMAIL_TABLE_NAVY } : undefined}
-                          >
-                            {allClassificationsSelected && <Check size={11} className="text-white" strokeWidth={3} />}
-                            {someClassificationsSelected && <span className="w-[7px] h-[2px] bg-white rounded-full" />}
-                          </span>
-                          <span className="font-semibold text-[#262626]">Select all</span>
-                        </button>
-                        {CLASSIFICATIONS.map((c) => {
-                          const checked = pendingClassifications.includes(c);
-                          return (
-                            <button
-                              key={c}
-                              onClick={() => setPendingClassifications((prev) => (checked ? prev.filter((x) => x !== c) : [...prev, c]))}
-                              className="w-full flex items-center gap-2.5 text-left px-3.5 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
-                            >
-                              <span
-                                className={`flex items-center justify-center size-[15px] rounded-[8px] border shrink-0 transition-colors ${checked ? "border-transparent" : "border-[#D9D9D6]"}`}
-                                style={checked ? { backgroundColor: EMAIL_TABLE_NAVY } : undefined}
-                              >
-                                {checked && <Check size={11} className="text-white" strokeWidth={3} />}
-                              </span>
-                              <span className={checked ? "text-[#262626] font-medium" : "text-[#4D4D4D]"}>{c}</span>
-                            </button>
-                          );
-                        })}
-                        {pendingClassifications.length > 0 && (
-                          <button
-                            onClick={() => setPendingClassifications([])}
-                            className="w-full text-left px-3.5 pt-1.5 pb-0.5 text-[11.5px] font-medium text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors"
-                          >
-                            Clear selection
-                          </button>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
+                <TableToolbarMultiSelect
+                  label="Classification"
+                  options={CLASSIFICATIONS}
+                  pending={pendingClassifications}
+                  onToggle={(c) => setPendingClassifications((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]))}
+                  onToggleAll={toggleAllClassifications}
+                  onClear={() => setPendingClassifications([])}
+                  open={classificationOpen}
+                  onOpenChange={setClassificationOpen}
+                  containerRef={classificationRef}
+                  appliedCount={appliedClassifications.length}
+                  dirty={classificationDirty}
+                  width={220}
+                />
 
                 {/* Interval — single-select, staged behind Apply */}
                 <div className="relative" ref={intervalRef}>
@@ -912,24 +793,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                 </div>
 
                 {/* Apply / Reset — surfaces only once Classification and/or Interval have unapplied changes */}
-                {filtersAreDirty && (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={resetToolbarFilters}
-                      title="Discard changes"
-                      className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7] transition-colors cursor-pointer"
-                    >
-                      <RotateCcw size={14} />
-                    </button>
-                    <button
-                      onClick={applyToolbarFilters}
-                      className="h-[36px] px-4 rounded-[8px] text-white text-[12.5px] font-semibold hover:opacity-90 transition-opacity cursor-pointer whitespace-nowrap"
-                      style={{ backgroundColor: EMAIL_TABLE_NAVY }}
-                    >
-                      Apply
-                    </button>
-                  </div>
-                )}
+                <TableToolbarApplyReset dirty={filtersAreDirty} onApply={applyToolbarFilters} onReset={resetToolbarFilters} />
 
                 {/* Table view / Email view toggle — hidden for now, viewMode stays locked to "grid" (table).
                 <div className="w-px h-5 bg-[#E2E6E9]" />
@@ -958,27 +822,14 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                 <div className="w-px h-5 bg-[#E2E6E9]" />
 
                 {/* Filter — opens the slide-in Filters panel below */}
-                <button
-                  onClick={() => {
-                    const opening = !filterOpen;
-                    setFilterOpen(opening);
-                    if (opening) {
-                      setPendingCheckedFilters(Object.fromEntries(Object.entries(checkedFilters).map(([k, v]) => [k, new Set(v)])));
-                      setColMgmtOpen(false);
-                    }
-                  }}
-                  title="More filters"
-                  className={`relative flex items-center justify-center size-[36px] rounded-[8px] border transition-colors cursor-pointer ${filterOpen ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7]"}`}
-                >
-                  <Filter size={15} />
-                  {activeFilterCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[15px] h-[15px] px-[3px] rounded-[8px] text-white text-[9px] font-bold" style={{ backgroundColor: EMAIL_TABLE_NAVY }}>
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </button>
+                <TableFilterTrigger
+                  open={filterOpen}
+                  onOpenChange={(o) => { setFilterOpen(o); if (o) setColMgmtOpen(false); }}
+                  activeCount={activeFilterCount}
+                />
 
-                {/* Manage columns — opens the slide-in Column Mgmt panel below */}
+                {/* Manage columns — opens the slide-in Column Mgmt panel below (bespoke: categorized "Additional
+                    Columns" checklist, doesn't fit the shared flat-column-list Column Mgmt panel) */}
                 <button
                   onClick={() => {
                     const opening = !colMgmtOpen;
@@ -1036,130 +887,14 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
               )}
             </div>
 
-            {/* Filter Panel — slide-in accordion, contained between toolbar and pagination */}
-            <div className={`absolute top-0 right-0 bottom-0 w-[320px] bg-white border-l border-[#E2E6E9] z-40 flex flex-col transition-transform duration-300 ease-in-out ${filterOpen ? "translate-x-0" : "translate-x-full"}`}>
-              <div className="h-[48px] shrink-0 border-b border-[#E2E6E9] flex items-center px-4">
-                <p className="flex-1 text-[14px] font-bold text-[#262626]">Filters</p>
-                <button onClick={() => { setPendingCheckedFilters(checkedFilters); setFilterOpen(false); }} className="text-[#666666] hover:text-[#262626] cursor-pointer transition-colors">
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                {filterSectionOptions.map((sec) => {
-                  const isOpen = expandedFilterSection === sec.key;
-                  const selected = pendingCheckedFilters[sec.key];
-                  const selCount = selected?.size ?? 0;
-                  const opts = Object.entries(sec.options).sort((a, b) => b[1] - a[1]);
-                  const q = (filterSectionSearch[sec.key] ?? "").toLowerCase();
-                  const visOpts = q ? opts.filter(([k]) => k.toLowerCase().includes(q)) : opts;
-                  const hasSelections = selCount > 0;
-                  const allKeys = opts.map(([k]) => k);
-                  const allSelected = allKeys.length > 0 && allKeys.every((k) => selected?.has(k));
-                  return (
-                    <div key={sec.key}>
-                      <button
-                        onClick={() => setExpandedFilterSection(isOpen ? null : sec.key)}
-                        className={`w-full h-[44px] flex items-center px-4 border-b border-[#E2E6E9] cursor-pointer transition-colors ${hasSelections ? "bg-[#30578D]/[0.06]" : "bg-white hover:bg-[#F7F7F7]"}`}
-                      >
-                        <span className="flex-1 text-left text-[13px] truncate">
-                          {hasSelections ? (
-                            <>
-                              <span style={{ color: EMAIL_TABLE_NAVY, fontWeight: 600 }}>{sec.label} ({selCount}</span>
-                              <span className="text-[#97999B]">/{opts.length})</span>
-                            </>
-                          ) : (
-                            <>
-                              <span style={isOpen ? { color: EMAIL_TABLE_NAVY, fontWeight: 600 } : { color: "#262626" }}>{sec.label}</span>
-                              <span className="text-[#97999B]"> ({opts.length})</span>
-                            </>
-                          )}
-                        </span>
-                        <ChevronDown size={14} className="shrink-0 transition-transform duration-200" style={{ color: hasSelections || isOpen ? EMAIL_TABLE_NAVY : "#97999B", transform: isOpen ? "rotate(180deg)" : undefined }} />
-                      </button>
-                      {isOpen && (
-                        <div className="border-b border-[#E2E6E9]">
-                          {selCount > 0 && (
-                            <div className="flex items-center justify-between px-4 py-2 border-b border-[#E2E6E9]">
-                              <span className="flex items-center gap-1.5 bg-[#F1F2F4] px-2 py-1 rounded-[8px] text-[10.5px] font-medium text-[#666666]">
-                                {selCount} Selected
-                                <button onClick={() => setPendingCheckedFilters((p) => ({ ...p, [sec.key]: new Set() }))} className="cursor-pointer hover:text-[#262626] transition-colors">
-                                  <X size={11} />
-                                </button>
-                              </span>
-                              {opts.length - selCount > 0 && <span className="text-[10.5px]" style={{ color: EMAIL_TABLE_NAVY }}>{opts.length - selCount} More</span>}
-                            </div>
-                          )}
-                          {opts.length > 3 && (
-                            <div className="px-4 py-2.5 border-b border-[#E2E6E9]">
-                              <input
-                                value={filterSectionSearch[sec.key] ?? ""}
-                                onChange={(e) => setFilterSectionSearch((p) => ({ ...p, [sec.key]: e.target.value }))}
-                                placeholder={`Search ${sec.label.toLowerCase()}...`}
-                                className="w-full h-[32px] px-3 rounded-[8px] border border-[#E2E6E9] text-[12.5px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors"
-                              />
-                            </div>
-                          )}
-                          <button
-                            onClick={() => setPendingCheckedFilters((p) => ({ ...p, [sec.key]: allSelected ? new Set() : new Set(allKeys) }))}
-                            className="w-full flex items-center gap-2.5 text-left px-4 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors border-b border-[#E2E6E9]"
-                          >
-                            <span
-                              className={`flex items-center justify-center size-[15px] rounded-[8px] border shrink-0 transition-colors ${allSelected ? "border-transparent" : "border-[#D9D9D6]"}`}
-                              style={allSelected ? { backgroundColor: EMAIL_TABLE_NAVY } : undefined}
-                            >
-                              {allSelected && <Check size={11} className="text-white" strokeWidth={3} />}
-                            </span>
-                            <span className="font-semibold text-[#262626]">Select All</span>
-                          </button>
-                          {visOpts.map(([optVal, count]) => {
-                            const checked = selected?.has(optVal) ?? false;
-                            return (
-                              <button
-                                key={optVal}
-                                onClick={() => toggleFilterItem(sec.key, optVal)}
-                                className={`w-full flex items-center justify-between gap-2 text-left px-4 py-2 text-[12.5px] transition-colors ${checked ? "bg-[#30578D]/[0.06]" : "hover:bg-[#F7F7F7]"}`}
-                              >
-                                <span className="flex items-center gap-2.5 min-w-0">
-                                  <span
-                                    className={`flex items-center justify-center size-[15px] rounded-[8px] border shrink-0 transition-colors ${checked ? "border-transparent" : "border-[#D9D9D6]"}`}
-                                    style={checked ? { backgroundColor: EMAIL_TABLE_NAVY } : undefined}
-                                  >
-                                    {checked && <Check size={11} className="text-white" strokeWidth={3} />}
-                                  </span>
-                                  <span className={`truncate ${checked ? "text-[#262626] font-medium" : "text-[#4D4D4D]"}`}>{optVal}</span>
-                                </span>
-                                <span className="shrink-0 bg-[#F1F2F4] px-1.5 h-[18px] flex items-center rounded-[8px] text-[10.5px] text-[#666666]">{count}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="shrink-0 border-t border-[#E2E6E9] flex justify-end gap-2 px-4 py-3">
-                <button
-                  onClick={() => { setPendingCheckedFilters(checkedFilters); setFilterOpen(false); }}
-                  className="px-3.5 py-1.5 rounded-[8px] border text-[12.5px] font-medium cursor-pointer transition-colors"
-                  style={{ borderColor: EMAIL_TABLE_NAVY, color: EMAIL_TABLE_NAVY }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    setCheckedFilters(pendingCheckedFilters);
-                    setFilterOpen(false);
-                    setPage(1);
-                    toast.success("Filters applied");
-                  }}
-                  className="px-3.5 py-1.5 rounded-[8px] text-white text-[12.5px] font-medium cursor-pointer hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: EMAIL_TABLE_NAVY }}
-                >
-                  Save
-                </button>
-              </div>
-            </div>
+            <TableFilterPanel
+              open={filterOpen}
+              onOpenChange={setFilterOpen}
+              columns={NEW_OVERVIEW_FILTER_SECTIONS.map((sec) => ({ key: sec.key, label: sec.label }))}
+              columnFilters={checkedFilters}
+              getOptions={(key) => Object.entries(filterSectionOptions.find((sec) => sec.key === key)?.options ?? {}).sort((a, b) => b[1] - a[1])}
+              onApply={(next) => { setCheckedFilters(next); setPage(1); }}
+            />
 
             {/* Column Mgmt Panel — slide-in with Additional Columns / Sort Columns tabs, contained between toolbar and pagination */}
             <div className={`absolute top-0 right-0 bottom-0 w-[360px] bg-white border-l border-[#E2E6E9] z-40 flex flex-col transition-transform duration-300 ease-in-out ${colMgmtOpen ? "translate-x-0" : "translate-x-full"}`}>
@@ -1284,77 +1019,18 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
 
             {/* Pagination — only meaningful for the table view */}
             {viewMode === "grid" && (
-              <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[#DEDEDE] shrink-0 flex-wrap">
-                <div className="flex items-center gap-3">
-                  <p className="text-[12px] text-[#666666] whitespace-nowrap">
-                    Displaying {pageRows.length} of {rows.length}
-                  </p>
-                  <div className="w-px h-5 bg-[#E2E6E9]" />
-                  <p className="text-[12px] text-[#666666] whitespace-nowrap">Density:</p>
-                  <div className="flex items-center gap-[3px] p-[3px] bg-[#F1F2F4] rounded-[8px] h-[30px]">
-                    {(
-                      [
-                        { key: "small", Icon: Rows4, label: "Compact — ID only" },
-                        { key: "medium", Icon: Rows3, label: "Medium — ID + email" },
-                        { key: "large", Icon: Rows2, label: "Comfortable — full details" },
-                      ] as const
-                    ).map((opt) => (
-                      <EmailTableTooltip key={opt.key} label={opt.label}>
-                        <button
-                          onClick={() => setRowDensity(opt.key)}
-                          className={`flex items-center justify-center w-[30px] h-[24px] rounded-[6px] outline-none transition-all cursor-pointer ${
-                            rowDensity === opt.key
-                              ? "bg-white shadow-sm"
-                              : "text-[#8A8D93] hover:bg-white/70 hover:text-[#4D4D4D]"
-                          }`}
-                          style={rowDensity === opt.key ? { color: EMAIL_TABLE_NAVY } : undefined}
-                        >
-                          <opt.Icon size={14} strokeWidth={2.2} />
-                        </button>
-                      </EmailTableTooltip>
-                    ))}
-                  </div>
-                  <div className="w-px h-5 bg-[#E2E6E9]" />
-                  <div className="flex items-center gap-2">
-                    <p className="text-[12px] text-[#666666] whitespace-nowrap">Rows:</p>
-                    <div className="flex items-center gap-[3px] p-[3px] bg-[#F1F2F4] rounded-[8px] h-[30px]">
-                      {[10, 20, 30].map((n) => (
-                        <button
-                          key={n}
-                          onClick={() => changeRowsPerPage(n)}
-                          className={`flex items-center justify-center px-2.5 h-full rounded-[6px] text-[12px] outline-none transition-all cursor-pointer ${
-                            rowsPerPage === n ? "bg-white shadow-sm font-semibold" : "text-[#8A8D93] hover:bg-white/70 hover:text-[#4D4D4D]"
-                          }`}
-                          style={rowsPerPage === n ? { color: EMAIL_TABLE_NAVY } : undefined}
-                        >
-                          {n}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-[4px]">
-                <button onClick={() => setPage(1)} disabled={page === 1}
-                  className="h-[30px] px-2 rounded-[8px] border border-[#E2E6E9] text-[12px] text-[#666666] disabled:opacity-30 hover:enabled:bg-[#F7F7F7] cursor-pointer transition-colors">«</button>
-                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-                  className="h-[30px] px-2 rounded-[8px] border border-[#E2E6E9] text-[12px] text-[#666666] disabled:opacity-30 hover:enabled:bg-[#F7F7F7] cursor-pointer transition-colors">‹</button>
-                {paginationPages().map((p, i) =>
-                  p === "..." ? (
-                    <span key={`e${i}`} className="h-[30px] px-2 flex items-center text-[12px] text-[#97999B]">…</span>
-                  ) : (
-                    <button key={p} onClick={() => setPage(p as number)}
-                      className="h-[30px] min-w-[30px] px-2 rounded-[8px] border text-[12px] cursor-pointer transition-colors"
-                      style={page === p ? { backgroundColor: EMAIL_TABLE_NAVY, borderColor: EMAIL_TABLE_NAVY, color: "white", fontWeight: 600 } : { borderColor: "#E2E6E9", color: "#666666" }}>
-                      {p}
-                    </button>
-                  )
-                )}
-                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                  className="h-[30px] px-2 rounded-[8px] border border-[#E2E6E9] text-[12px] text-[#666666] disabled:opacity-30 hover:enabled:bg-[#F7F7F7] cursor-pointer transition-colors">›</button>
-                <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
-                  className="h-[30px] px-2 rounded-[8px] border border-[#E2E6E9] text-[12px] text-[#666666] disabled:opacity-30 hover:enabled:bg-[#F7F7F7] cursor-pointer transition-colors">»</button>
-                </div>
-              </div>
+              <TablePagination
+                showing={pageRows.length}
+                total={rows.length}
+                density={rowDensity}
+                onDensityChange={setRowDensity}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={changeRowsPerPage}
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                densityTooltips={{ small: "Compact — ID only", medium: "Medium — ID + email", large: "Comfortable — full details" }}
+              />
             )}
           </div>
         </main>

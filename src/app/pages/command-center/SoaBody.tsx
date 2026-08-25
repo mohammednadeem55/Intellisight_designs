@@ -8,6 +8,7 @@ import {
   Bold,
   Check,
   ChevronDown,
+  Download,
   Eraser,
   FileImage,
   FileSpreadsheet,
@@ -30,6 +31,7 @@ import {
 import { EmailTableTooltip } from "../../components/common/EmailTable";
 import { WaveLoader } from "../../components/common/Loader";
 import { Button } from "../../components/common/Button";
+import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
 import { CollapsedEmailThread, senderDisplayName } from "./emailThread";
 import { type Email } from "./emailData";
 import { useSoaComposer } from "./useSoaComposer";
@@ -214,6 +216,7 @@ export function SoaBody({ email }: { email: Email }) {
   const [bcc, setBcc] = useState<string[]>([]);
   const [body, setBody] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<{ name: string; size: string }[]>([]);
+  const [previewAttachment, setPreviewAttachment] = useState<{ name: string; size: string } | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [format, setFormat] = useState({ bold: false, italic: false, underline: false, align: "left" as "left" | "center" | "right" });
   const [templateQuery, setTemplateQuery] = useState("");
@@ -286,6 +289,7 @@ export function SoaBody({ email }: { email: Email }) {
   );
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4 items-start">
       {/* Left: composer + reference strip */}
       <div className="flex flex-col gap-4">
@@ -427,7 +431,7 @@ export function SoaBody({ email }: { email: Email }) {
                       className="group flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-[8px] border border-[#ebebeb] hover:border-[#d1d5db] transition-colors"
                     >
                       <button
-                        onClick={() => toast.info(`Downloading ${doc.name}`)}
+                        onClick={() => setPreviewAttachment(doc)}
                         className="flex items-center gap-2 cursor-pointer"
                       >
                         <div className="size-[26px] rounded-[6px] flex items-center justify-center shrink-0" style={{ backgroundColor: meta.bg }}>
@@ -439,9 +443,16 @@ export function SoaBody({ email }: { email: Email }) {
                         </div>
                       </button>
                       <button
+                        onClick={() => toast.info(`Downloading ${doc.name}`)}
+                        title="Download attachment"
+                        className="text-[#9ca3af] hover:text-[#111827] cursor-pointer transition-colors shrink-0 ml-1"
+                      >
+                        <Download size={13} />
+                      </button>
+                      <button
                         onClick={() => removeAttachment(i)}
                         title="Remove attachment"
-                        className="text-[#9ca3af] hover:text-[#BA1C1C] cursor-pointer transition-colors shrink-0 ml-1"
+                        className="text-[#9ca3af] hover:text-[#BA1C1C] cursor-pointer transition-colors shrink-0"
                       >
                         <X size={13} />
                       </button>
@@ -542,5 +553,7 @@ export function SoaBody({ email }: { email: Email }) {
           </div>
         </div>
       </div>
+    <AttachmentPreviewModal attachment={previewAttachment} onClose={() => setPreviewAttachment(null)} />
+    </>
   );
 }

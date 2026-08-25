@@ -1,10 +1,21 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Check, ChevronDown, Download, FileText, HelpCircle, MapPin } from "lucide-react";
+import { Archive, Check, ChevronDown, Download, FileImage, FileSpreadsheet, FileText, HelpCircle, MapPin } from "lucide-react";
 import { TextField, ReviewField } from "../../components/common/TextField";
 import { WaveLoader } from "../../components/common/Loader";
 import { Button } from "../../components/common/Button";
+import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
 import { useCccExtraction, type CccField } from "./useCccExtraction";
+
+// Icon + color per file type — matches the same ext-based helper duplicated across the order pages.
+function docMeta(name: string): { icon: typeof FileText; bg: string; fg: string } {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf") return { icon: FileText, bg: "#FDECEA", fg: "#DC2626" };
+  if (["xls", "xlsx", "csv"].includes(ext)) return { icon: FileSpreadsheet, bg: "#E8F5E9", fg: "#2E7D32" };
+  if (["png", "jpg", "jpeg", "gif", "svg"].includes(ext)) return { icon: FileImage, bg: "#EAF1FB", fg: "#30578D" };
+  if (["zip", "rar", "7z"].includes(ext)) return { icon: Archive, bg: "#FDF3E7", fg: "#92600B" };
+  return { icon: FileText, bg: "#f3f4f6", fg: "#6b7280" };
+}
 
 const AI_SUGGESTION_GROUPS: { label: string; options: string[] }[] = [
   { label: "Trade Quote Number", options: ["Q-12345", "Q-67890", "Q-54321"] },
@@ -105,6 +116,7 @@ export function CccCreationBody({ emailId, onStatusChange }: { emailId: string; 
   const [accountFields, setAccountFields] = useState<CccField[]>([]);
   const [numberFields, setNumberFields] = useState<CccField[]>([]);
   const [orderFields, setOrderFields] = useState<CccField[]>([]);
+  const [previewAttachment, setPreviewAttachment] = useState<{ name: string; size: string } | null>(null);
   useEffect(() => {
     if (!extraction) return;
     setAccountFields(extraction.accountFields);
@@ -151,6 +163,7 @@ export function CccCreationBody({ emailId, onStatusChange }: { emailId: string; 
   const documents = extraction!.documents;
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
       {/* Left: extraction review sections */}
       <div className="flex flex-col gap-4">
@@ -267,25 +280,34 @@ export function CccCreationBody({ emailId, onStatusChange }: { emailId: string; 
           <h3 className="text-[14px] font-bold text-[#111827]">Documents</h3>
           <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">{documents.length} file{documents.length !== 1 ? "s" : ""} attached</p>
           <div className="flex flex-col gap-2">
-            {documents.map(doc => (
-              <button
-                key={doc.name}
-                onClick={() => toast.info(`Downloading ${doc.name}`)}
-                className="group flex items-center gap-2.5 px-3 py-2 rounded-[8px] border border-[#ebebeb] hover:border-[#d1d5db] hover:bg-[#f8fafc] cursor-pointer transition-colors text-left w-full"
-              >
-                <div className="size-[32px] rounded-[8px] bg-[#FDECEA] flex items-center justify-center shrink-0">
-                  <FileText size={15} className="text-[#DC2626]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[12.5px] font-medium text-[#111827] truncate">{doc.name}</p>
-                  <p className="text-[11px] text-[#9ca3af]">{doc.size}</p>
-                </div>
-                <Download size={14} className="text-[#9ca3af] group-hover:text-[#111827] transition-colors shrink-0" />
-              </button>
-            ))}
+            {documents.map(doc => {
+              const meta = docMeta(doc.name);
+              return (
+                <button
+                  key={doc.name}
+                  onClick={() => setPreviewAttachment(doc)}
+                  className="group flex items-center gap-2.5 px-3 py-2 rounded-[8px] border border-[#ebebeb] hover:border-[#d1d5db] hover:bg-[#f8fafc] cursor-pointer transition-colors text-left w-full"
+                >
+                  <div className="size-[32px] rounded-[8px] flex items-center justify-center shrink-0" style={{ backgroundColor: meta.bg }}>
+                    <meta.icon size={15} style={{ color: meta.fg }} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12.5px] font-medium text-[#111827] truncate">{doc.name}</p>
+                    <p className="text-[11px] text-[#9ca3af]">{doc.size}</p>
+                  </div>
+                  <Download
+                    size={14}
+                    className="text-[#9ca3af] group-hover:text-[#111827] cursor-pointer transition-colors shrink-0"
+                    onClick={(e) => { e.stopPropagation(); toast.info(`Downloading ${doc.name}`); }}
+                  />
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
     </div>
+    <AttachmentPreviewModal attachment={previewAttachment} onClose={() => setPreviewAttachment(null)} />
+    </>
   );
 }

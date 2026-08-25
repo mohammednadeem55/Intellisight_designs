@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Archive, ChevronRight, Download, FileImage, FileSpreadsheet, FileText, Paperclip } from "lucide-react";
 import { Button } from "../../components/common/Button";
+import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
 import { type Email } from "./emailData";
 
 // "priya.shah@acme.com" → "Priya Shah" — the data model only stores raw addresses, so the detail page's
@@ -37,20 +38,28 @@ function attachmentMeta(name: string): { icon: typeof FileText; bg: string; fg: 
 
 function AttachmentChip({ attachment }: { attachment: { name: string; size: string } }) {
   const meta = attachmentMeta(attachment.name);
+  const [previewOpen, setPreviewOpen] = useState(false);
   return (
-    <button
-      onClick={() => toast.info(`Downloading ${attachment.name}`)}
-      className="group flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] border border-[#ebebeb] w-[200px] hover:border-[#d1d5db] hover:bg-[#f8fafc] cursor-pointer transition-colors text-left"
-    >
-      <div className="size-[26px] rounded-[6px] flex items-center justify-center shrink-0" style={{ backgroundColor: meta.bg }}>
-        <meta.icon size={13} style={{ color: meta.fg }} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[12px] font-medium text-[#111827] truncate">{attachment.name}</p>
-        <p className="text-[10.5px] text-[#9ca3af]">{attachment.size} · {attachmentTypeLabel(attachment.name)}</p>
-      </div>
-      <Download size={13} className="text-[#9ca3af] group-hover:text-[#111827] cursor-pointer transition-colors shrink-0" />
-    </button>
+    <>
+      <button
+        onClick={() => setPreviewOpen(true)}
+        className="group flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] border border-[#ebebeb] w-[200px] hover:border-[#d1d5db] hover:bg-[#f8fafc] cursor-pointer transition-colors text-left"
+      >
+        <div className="size-[26px] rounded-[6px] flex items-center justify-center shrink-0" style={{ backgroundColor: meta.bg }}>
+          <meta.icon size={13} style={{ color: meta.fg }} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] font-medium text-[#111827] truncate">{attachment.name}</p>
+          <p className="text-[10.5px] text-[#9ca3af]">{attachment.size} · {attachmentTypeLabel(attachment.name)}</p>
+        </div>
+        <Download
+          size={13}
+          className="text-[#9ca3af] hover:text-[#111827] cursor-pointer transition-colors shrink-0"
+          onClick={(e) => { e.stopPropagation(); toast.info(`Downloading ${attachment.name}`); }}
+        />
+      </button>
+      {previewOpen && <AttachmentPreviewModal attachment={attachment} onClose={() => setPreviewOpen(false)} />}
+    </>
   );
 }
 
