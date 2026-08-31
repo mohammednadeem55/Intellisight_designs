@@ -105,6 +105,24 @@ async function fetchOrderValidation(_emailId: string, _signal: AbortSignal): Pro
   return MOCK_VALIDATION;
 }
 
+// Simulates what a real re-validation run would do: resolve the oldest outstanding failed/review check (if
+// any) to passed, and stamp fresh screening timestamps. Used to produce each new version when the user hits
+// Re-Validate — real re-validation would instead be another `fetchOrderValidation`-style call to the API.
+export function regenerateValidation(base: OrderValidationData): OrderValidationData {
+  const outstanding = [...base.failedAndReviewChecks];
+  const resolved = outstanding.shift();
+  const now = new Date().toLocaleString("en-US", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
+  return {
+    ...base,
+    failedAndReviewChecks: outstanding,
+    passedChecks: resolved
+      ? [...base.passedChecks, { label: resolved.label, status: "passed", reason: `Resolved on re-validation: ${resolved.reason}` }]
+      : base.passedChecks,
+    screeningStartedAt: base.screeningCompletedAt,
+    screeningCompletedAt: now,
+  };
+}
+
 // Loading/error/reload state around fetchOrderValidation. Re-fetches whenever `emailId` changes, and uses
 // AbortController so a stale request is actually cancelled rather than just ignored.
 export function useOrderValidation(emailId: string) {

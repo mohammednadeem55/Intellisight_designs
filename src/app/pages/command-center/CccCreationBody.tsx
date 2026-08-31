@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Archive, Check, ChevronDown, Download, FileImage, FileSpreadsheet, FileText, HelpCircle, MapPin } from "lucide-react";
+import { Archive, Check, ChevronDown, Download, FileImage, FileSpreadsheet, FileText, HelpCircle, MapPin, type LucideIcon } from "lucide-react";
 import { TextField, ReviewField } from "../../components/common/TextField";
 import { WaveLoader } from "../../components/common/Loader";
 import { Button } from "../../components/common/Button";
@@ -34,9 +34,13 @@ function fieldCounts(fields: CccField[]) {
   return { matched: fields.filter(f => f.status === "matched").length, total: fields.length };
 }
 
+export type CccFieldAuditEntry = { action: string; icon?: LucideIcon; detail?: string };
+
 // Renders one extracted field via the shared field components — TextField covers matched/missing,
-// ReviewField covers the two-competing-values "needs review" case.
-function renderCccField(field: CccField, onFieldChange: (next: CccField) => void) {
+// ReviewField covers the two-competing-values "needs review" case. `onAudit` fires only at the same
+// "committed" moments a toast already fires (Use/Apply/Revert/blur-with-a-value) — not on every keystroke,
+// same granularity as the Classify step only logging on Submit rather than every dropdown pick.
+function renderCccField(field: CccField, onFieldChange: (next: CccField) => void, onAudit?: (entry: CccFieldAuditEntry) => void) {
   if (field.status === "matched") {
     return (
       <TextField
@@ -45,7 +49,10 @@ function renderCccField(field: CccField, onFieldChange: (next: CccField) => void
         value={field.value}
         onChange={(v) => onFieldChange({ ...field, value: v })}
         revertible={!!field.resolvedFrom}
-        onRevert={() => onFieldChange({ ...field, status: field.resolvedFrom!, value: "" })}
+        onRevert={() => {
+          onFieldChange({ ...field, status: field.resolvedFrom!, value: "" });
+          onAudit?.({ action: "Field Reverted", detail: `${field.label} reverted` });
+        }}
       />
     );
   }
@@ -60,6 +67,7 @@ function renderCccField(field: CccField, onFieldChange: (next: CccField) => void
         onExtractedChange={(v) => onFieldChange({ ...field, extracted: v })}
         onUse={() => {
           onFieldChange({ ...field, status: "matched", value: field.systemValue ?? "", resolvedFrom: "review" });
+          onAudit?.({ action: "Field Updated", icon: Check, detail: `${field.label}: ${field.extracted || "—"} → ${field.systemValue} (from Salesforce)` });
           toast.success(`${field.label} updated from Salesforce`);
         }}
       />
@@ -75,12 +83,16 @@ function renderCccField(field: CccField, onFieldChange: (next: CccField) => void
       value={field.value}
       onChange={(v) => onFieldChange({ ...field, value: v })}
       onBlur={() => {
-        if (field.value.trim()) onFieldChange({ ...field, status: "matched" });
+        if (field.value.trim()) {
+          onFieldChange({ ...field, status: "matched" });
+          onAudit?.({ action: "Field Updated", icon: Check, detail: `${field.label}: → ${field.value}` });
+        }
       }}
       placeholder="Select to apply or type"
       suggestions={field.suggestions}
       onApplySuggestion={(value) => {
         onFieldChange({ ...field, status: "matched", value, resolvedFrom: "missing" });
+        onAudit?.({ action: "Field Applied", icon: Check, detail: `${field.label}: → ${value}` });
         toast.success(`${field.label} applied`);
       }}
     />
@@ -108,7 +120,7 @@ function CccSection({ title, matched, total, children }: { title: string; matche
 
 export type CccExtractionStatus = { totalMissing: number; totalReview: number };
 
-export function CccCreationBody({ emailId, onStatusChange }: { emailId: string; onStatusChange?: (status: CccExtractionStatus) => void }) {
+export function CccCreationBody({ emailId, onStatusChange, onAudit }: { emailId: string; onStatusChange?: (status: CccExtractionStatus) => void; onAudit?: (entry: CccFieldAuditEntry) => void }) {
   const { data: extraction, loading, error, reload } = useCccExtraction(emailId);
 
   // Editable local copies, seeded once the fetch resolves — separate from `extraction` itself so field
@@ -169,7 +181,7 @@ export function CccCreationBody({ emailId, onStatusChange }: { emailId: string; 
       <div className="flex flex-col gap-4">
         <CccSection title="Account & Contact" matched={accountCounts.matched} total={accountCounts.total}>
           {accountFields.map((f, i) => (
-            <div key={i} className="contents">{renderCccField(f, updateField(setAccountFields, i))}</div>
+            <div key={i} className="contents">{renderCccField(f, updateField(setAccountFields, i), onAudit)}</div>
           ))}
         </CccSection>
 
@@ -187,13 +199,13 @@ export function CccCreationBody({ emailId, onStatusChange }: { emailId: string; 
 
         <CccSection title="Extracted Numbers" matched={numberCounts.matched} total={numberCounts.total}>
           {numberFields.map((f, i) => (
-            <div key={i} className="contents">{renderCccField(f, updateField(setNumberFields, i))}</div>
+            <div key={i} className="contents">{renderCccField(f, updateField(setNumberFields, i), onAudit)}</div>
           ))}
         </CccSection>
 
         <CccSection title="Order Info" matched={orderCounts.matched} total={orderCounts.total}>
           {orderFields.map((f, i) => (
-            <div key={i} className="contents">{renderCccField(f, updateField(setOrderFields, i))}</div>
+            <div key={i} className="contents">{renderCccField(f, updateField(setOrderFields, i), onAudit)}</div>
           ))}
         </CccSection>
       </div>

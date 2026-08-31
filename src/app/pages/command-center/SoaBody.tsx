@@ -27,6 +27,7 @@ import {
   Sparkles,
   Underline,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { EmailTableTooltip } from "../../components/common/EmailTable";
 import { WaveLoader } from "../../components/common/Loader";
@@ -205,7 +206,9 @@ function ToolbarButton({ icon: Icon, label, active, onClick }: { icon: typeof Bo
   );
 }
 
-export function SoaBody({ email }: { email: Email }) {
+export type SoaAuditEntry = { action: string; icon?: LucideIcon; detail?: string };
+
+export function SoaBody({ email, onAudit }: { email: Email; onAudit?: (entry: SoaAuditEntry) => void }) {
   const { data: composer, loading, error, reload } = useSoaComposer(email.id);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState<string[]>([]);
@@ -237,11 +240,14 @@ export function SoaBody({ email }: { email: Email }) {
   const applyTemplate = (label: string) => {
     setSelectedTemplate(label);
     setBody(buildTemplateBody(label, senderDisplayName(email.sender), subject));
+    onAudit?.({ action: "Template Applied", icon: Check, detail: label });
     toast.success(`${label} applied`);
   };
 
   const handleAttachEmail = () => {
-    setAttachedFiles(prev => [...prev, { name: `${email.subject.slice(0, 30)}.eml`, size: "24 KB" }]);
+    const name = `${email.subject.slice(0, 30)}.eml`;
+    setAttachedFiles(prev => [...prev, { name, size: "24 KB" }]);
+    onAudit?.({ action: "Attachment Added", icon: Paperclip, detail: name });
     toast.success("Reference email attached");
   };
 
@@ -253,6 +259,7 @@ export function SoaBody({ email }: { email: Email }) {
     const files = Array.from(e.target.files ?? []);
     if (files.length > 0) {
       setAttachedFiles(prev => [...prev, ...files.map(f => ({ name: f.name, size: formatFileSize(f.size) }))]);
+      onAudit?.({ action: "Attachment Added", icon: Paperclip, detail: files.map(f => f.name).join(", ") });
       toast.success(`${files.length} file${files.length > 1 ? "s" : ""} attached`);
     }
     e.target.value = "";
@@ -261,7 +268,10 @@ export function SoaBody({ email }: { email: Email }) {
   const removeAttachment = (i: number) => {
     setAttachedFiles(prev => {
       const removed = prev[i];
-      if (removed) toast.info(`${removed.name} removed`);
+      if (removed) {
+        onAudit?.({ action: "Attachment Removed", icon: X, detail: removed.name });
+        toast.info(`${removed.name} removed`);
+      }
       return prev.filter((_, idx) => idx !== i);
     });
   };
@@ -301,6 +311,7 @@ export function SoaBody({ email }: { email: Email }) {
                 Applied: {selectedTemplate}
                 <button
                   onClick={() => {
+                    onAudit?.({ action: "Template Removed", icon: X, detail: selectedTemplate ?? undefined });
                     setSelectedTemplate(null);
                     setBody("");
                     toast.info("Template removed");

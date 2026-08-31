@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Archive, Calendar, ChevronDown, Copy, Download, FileImage, FileSpreadsheet, FileText, Link, Mail, MapPin, Phone, User, X } from "lucide-react";
+import { Archive, Calendar, Check, ChevronDown, Copy, Download, FileImage, FileSpreadsheet, FileText, Link, Mail, MapPin, Phone, User, X, type LucideIcon } from "lucide-react";
 import { TextField } from "../../components/common/TextField";
 import { EmailTableTooltip, TruncateTooltip } from "../../components/common/EmailTable";
 import { WaveLoader } from "../../components/common/Loader";
@@ -58,7 +58,9 @@ function ShippingInstructionsModal({ instructions, onClose }: { instructions: st
   );
 }
 
-export function OrderCreationBody({ emailId }: { emailId: string }) {
+export type OrderCreationAuditEntry = { action: string; icon?: LucideIcon; detail?: string };
+
+export function OrderCreationBody({ emailId, onAudit }: { emailId: string; onAudit?: (entry: OrderCreationAuditEntry) => void }) {
   const { data: creation, loading, error, reload } = useOrderCreation(emailId);
   const [quoteNumber, setQuoteNumber] = useState("");
   const [quoteVersion, setQuoteVersion] = useState("");
@@ -70,16 +72,36 @@ export function OrderCreationBody({ emailId }: { emailId: string }) {
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<{ name: string; size: string } | null>(null);
 
+  // Last-committed value per field, so blurring a field that wasn't actually edited (e.g. tabbing through)
+  // doesn't log a no-op "changed" entry — only a real before → after diff does.
+  const [baseline, setBaseline] = useState<Record<string, string>>({});
+
   useEffect(() => {
     if (!creation) return;
-    setQuoteNumber(creation.quoteFields.quoteNumber);
-    setQuoteVersion(creation.quoteFields.quoteVersion);
-    setShipToCity(creation.quoteFields.shipToCity);
-    setAccountName(creation.quoteFields.accountName);
-    setContactName(creation.quoteFields.contactName);
-    setEmail(creation.quoteFields.email);
-    setPhone(creation.quoteFields.phone);
+    const qf = creation.quoteFields;
+    setQuoteNumber(qf.quoteNumber);
+    setQuoteVersion(qf.quoteVersion);
+    setShipToCity(qf.shipToCity);
+    setAccountName(qf.accountName);
+    setContactName(qf.contactName);
+    setEmail(qf.email);
+    setPhone(qf.phone);
+    setBaseline({
+      quoteNumber: qf.quoteNumber,
+      quoteVersion: qf.quoteVersion,
+      shipToCity: qf.shipToCity,
+      accountName: qf.accountName,
+      contactName: qf.contactName,
+      email: qf.email,
+      phone: qf.phone,
+    });
   }, [creation]);
+
+  const commitField = (label: string, key: string, value: string) => {
+    if (value === baseline[key]) return;
+    onAudit?.({ action: "Field Updated", icon: Check, detail: `${label}: ${baseline[key] || "—"} → ${value}` });
+    setBaseline(prev => ({ ...prev, [key]: value }));
+  };
 
   const copyToClipboard = (label: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -116,14 +138,15 @@ export function OrderCreationBody({ emailId }: { emailId: string }) {
               variant="missing"
               value={quoteNumber}
               onChange={setQuoteNumber}
+              onBlur={() => commitField("Quote Number", "quoteNumber", quoteNumber)}
               placeholder="Required - enter value"
             />
-            <TextField label="Ship To City" required variant="matched" value={shipToCity} onChange={setShipToCity} />
-            <TextField label="Quote Version" required variant="matched" value={quoteVersion} onChange={setQuoteVersion} />
-            <TextField label="Account Name" variant="matched" value={accountName} onChange={setAccountName} />
-            <TextField label="Contact Name" variant="matched" value={contactName} onChange={setContactName} />
-            <TextField label="Email" variant="matched" value={email} onChange={setEmail} />
-            <TextField label="Phone" variant="matched" value={phone} onChange={setPhone} />
+            <TextField label="Ship To City" required variant="matched" value={shipToCity} onChange={setShipToCity} onBlur={() => commitField("Ship To City", "shipToCity", shipToCity)} />
+            <TextField label="Quote Version" required variant="matched" value={quoteVersion} onChange={setQuoteVersion} onBlur={() => commitField("Quote Version", "quoteVersion", quoteVersion)} />
+            <TextField label="Account Name" variant="matched" value={accountName} onChange={setAccountName} onBlur={() => commitField("Account Name", "accountName", accountName)} />
+            <TextField label="Contact Name" variant="matched" value={contactName} onChange={setContactName} onBlur={() => commitField("Contact Name", "contactName", contactName)} />
+            <TextField label="Email" variant="matched" value={email} onChange={setEmail} onBlur={() => commitField("Email", "email", email)} />
+            <TextField label="Phone" variant="matched" value={phone} onChange={setPhone} onBlur={() => commitField("Phone", "phone", phone)} />
           </div>
         </Section>
       </div>

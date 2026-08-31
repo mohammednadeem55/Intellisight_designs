@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText, Lightbulb, Sparkles, User, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText, History, Lightbulb, MessageSquare, Pencil, Sparkles, User, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Button, IconButton } from "../../components/common/Button";
 import { PageLoaderOverlay, WaveLoader } from "../../components/common/Loader";
-import { EmailTableAssignModal, EmailTableSendEmailModal, EmailTableCommentModal, EmailTableMoreActionsButton } from "../../components/common/EmailTable";
+import { EMAIL_TABLE_NAVY, EmailTableAssignModal, EmailTableSendEmailModal, EmailTableCommentModal, EmailTableMoreActionsButton } from "../../components/common/EmailTable";
+import { AuditTrailModal, useAuditLog } from "../../components/common/AuditTrail";
 import { AiOrderValidationBody } from "./AiOrderValidationBody";
 import { CccCreationBody, type CccExtractionStatus } from "./CccCreationBody";
 import { OrderCreationBody } from "./OrderCreationBody";
@@ -138,6 +139,18 @@ export function WorkflowPage({
   const toggleReaction = (r: "like" | "dislike") => setReaction(prev => (prev === r ? undefined : r));
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
 
+  // Audit Trail — one independent log per workflow step (keyed by WORKFLOW_STAGES[i].key), surfaced via a
+  // dedicated icon button next to the 3-dot menu rather than as an item inside it, since the 3-dot's
+  // component is shared with places (e.g. table rows) that shouldn't show a per-step audit trail.
+  const CURRENT_USER = { name: "Jagdish K.", initials: "JK" };
+  const auditLog = useAuditLog();
+  const [auditModalOpen, setAuditModalOpen] = useState(false);
+  const currentStageKey = WORKFLOW_STAGES[currentStageIndex].key;
+  // AI Order Validation owns its own versioned data (see AiOrderValidationBody), so the footer's
+  // "Re-Validate" button reaches into it through a function handed up via onRevalidateReady rather than
+  // WorkflowPage holding the validation data itself.
+  const revalidateRef = useRef<(() => void) | null>(null);
+
   // CCC Creation — "Create CCC Req." only succeeds once the extraction review has nothing left missing;
   // otherwise it goes on hold and the same button stays available to retry after the data is fixed.
   const [cccExtractionStatus, setCccExtractionStatus] = useState<CccExtractionStatus | null>(null);
@@ -146,12 +159,26 @@ export function WorkflowPage({
   const handleCreateCcc = () => {
     if (cccExtractionStatus && cccExtractionStatus.totalMissing > 0) {
       setCccOutcome("hold");
+      auditLog.addEntry(currentStageKey, {
+        user: CURRENT_USER.name,
+        initials: CURRENT_USER.initials,
+        action: "CCC Creation — On Hold",
+        icon: CircleAlert,
+        detail: `${cccExtractionStatus.totalMissing} required field${cccExtractionStatus.totalMissing > 1 ? "s" : ""} still missing`,
+      });
       toast.error(`CCC creation on hold — ${cccExtractionStatus.totalMissing} required field${cccExtractionStatus.totalMissing > 1 ? "s" : ""} still missing`);
       return;
     }
     const number = `CCC-${20000 + Math.floor(Math.random() * 9000)}`;
     setCccNumber(number);
     setCccOutcome("success");
+    auditLog.addEntry(currentStageKey, {
+      user: CURRENT_USER.name,
+      initials: CURRENT_USER.initials,
+      action: "CCC Created",
+      icon: Check,
+      detail: `${number} created successfully`,
+    });
     toast.success(`${number} created successfully`);
   };
   const handleProceed = () => {
@@ -163,8 +190,11 @@ export function WorkflowPage({
       toast.success(`${email.id} workflow complete`);
     }
   };
-  const handleRevalidate = () => toast.success(`${email.id} re-validated`);
-  const handleSendEmail = () => toast.success(`${email.id} email sent`);
+  const handleRevalidate = () => revalidateRef.current?.();
+  const handleSendEmail = () => {
+    auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, action: "Email Sent", icon: Check });
+    toast.success(`${email.id} email sent`);
+  };
 
   // Order Creation — Quote Update can be clicked any number of times, but Proceed only becomes available
   // once Create Order has actually run; before that, Create Order is the only primary action in its place.
@@ -173,10 +203,12 @@ export function WorkflowPage({
   const [orderCreated, setOrderCreated] = useState(false);
   const handleQuoteUpdate = () => {
     setOrderCreated(false);
+    auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, action: "Quote Updated", icon: Pencil, detail: "Order invalidated — Create Order required again" });
     toast.success(`${email.id} quote updated`);
   };
   const handleCreateOrder = () => {
     setOrderCreated(true);
+    auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, action: "Order Created", icon: Check });
     toast.success(`${email.id} order created`);
   };
 
@@ -214,6 +246,13 @@ export function WorkflowPage({
     setCategoryOpen(false);
   };
   const submitOverride = () => {
+    auditLog.addEntry(currentStageKey, {
+      user: CURRENT_USER.name,
+      initials: CURRENT_USER.initials,
+      action: "Reclassified",
+      icon: Pencil,
+      detail: `${classificationLabel(category)} / ${subCategory} → ${classificationLabel(draftCategory)} / ${draftSubCategory}${overrideReason.trim() ? ` — ${overrideReason.trim()}` : ""}`,
+    });
     setCategory(draftCategory);
     setSubCategory(draftSubCategory);
     setClassifiedBy("human");
@@ -350,6 +389,22 @@ export function WorkflowPage({
                   <span className="text-[13px] font-semibold text-[#111827] whitespace-nowrap">{assignedTo}</span>
                 </button>
               </div>
+              <button
+                onClick={() => setAuditModalOpen(true)}
+                title="Audit Trail"
+                style={{ width: 38, height: 38 }}
+                className="relative flex items-center justify-center rounded-[8px] border cursor-pointer transition-colors bg-white border-[#e5e7eb] text-[#6b7280] hover:bg-[#f8fafc] hover:text-[#111827]"
+              >
+                <History size={16} />
+                {auditLog.getEntries(currentStageKey).length > 0 && (
+                  <span
+                    className="absolute -top-[3px] -right-[3px] flex items-center justify-center min-w-[15px] h-[15px] px-[3px] rounded-full text-white text-[9px] font-bold"
+                    style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+                  >
+                    {auditLog.getEntries(currentStageKey).length}
+                  </span>
+                )}
+              </button>
               <EmailTableMoreActionsButton
                 reaction={reaction}
                 onToggleReaction={toggleReaction}
@@ -366,6 +421,15 @@ export function WorkflowPage({
           <EmailTableAssignModal email={email} onClose={() => setAssignModalOpen(false)} />
         )}
 
+        {auditModalOpen && (
+          <AuditTrailModal
+            title="Audit Trail"
+            subtitle={`${email.id} · ${WORKFLOW_STAGES[currentStageIndex].label}`}
+            entries={auditLog.getEntries(currentStageKey)}
+            onClose={() => setAuditModalOpen(false)}
+          />
+        )}
+
         {sendEmailModalOpen && (
           <EmailTableSendEmailModal email={email} onClose={() => setSendEmailModalOpen(false)} />
         )}
@@ -374,7 +438,14 @@ export function WorkflowPage({
           <EmailTableCommentModal
             email={email}
             onClose={() => setCommentModalOpen(false)}
-            onSubmit={() => {
+            onSubmit={(text) => {
+              auditLog.addEntry(currentStageKey, {
+                user: CURRENT_USER.name,
+                initials: CURRENT_USER.initials,
+                action: "Commented",
+                icon: MessageSquare,
+                detail: text,
+              });
               setCommentModalOpen(false);
               toast.success("Comment added");
             }}
@@ -483,15 +554,35 @@ export function WorkflowPage({
                 )}
               </div>
             )}
-            <CccCreationBody emailId={email.id} onStatusChange={setCccExtractionStatus} />
+            <CccCreationBody
+              emailId={email.id}
+              onStatusChange={setCccExtractionStatus}
+              onAudit={(entry) => auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, ...entry })}
+            />
           </>
         )}
 
-        {currentStageIndex === 2 && <AiOrderValidationBody emailId={email.id} />}
+        {currentStageIndex === 2 && (
+          <AiOrderValidationBody
+            emailId={email.id}
+            onRevalidateReady={(fn) => { revalidateRef.current = fn; }}
+            onAudit={(entry) => auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, ...entry })}
+          />
+        )}
 
-        {currentStageIndex === 3 && <OrderCreationBody emailId={email.id} />}
+        {currentStageIndex === 3 && (
+          <OrderCreationBody
+            emailId={email.id}
+            onAudit={(entry) => auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, ...entry })}
+          />
+        )}
 
-        {currentStageIndex === 4 && <SoaBody email={email} />}
+        {currentStageIndex === 4 && (
+          <SoaBody
+            email={email}
+            onAudit={(entry) => auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, ...entry })}
+          />
+        )}
 
         {currentStageIndex === 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">

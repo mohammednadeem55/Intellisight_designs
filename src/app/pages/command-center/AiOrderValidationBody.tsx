@@ -1,11 +1,89 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Archive, ArrowRight, ChevronDown, ChevronRight, CircleCheck, CircleX, Download, FileImage, FileSpreadsheet, FileText, Info, MapPin, TriangleAlert } from "lucide-react";
+import { Archive, ArrowRight, Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, Download, FileImage, FileSpreadsheet, FileText, Info, MapPin, RotateCcw, TriangleAlert, X, type LucideIcon } from "lucide-react";
 import { TextField } from "../../components/common/TextField";
 import { WaveLoader } from "../../components/common/Loader";
 import { Button } from "../../components/common/Button";
 import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
-import { useOrderValidation, type CheckStatus, type ValidationCheck } from "./useOrderValidation";
+import { useOrderValidation, regenerateValidation, type CheckStatus, type OrderValidationData, type ValidationCheck } from "./useOrderValidation";
+
+export type ValidationAuditEntry = { action: string; icon?: LucideIcon; detail?: string };
+// A field change made while a given version was the active one — e.g. committing Freight Terms. Kept
+// separate from the check-result snapshot itself so "what changed" reads as a distinct line from "what the
+// checks looked like".
+type FieldChange = { label: string; icon?: LucideIcon; at: Date };
+type ValidationVersion = { version: number; at: Date; data: OrderValidationData; changes: FieldChange[] };
+
+function formatVersionDateTime(d: Date) {
+  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+// Lists every version newest-first (current version pinned at the top), lets the user click into any past
+// one to view it read-only, or jump back to Latest. Distinct from the Audit Trail modal — this browses full
+// snapshots of the validation results, plus the field changes made while each version was active.
+function VersionHistoryModal({
+  versions,
+  currentVersionNumber,
+  currentAt,
+  currentChanges,
+  viewingVersion,
+  onSelectVersion,
+  onClose,
+}: {
+  versions: ValidationVersion[];
+  currentVersionNumber: number;
+  currentAt: Date;
+  currentChanges: FieldChange[];
+  viewingVersion: number | null;
+  onSelectVersion: (version: number | null) => void;
+  onClose: () => void;
+}) {
+  const rows = [
+    { version: currentVersionNumber, at: currentAt, isLatest: true, changes: currentChanges },
+    ...versions.slice().reverse().map(v => ({ version: v.version, at: v.at, isLatest: false, changes: v.changes })),
+  ];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-[8px] shadow-xl w-full max-w-[400px] max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#DEDEDE] shrink-0">
+          <h2 className="text-[16px] font-bold text-[#262626]">Version History</h2>
+          <button onClick={onClose} className="text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="px-3 py-3 flex flex-col gap-1 overflow-y-auto">
+          {rows.map(row => {
+            const active = viewingVersion === null ? row.isLatest : viewingVersion === row.version;
+            return (
+              <button
+                key={row.version}
+                onClick={() => { onSelectVersion(row.isLatest ? null : row.version); onClose(); }}
+                className={`w-full text-left px-3.5 py-2.5 rounded-[8px] cursor-pointer transition-colors ${active ? "bg-[#30578D]/[0.08]" : "hover:bg-[#F7F7F7]"}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[13px] font-semibold text-[#262626]">Version {row.version}{row.isLatest ? " (Latest)" : ""}</p>
+                  {active && <Check size={14} className="shrink-0" style={{ color: "#30578D" }} />}
+                </div>
+                <p className="text-[11px] text-[#97999B] mt-0.5">{formatVersionDateTime(row.at)}</p>
+                {row.changes.length > 0 && (
+                  <div className="mt-1.5 flex flex-col gap-1 border-t border-[#F1F2F4] pt-1.5">
+                    {row.changes.map((c, i) => (
+                      <p key={i} className="flex items-center gap-1.5 text-[11px] text-[#4D4D4D]">
+                        {c.icon && <c.icon size={10} className="text-[#97999B] shrink-0" />}
+                        <span className="truncate">{c.label}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Same icon + color per file type as the Workflow email thread's attachment chips, so a document reads
 // the same way everywhere in the app instead of every file type looking identical here.
@@ -108,12 +186,57 @@ function CollapsibleSection({ title, badge, children }: { title: string; badge?:
   );
 }
 
-export function AiOrderValidationBody({ emailId }: { emailId: string }) {
+export function AiOrderValidationBody({ emailId, onRevalidateReady, onAudit }: {
+  emailId: string;
+  /** Hands the caller (WorkflowPage's footer "Re-Validate" button) a function to trigger revalidation from
+      outside this component, since the versioned data lives in here, not at the page level. */
+  onRevalidateReady?: (fn: () => void) => void;
+  onAudit?: (entry: ValidationAuditEntry) => void;
+}) {
   const { data: validation, loading, error, reload } = useOrderValidation(emailId);
   const [resultsOpen, setResultsOpen] = useState(true);
   const [freightTerms, setFreightTerms] = useState("");
   const [discountApproval, setDiscountApproval] = useState("");
   const [previewAttachment, setPreviewAttachment] = useState<{ name: string; size: string } | null>(null);
+
+  // Versioning — each Re-Validate snapshots the currently-displayed data into `versions` before replacing
+  // it with a freshly regenerated result, so every prior run stays browsable via the Version History modal.
+  const [versions, setVersions] = useState<ValidationVersion[]>([]);
+  const [overrideData, setOverrideData] = useState<OrderValidationData | null>(null);
+  const [currentVersionNumber, setCurrentVersionNumber] = useState(1);
+  const [currentVersionAt, setCurrentVersionAt] = useState(() => new Date());
+  const [viewingVersion, setViewingVersion] = useState<number | null>(null);
+  const [versionsModalOpen, setVersionsModalOpen] = useState(false);
+  // Field changes committed while the current (not-yet-superseded) version is active — rolled into that
+  // version's `changes` and reset once Re-Validate closes it out and opens the next one.
+  const [currentVersionChanges, setCurrentVersionChanges] = useState<FieldChange[]>([]);
+  const latestData = overrideData ?? validation;
+
+  const logFieldChange = (label: string, icon: LucideIcon) => {
+    setCurrentVersionChanges(prev => [...prev, { label, icon, at: new Date() }]);
+  };
+
+  const revalidate = () => {
+    if (!latestData) return;
+    setVersions(prev => [...prev, { version: currentVersionNumber, at: currentVersionAt, data: latestData, changes: currentVersionChanges }]);
+    const next = regenerateValidation(latestData);
+    setOverrideData(next);
+    setCurrentVersionNumber(n => n + 1);
+    setCurrentVersionAt(new Date());
+    setCurrentVersionChanges([]);
+    setViewingVersion(null);
+    onAudit?.({
+      action: "Re-Validated",
+      icon: RotateCcw,
+      detail: `Version ${currentVersionNumber + 1} generated — ${next.failedAndReviewChecks.length} check${next.failedAndReviewChecks.length === 1 ? "" : "s"} still outstanding`,
+    });
+    toast.success(`Re-validated — now viewing version ${currentVersionNumber + 1}`);
+  };
+
+  useEffect(() => {
+    onRevalidateReady?.(revalidate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latestData, currentVersionNumber, currentVersionAt, versions, currentVersionChanges]);
 
   if (loading || error) {
     return (
@@ -131,29 +254,55 @@ export function AiOrderValidationBody({ emailId }: { emailId: string }) {
     );
   }
 
-  const v = validation!; // guaranteed non-null past the loading/error guard above
+  // `overrideData`/`validation` guaranteed non-null past the loading/error guard above.
+  const displayedData = viewingVersion !== null ? (versions.find(ver => ver.version === viewingVersion)?.data ?? latestData!) : latestData!;
+  const v = displayedData;
+  const isViewingHistory = viewingVersion !== null;
   const totalChecks = v.failedAndReviewChecks.length + v.passedChecks.length;
   const failedCount = v.failedAndReviewChecks.filter(c => c.status === "failed").length;
   const reviewCount = v.failedAndReviewChecks.filter(c => c.status === "warning").length;
 
   return (
     <>
+    {isViewingHistory && (
+      <div className="mb-4 flex items-center justify-between gap-3 rounded-[8px] px-4 py-2.5" style={{ backgroundColor: "#FDF3E7" }}>
+        <p className="text-[12px] font-medium" style={{ color: "#92600B" }}>
+          Viewing Version {viewingVersion} (read-only) — {formatVersionDateTime(versions.find(ver => ver.version === viewingVersion)?.at ?? currentVersionAt)}
+        </p>
+        <button onClick={() => setViewingVersion(null)} className="text-[11.5px] font-semibold underline cursor-pointer shrink-0" style={{ color: "#92600B" }}>
+          Back to Latest
+        </button>
+      </div>
+    )}
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
       {/* Left: check results + collapsed secondary sections */}
       <div className="flex flex-col gap-4">
         <div className="bg-white rounded-[8px] border border-[#ebebeb]">
-          <button
+          <div
+            role="button"
+            tabIndex={0}
             onClick={() => setResultsOpen(v => !v)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setResultsOpen(v => !v); }}
             className={`w-full flex items-center justify-between gap-2 px-5 py-4 cursor-pointer flex-wrap ${resultsOpen ? "border-b border-[#f3f4f6]" : ""}`}
           >
             <div className="flex items-center gap-2">
               <ChevronDown size={15} className={`text-[#6b7280] transition-transform duration-200 ${resultsOpen ? "" : "-rotate-90"}`} />
               <h3 className="text-[14px] font-bold text-[#111827]">OA Validation Results</h3>
             </div>
-            <p className="flex items-center gap-1.5 text-[11.5px] text-[#9ca3af]">
-              <Info size={12} className="shrink-0" /> {totalChecks} checks by Oracle · click any check to see its reason
-            </p>
-          </button>
+            <div className="flex items-center gap-3">
+              <p className="flex items-center gap-1.5 text-[11.5px] text-[#9ca3af]">
+                <Info size={12} className="shrink-0" /> {totalChecks} checks by Oracle · click any check to see its reason
+              </p>
+              <button
+                onClick={(e) => { e.stopPropagation(); setVersionsModalOpen(true); }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] border border-[#e5e7eb] text-[11.5px] font-semibold text-[#374151] hover:bg-[#f8fafc] cursor-pointer transition-colors shrink-0"
+              >
+                <Clock size={12} />
+                {isViewingHistory ? `Version ${viewingVersion}` : `Version ${currentVersionNumber} (Latest)`}
+                <ChevronDown size={11} />
+              </button>
+            </div>
+          </div>
           {resultsOpen && (
             <div className="px-5 py-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <CheckColumn title="Failed & Needs Attention" accentColor="#BA1C1C" checks={v.failedAndReviewChecks} />
@@ -166,14 +315,38 @@ export function AiOrderValidationBody({ emailId }: { emailId: string }) {
           <TextField label="PO Number" variant="matched" value={v.poParsing.poNumber} readOnly />
           <TextField label="Line Items" variant="matched" value={v.poParsing.lineItems} readOnly />
           <TextField label="Ship-To Address" variant="matched" value={v.poParsing.shipToAddress} readOnly />
-          <TextField label="Freight Terms" variant="missing" value={freightTerms} onChange={setFreightTerms} placeholder="Select to apply or type" />
+          <TextField
+            label="Freight Terms"
+            variant="missing"
+            value={freightTerms}
+            onChange={setFreightTerms}
+            onBlur={() => {
+              if (!freightTerms.trim()) return;
+              onAudit?.({ action: "Field Updated", icon: Check, detail: `Freight Terms: → ${freightTerms}` });
+              logFieldChange(`Freight Terms: → ${freightTerms}`, Check);
+            }}
+            placeholder="Select to apply or type"
+            readOnly={isViewingHistory}
+          />
         </CollapsibleSection>
 
         <CollapsibleSection title="Sales Force - Manager Quotes" badge={`${v.salesForceQuote.matched}/${v.salesForceQuote.total} matched`}>
           <TextField label="Quote Number" variant="matched" value={v.salesForceQuote.quoteNumber} readOnly />
           <TextField label="Quote Owner" variant="matched" value={v.salesForceQuote.quoteOwner} readOnly />
           <TextField label="Approval Status" variant="matched" value={v.salesForceQuote.approvalStatus} readOnly />
-          <TextField label="Discount Approval" variant="missing" value={discountApproval} onChange={setDiscountApproval} placeholder="Select to apply or type" />
+          <TextField
+            label="Discount Approval"
+            variant="missing"
+            value={discountApproval}
+            onChange={setDiscountApproval}
+            onBlur={() => {
+              if (!discountApproval.trim()) return;
+              onAudit?.({ action: "Field Updated", icon: Check, detail: `Discount Approval: → ${discountApproval}` });
+              logFieldChange(`Discount Approval: → ${discountApproval}`, Check);
+            }}
+            placeholder="Select to apply or type"
+            readOnly={isViewingHistory}
+          />
         </CollapsibleSection>
       </div>
 
@@ -267,6 +440,17 @@ export function AiOrderValidationBody({ emailId }: { emailId: string }) {
       </div>
     </div>
     <AttachmentPreviewModal attachment={previewAttachment} onClose={() => setPreviewAttachment(null)} />
+    {versionsModalOpen && (
+      <VersionHistoryModal
+        versions={versions}
+        currentVersionNumber={currentVersionNumber}
+        currentAt={currentVersionAt}
+        currentChanges={currentVersionChanges}
+        viewingVersion={viewingVersion}
+        onSelectVersion={setViewingVersion}
+        onClose={() => setVersionsModalOpen(false)}
+      />
+    )}
     </>
   );
 }
