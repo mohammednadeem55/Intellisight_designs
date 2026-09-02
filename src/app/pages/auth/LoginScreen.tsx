@@ -38,8 +38,8 @@ function Lock() {
 export function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
     <div className="bg-white flex items-stretch size-full min-h-screen">
-      {/* Left panel — hidden on mobile */}
-      <div className="hidden md:block h-full relative shrink-0 w-[45%] max-w-[520px]">
+      {/* Left panel — hidden below md, and given a floor width past lg so it never gets squeezed */}
+      <div className="hidden md:block h-full relative shrink-0 w-[40%] lg:w-[45%] max-w-[520px]">
         <div aria-hidden className="absolute inset-0 pointer-events-none">
           <img alt="" className="absolute max-w-none object-cover size-full" src={imgLeftPanel} />
           <div
@@ -50,7 +50,7 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
             }}
           />
         </div>
-        <div className="flex flex-col items-start justify-between p-14 relative size-full">
+        <div className="flex flex-col items-start justify-between p-8 lg:p-14 relative size-full">
           {/* Wordmark */}
           <div className="flex gap-3 items-center shrink-0">
             <LogoMark />
@@ -77,21 +77,21 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
         </div>
       </div>
 
-      {/* Right panel */}
-      <div className="flex-1 min-w-0 flex items-center justify-center px-6 py-12 md:px-12">
+      {/* Right panel — scrolls internally so short viewports never clip the form */}
+      <div className="flex-1 min-w-0 flex items-center justify-center px-5 py-8 sm:px-6 sm:py-12 md:px-12 overflow-y-auto">
         <div className="flex flex-col items-start w-full max-w-[400px]">
           {/* Mobile brand */}
-          <div className="flex items-center gap-2 mb-10 md:hidden">
+          <div className="flex items-center gap-2 mb-8 sm:mb-10 md:hidden">
             <LogoMark />
             <p className="font-bold text-[22px] text-[#111827] tracking-[0.4px]">IntelliSight</p>
           </div>
 
-          <p className="font-bold text-[32px] text-[#111827] leading-10">Sign in</p>
+          <p className="font-bold text-[26px] sm:text-[32px] text-[#111827] leading-tight sm:leading-10">Sign in</p>
           <p className="font-normal text-[15px] text-[#6b7380] mt-1">
             Welcome back to IntelliSight
           </p>
 
-          <div className="h-9" />
+          <div className="h-7 sm:h-9" />
 
           <button
             onClick={onLogin}
@@ -100,9 +100,9 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
             <p className="font-semibold text-[15px] text-white">Continue with SSO</p>
           </button>
 
-          <div className="h-7" />
+          <div className="h-6 sm:h-7" />
 
-          <div className="flex gap-1 items-center">
+          <div className="flex gap-1 items-center flex-wrap">
             <p className="font-normal text-[14px] text-[#6b7380]">New here?</p>
             <p className="font-semibold text-[14px] text-[#ba1c1c] cursor-pointer hover:underline">
               Sign Up
