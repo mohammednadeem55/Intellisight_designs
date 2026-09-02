@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams, useSearchParams } from "react-router";
 import { Toaster } from "sonner";
 import { LoginScreen } from "./pages/auth/LoginScreen";
 import { NewOverviewPage } from "./pages/command-center/NewOverviewPage";
@@ -32,7 +32,7 @@ type NavCallbacks = {
   onNavigateHoldManagementOverview: () => void;
   onNavigateOrderListing: () => void;
   onNavigateReleasedOrders: () => void;
-  onNavigateCommunication: () => void;
+  onNavigateCommunication: (fromOrderId?: string) => void;
   onNavigateEmailTemplate: () => void;
   onNavigateReview: () => void;
   onNavigateEmailWorkflow: () => void;
@@ -49,6 +49,16 @@ function OrderDetailsRoute({ nav, onNavigateOverview }: { nav: NavCallbacks; onN
   return <OrderDetailsPage orderId={orderId ?? ""} onNavigateOverview={onNavigateOverview} {...nav} />;
 }
 
+// Communication's back arrow returns to wherever it was opened from — Order Details when reached via its
+// "Open Communication" button/link (carries ?orderId=), the Hold Management Overview otherwise.
+function CommunicationRoute({ nav, onNavigateOverview }: { nav: NavCallbacks; onNavigateOverview: () => void }) {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromOrderId = searchParams.get("orderId");
+  const onNavigateBack = fromOrderId ? () => navigate(`/hold-management/orders/${fromOrderId}`) : onNavigateOverview;
+  return <CommunicationPage onNavigateOverview={onNavigateOverview} onNavigateBack={onNavigateBack} {...nav} />;
+}
+
 function AppRoutes() {
   const navigate = useNavigate();
 
@@ -62,7 +72,8 @@ function AppRoutes() {
     onNavigateHoldManagementOverview: () => navigate("/hold-management"),
     onNavigateOrderListing: () => navigate("/hold-management/orders"),
     onNavigateReleasedOrders: () => navigate("/hold-management/orders/released"),
-    onNavigateCommunication: () => navigate("/hold-management/communication"),
+    onNavigateCommunication: (fromOrderId) =>
+      navigate(fromOrderId ? `/hold-management/communication?orderId=${fromOrderId}` : "/hold-management/communication"),
     onNavigateEmailTemplate: () => navigate("/email-template"),
     onNavigateReview: () => navigate("/review"),
     onNavigateEmailWorkflow: () => navigate(`/command-center/email/${ALL_EMAILS_WITH_CCC[0].id}`),
@@ -87,7 +98,7 @@ function AppRoutes() {
       <Route path="/hold-management/orders" element={<OrderListingPage {...nav} onNavigateOverview={onNavigateOverview} onNavigateOrderDetails={onNavigateOrderDetails} />} />
       <Route path="/hold-management/orders/released" element={<ReleasedOrdersPage {...nav} onNavigateOverview={onNavigateOverview} onNavigateOrderDetails={onNavigateOrderDetails} />} />
       <Route path="/hold-management/orders/:orderId" element={<OrderDetailsRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />
-      <Route path="/hold-management/communication" element={<CommunicationPage {...nav} onNavigateOverview={onNavigateOverview} />} />
+      <Route path="/hold-management/communication" element={<CommunicationRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />
 
       <Route
         path="/email-template"

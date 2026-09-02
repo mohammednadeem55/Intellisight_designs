@@ -33,7 +33,9 @@ import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch, us
 import { TableFilterPanel, TableFilterTrigger, type TableColumnDef } from "../../components/common/TableFilterPanel";
 import { TableColumnMgmtPanel, TableColumnMgmtTrigger } from "../../components/common/TableColumnMgmtPanel";
 import { TablePagination, type RowDensity } from "../../components/common/TablePagination";
-import { ALL_ORDERS, AUDIT_HISTORY_ENTRIES, AUDIT_NOTES, HOLD_ROWS } from "./holdManagementData";
+import { ALL_ORDERS, AUDIT_HISTORY_ENTRIES, AUDIT_NOTES, FOLLOWUP_ESCALATION_LOG, HOLD_ROWS, type FollowUpEscalationEntry } from "./holdManagementData";
+
+type FollowUpLogEntry = FollowUpEscalationEntry;
 
 type HoldRow = (typeof HOLD_ROWS)[number];
 type ColumnKey = "name" | "category" | "level" | "workflow" | "owner" | "impact" | "erd" | "notes";
@@ -216,7 +218,7 @@ function ReleaseHoldModal({ rows, orderId, onClose, onConfirm }: {
           <button onClick={onClose} className="px-4 py-2 rounded-[8px] border border-[#E2E6E9] text-[13px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer">
             Cancel
           </button>
-          <button onClick={confirm} className="px-4 py-2 rounded-[8px] text-[13px] font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer" style={{ backgroundColor: "#468657" }}>
+          <button onClick={confirm} className="px-4 py-2 rounded-[8px] text-[13px] font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer" style={{ backgroundColor: EMAIL_TABLE_NAVY }}>
             Confirm Release
           </button>
         </div>
@@ -235,7 +237,12 @@ const fieldLabelClass = "text-[11px] font-semibold text-[#666666] uppercase trac
 
 // Reads like a compact composer scoped to one hold — Follow-up is the lighter-weight tab (no priority),
 // Escalation adds a priority pick before the same To/Cc/Subject/message fields.
-function FollowUpEscalateModal({ row, onClose }: { row: HoldRow; onClose: () => void }) {
+function FollowUpEscalateModal({ row, onClose, onNavigateCommunication, onSent }: {
+  row: HoldRow;
+  onClose: () => void;
+  onNavigateCommunication?: () => void;
+  onSent: (entry: FollowUpLogEntry) => void;
+}) {
   const [tab, setTab] = useState<"followup" | "escalation">("followup");
   const [to, setTo] = useState("");
   const [cc, setCc] = useState("");
@@ -246,6 +253,18 @@ function FollowUpEscalateModal({ row, onClose }: { row: HoldRow; onClose: () => 
   const send = () => {
     if (!to.trim()) { toast.warning("Enter a recipient"); return; }
     if (tab === "escalation" && !priority) { toast.warning("Select an escalation priority"); return; }
+    onSent({
+      id: Date.now(),
+      type: tab,
+      holdName: row.name,
+      agent: "You",
+      date: new Date().toLocaleDateString(),
+      ago: "Just now",
+      to,
+      subject,
+      message: message || subject,
+      priority: tab === "escalation" ? (priority ?? undefined) : undefined,
+    });
     toast.success(tab === "followup" ? "Follow-up sent" : "Escalation sent");
     onClose();
   };
@@ -340,17 +359,26 @@ function FollowUpEscalateModal({ row, onClose }: { row: HoldRow; onClose: () => 
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[#DEDEDE]">
-          <button onClick={onClose} className="px-4 py-2 rounded-[8px] border border-[#E2E6E9] text-[13px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer">
-            Cancel
-          </button>
+        <div className="flex items-center justify-between gap-2.5 px-6 py-4 border-t border-[#DEDEDE]">
           <button
-            onClick={send}
-            className="px-4 py-2 rounded-[8px] text-[13px] font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer"
-            style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+            onClick={() => onNavigateCommunication?.()}
+            className="text-[12.5px] font-semibold cursor-pointer hover:underline"
+            style={{ color: EMAIL_TABLE_NAVY }}
           >
-            {tab === "followup" ? "Send Follow-up" : "Send Escalation"}
+            View full thread in Communication →
           </button>
+          <div className="flex items-center gap-2.5">
+            <button onClick={onClose} className="px-4 py-2 rounded-[8px] border border-[#E2E6E9] text-[13px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer">
+              Cancel
+            </button>
+            <button
+              onClick={send}
+              className="px-4 py-2 rounded-[8px] text-[13px] font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer"
+              style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+            >
+              {tab === "followup" ? "Send Follow-up" : "Send Escalation"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -399,6 +427,57 @@ function NoteCard({ note }: { note: (typeof AUDIT_NOTES)[number] }) {
   );
 }
 
+const ESCALATION_PRIORITY_COLOR: Record<string, string> = { Critical: "#C83737", High: "#E67919", Low: "#666666" };
+
+// Log of who followed up or escalated a hold, when, and what was said — same card treatment as NoteCard so
+// the two tabs read as one consistent activity feed, just filtered to a different kind of event.
+function FollowUpLogCard({ entry }: { entry: FollowUpLogEntry }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = entry.message.length > NOTE_COLLAPSE_LENGTH;
+  const shownText = isLong && !expanded ? `${entry.message.slice(0, NOTE_COLLAPSE_LENGTH).trimEnd()}…` : entry.message;
+  const isEscalation = entry.type === "escalation";
+
+  return (
+    <div className="rounded-[8px] border border-[#E2E6E9] bg-[#F7F7F7] px-3.5 py-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="size-[24px] rounded-full flex items-center justify-center shrink-0 bg-white border border-[#E2E6E9]">
+            {isEscalation ? <TriangleAlert size={11} className="text-[#C83737]" strokeWidth={2.5} /> : <MessageSquareText size={11} className="text-[#30578D]" strokeWidth={2.5} />}
+          </span>
+          <div className="min-w-0">
+            <p className="text-[12px] leading-tight truncate">
+              <span className="text-[#666666]">{isEscalation ? "Escalated by" : "Followed up by"}</span>{" "}
+              <span className="font-semibold cursor-pointer hover:underline" style={{ color: EMAIL_TABLE_NAVY }}>{entry.agent}</span>
+            </p>
+            <p className="text-[10.5px] text-[#97999B] truncate mt-0.5">{entry.holdName} · To: {entry.to}</p>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          {entry.priority && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 h-[16px] rounded-[8px] text-[9.5px] font-bold uppercase"
+              style={{ color: ESCALATION_PRIORITY_COLOR[entry.priority], backgroundColor: `${ESCALATION_PRIORITY_COLOR[entry.priority]}14` }}
+            >
+              {entry.priority}
+            </span>
+          )}
+          <div className="text-right">
+            <p className="text-[10.5px] text-[#666666] leading-tight">{entry.date}</p>
+            <p className="text-[10px] text-[#97999B] leading-tight">{entry.ago}</p>
+          </div>
+        </div>
+      </div>
+      <p className="text-[12.5px] font-semibold text-[#262626] mt-2">{entry.subject}</p>
+      <p className="text-[#4D4D4D] text-[12.5px] leading-[1.6] whitespace-pre-wrap mt-1">{shownText}</p>
+      {isLong && (
+        <button onClick={() => setExpanded((v) => !v)} className="text-[11px] font-semibold mt-1.5 cursor-pointer hover:underline" style={{ color: EMAIL_TABLE_NAVY }}>
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
   orderId: string;
   onLogout: () => void;
@@ -410,7 +489,7 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
   onNavigateOverview: () => void;
   onNavigateOrderListing: () => void;
   onNavigateReleasedOrders?: () => void;
-  onNavigateCommunication?: () => void;
+  onNavigateCommunication?: (fromOrderId?: string) => void;
   onNavigateEmailTemplate?: () => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
@@ -453,6 +532,7 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
   const toggleRow = (id: number) => setCheckedRows((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [releaseRows, setReleaseRows] = useState<HoldRow[] | null>(null);
   const [followUpRow, setFollowUpRow] = useState<HoldRow | null>(null);
+  const [followUpLog, setFollowUpLog] = useState<FollowUpLogEntry[]>(FOLLOWUP_ESCALATION_LOG);
 
   // Toolbar quick filters — same staged multi-select pattern as Order Listing.
   const { openKey, setOpenKey, registerRef } = useExclusiveOpen();
@@ -649,6 +729,13 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
                     tabIndex={-1}
                   />
                 </div>
+                <button
+                  onClick={() => onNavigateCommunication?.(orderId)}
+                  title="Open Communication"
+                  className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer"
+                >
+                  <MessageSquareText size={14} />
+                </button>
                 <button
                   onClick={handleRefresh}
                   disabled={syncing}
@@ -873,7 +960,9 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
                               {row.name === "CIA Hold" ? (
                                 <button
                                   onClick={() => setFollowUpRow(row)}
-                                  className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] text-[12px] font-semibold hover:border-[#30578D] hover:bg-[#EAF1FB] hover:text-[#30578D] cursor-pointer transition-colors"
+                                  disabled={checkedRows.size > 1}
+                                  title={checkedRows.size > 1 ? "Clear the current selection to act on this row individually" : undefined}
+                                  className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] text-[12px] font-semibold hover:border-[#30578D] hover:bg-[#EAF1FB] hover:text-[#30578D] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[#E2E6E9] disabled:hover:bg-white disabled:hover:text-[#4D4D4D]"
                                 >
                                   <MessageSquareText size={13} />
                                   Follow-up / Escalate
@@ -881,7 +970,9 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
                               ) : (
                                 <button
                                   onClick={() => setReleaseRows([row])}
-                                  className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] text-[12px] font-semibold hover:border-[#30578D] hover:bg-[#EAF1FB] hover:text-[#30578D] cursor-pointer transition-colors"
+                                  disabled={checkedRows.size > 1}
+                                  title={checkedRows.size > 1 ? "Clear the current selection to act on this row individually" : undefined}
+                                  className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] text-[12px] font-semibold hover:border-[#30578D] hover:bg-[#EAF1FB] hover:text-[#30578D] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[#E2E6E9] disabled:hover:bg-white disabled:hover:text-[#4D4D4D]"
                                 >
                                   <CheckCircle2 size={13} />
                                   Release
@@ -966,7 +1057,7 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
                     </div>
 
                     {/* Notes list — bounded height with its own scroll so the composer below stays put */}
-                    <div className="max-h-[360px] overflow-y-auto px-5 flex flex-col gap-2.5">
+                    <div className="min-h-[220px] max-h-[360px] overflow-y-auto px-5 flex flex-col gap-2.5">
                       {(() => {
                         const filtered = AUDIT_NOTES.filter((n) => n.text.toLowerCase().includes(noteSearch.trim().toLowerCase()));
                         if (filtered.length === 0) {
@@ -1010,7 +1101,13 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
                 )}
 
                 {activeTab === "followup" && (
-                  <div className="px-5 py-8 text-center text-[#97999B] text-[13px]">No follow-ups or escalations logged for this order yet.</div>
+                  <div className="min-h-[220px] px-5 py-4 flex flex-col gap-2.5">
+                    {followUpLog.length === 0 ? (
+                      <p className="text-[13px] text-[#97999B] text-center py-8">No follow-ups or escalations logged for this order yet.</p>
+                    ) : (
+                      followUpLog.map((entry) => <FollowUpLogCard key={entry.id} entry={entry} />)
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -1062,7 +1159,7 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
                   </div>
                 </div>
 
-                <div className="px-5 py-4 flex flex-col gap-2.5">
+                <div className="min-h-[220px] px-5 py-4 flex flex-col gap-2.5">
                   {(() => {
                     const q = auditSearch.trim().toLowerCase();
                     const filtered = AUDIT_HISTORY_ENTRIES.filter(
@@ -1130,7 +1227,14 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
         />
       )}
 
-      {followUpRow && <FollowUpEscalateModal row={followUpRow} onClose={() => setFollowUpRow(null)} />}
+      {followUpRow && (
+        <FollowUpEscalateModal
+          row={followUpRow}
+          onClose={() => setFollowUpRow(null)}
+          onNavigateCommunication={() => onNavigateCommunication?.(orderId)}
+          onSent={(entry) => { setFollowUpLog((prev) => [entry, ...prev]); setActiveTab("followup"); }}
+        />
+      )}
     </div>
   );
 }

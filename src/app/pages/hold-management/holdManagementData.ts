@@ -130,6 +130,45 @@ export const AUDIT_HISTORY_ENTRIES = [
   },
 ];
 
+export type FollowUpEscalationEntry = {
+  id: number;
+  type: "followup" | "escalation";
+  holdName: string;
+  agent: string;
+  date: string;
+  ago: string;
+  to: string;
+  subject: string;
+  message: string;
+  priority?: "Critical" | "High" | "Low";
+};
+
+export const FOLLOWUP_ESCALATION_LOG: FollowUpEscalationEntry[] = [
+  {
+    id: 1,
+    type: "escalation",
+    holdName: "CIA Hold",
+    agent: "CSR Agent 001",
+    date: "18/05/2026",
+    ago: "2 days ago",
+    to: "compliance@keysight.com",
+    subject: "Escalation: CIA Hold Aging",
+    message: "This CIA hold has been open for 5 days without resolution. Escalating for visibility — please advise on next steps or approve an exception.",
+    priority: "High",
+  },
+  {
+    id: 2,
+    type: "followup",
+    holdName: "CIA Hold",
+    agent: "CSR Agent 002",
+    date: "16/05/2026",
+    ago: "4 days ago",
+    to: "finance@keysight.com",
+    subject: "Follow-up: CIA Hold Status",
+    message: "Following up on the outstanding CIA hold on this order — please confirm receipt of payment so the hold can be cleared.",
+  },
+];
+
 export const HOLD_COLUMNS = ["Hold Name", "Category", "Level/Line", "Workflow", "Owner", "Impact", "ERD", "Notes Preview", "Action"];
 export const HOLD_FILTER_SECTIONS = [
   { key: "Category",  label: "Category",  options: { Financial: 2, Factory: 1, Forecast: 1, Framework: 1, Folio: 1, Fusion: 1 } },

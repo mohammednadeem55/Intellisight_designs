@@ -787,7 +787,7 @@ function ThreadAndReply({ order }: { order: CommOrderThread }) {
   );
 }
 
-export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateBack, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -795,6 +795,7 @@ export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigate
   onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateOverview: () => void;
+  onNavigateBack?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
@@ -843,8 +844,8 @@ export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigate
           {/* Page header */}
           <div className="flex items-start gap-2.5">
             <button
-              onClick={onNavigateOverview}
-              title="Back to Overview"
+              onClick={() => (onNavigateBack ?? onNavigateOverview)()}
+              title="Back"
               className="text-[#6b7280] hover:text-[#111827] cursor-pointer transition-colors shrink-0 mt-0.5"
             >
               <ArrowLeft size={20} />
