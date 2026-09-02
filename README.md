@@ -1,11 +1,20 @@
+# IntelliSight
 
-  # Intellisight_designs
+A sales-ops email and order triage application — Command Center for classifying and working incoming email/CCC requests, and Hold Management for tracking and releasing held orders.
 
-  This is a code bundle for Intellisight_designs. The original project is available at https://www.figma.com/design/1cDy2vuPhry8CQaBQ2LAUo/Intellisight_designs.
+## Stack
 
-  ## Running the code
+React 18, TypeScript, Vite, Tailwind CSS v4, `react-router`.
 
-  Run `npm i` to install the dependencies.
+## Getting started
 
-  Run `npm run dev` to start the development server.
-  
+```
+pnpm install
+pnpm dev
+```
+
+## Scripts
+
+- `pnpm dev` — start the local dev server
+- `pnpm build` — production build
+- `pnpm typecheck` — run TypeScript across the app and the Vite config
