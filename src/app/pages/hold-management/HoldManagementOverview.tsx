@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronsUpDown, Clock, DollarSign, GripVertical, Inbox, Maximize2, Minimize2, Package, Plus, RefreshCw, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, CheckCircle2, ChevronDown, ChevronsUpDown, Clock, DollarSign, GripVertical, Inbox, Maximize2, Minimize2, Package, Pencil, Plus, RefreshCw, Search, Trash2, User, Users, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { EMAIL_TABLE_NAVY } from "../../components/common/EmailTable";
 
@@ -11,6 +11,45 @@ const SORT_OPTIONS = ["Aging", "SSD Proximity", "Value", "Order Volume"];
 const VIEW_OPTIONS = ["CSR", "Credit"];
 // Grey → orange → red — clicking a to-do's priority dot cycles through these, low to high urgency.
 const TODO_PRIORITIES = ["#D9D9D6", "#E67919", "#C83737"];
+
+// "My Holds" vs. a named group of teammates whose holds should be viewed together — saved per-browser so a
+// group set up today is still there on the next login. Real per-user hold assignment isn't in the mock data
+// model yet, so selecting a group is illustrative (toast) rather than actually re-filtering the panels.
+const HOLD_GROUPS_STORAGE_KEY = "intellisight.holdManagement.holdGroups";
+type HoldGroup = { id: string; name: string; memberIds: string[] };
+const MOCK_USERS = [
+  { id: "u1", name: "Priya Shah" },
+  { id: "u2", name: "Wasim Shaikh" },
+  { id: "u3", name: "Pranjal Bailung" },
+  { id: "u4", name: "Khaja Mohideen" },
+  { id: "u5", name: "Winstina D'Souza" },
+  { id: "u6", name: "Brenden Kirby" },
+  { id: "u7", name: "Jouni Lantto" },
+  { id: "u8", name: "Sari Pellinen" },
+];
+function loadHoldGroups(): HoldGroup[] {
+  try {
+    const raw = localStorage.getItem(HOLD_GROUPS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+function saveHoldGroups(groups: HoldGroup[]) {
+  try {
+    localStorage.setItem(HOLD_GROUPS_STORAGE_KEY, JSON.stringify(groups));
+  } catch {
+    // best-effort — a private window or blocked storage just means groups don't persist this session
+  }
+}
+
+// Credit view — swaps the CSR KPI strip for a Priority Queue; the hold-panel carousel below reuses the
+// exact same HoldCardCarousel/HoldPanelData shape, just fed a single Credit-only panel (see creditPanel).
+const PRIORITY_QUEUE = [
+  { label: "SSD Within 14 Days", caption: "SSD ≤ 14 Days", value: 42, color: "#E67919", icon: Clock },
+  { label: "High Risk Profile", caption: "NOC / DEN / High Default", value: 15, color: "#C83737", icon: AlertTriangle },
+  { label: "High Value Order", caption: "≥ $100K USD", value: 28, color: "#468657", icon: DollarSign },
+];
 
 // Parses "$3.8M" / "$0.9M" style card values into a plain number for sorting.
 function parseValue(v: string): number {
@@ -222,6 +261,117 @@ function HoldCardCarousel({
   );
 }
 
+// Create/edit modal for a saved hold group — name + a searchable checkbox list of teammates. Same
+// component either way; `group` being non-null just pre-fills the form and adds a Delete option.
+function HoldGroupModal({ group, onClose, onSave, onDelete }: {
+  group: HoldGroup | null;
+  onClose: () => void;
+  onSave: (name: string, memberIds: string[]) => void;
+  onDelete?: () => void;
+}) {
+  const [name, setName] = useState(group?.name ?? "");
+  const [memberIds, setMemberIds] = useState<Set<string>>(new Set(group?.memberIds ?? []));
+  const [userSearch, setUserSearch] = useState("");
+
+  const toggleMember = (id: string) => setMemberIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const filteredUsers = MOCK_USERS.filter((u) => u.name.toLowerCase().includes(userSearch.trim().toLowerCase()));
+
+  const save = () => {
+    if (!name.trim()) { toast.warning("Enter a group name"); return; }
+    if (memberIds.size === 0) { toast.warning("Select at least one teammate"); return; }
+    onSave(name.trim(), Array.from(memberIds));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-[8px] shadow-xl w-full max-w-[440px] max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#DEDEDE]">
+          <span className="text-[16px] font-bold text-[#262626]">{group ? "Edit Group" : "Create New Group"}</span>
+          <button onClick={onClose} className="shrink-0 text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-auto px-6 py-5 flex flex-col gap-4">
+          <div>
+            <label className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide mb-1.5 block">Group Name</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. West Region CSRs"
+              className="w-full h-[38px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[13px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide">Members</label>
+              {memberIds.size > 0 && <span className="text-[10.5px] text-[#97999B]">{memberIds.size} selected</span>}
+            </div>
+            <div className="relative mb-2">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#97999B] pointer-events-none" />
+              <input
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                placeholder="Search teammates"
+                className="w-full h-[34px] pl-8 pr-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[12.5px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors"
+              />
+            </div>
+            <div className="rounded-[8px] border border-[#E2E6E9] max-h-[220px] overflow-y-auto">
+              {filteredUsers.length === 0 ? (
+                <p className="text-[12px] text-[#97999B] text-center py-6">No teammates match "{userSearch}"</p>
+              ) : (
+                filteredUsers.map((u, i) => {
+                  const checked = memberIds.has(u.id);
+                  return (
+                    <button
+                      key={u.id}
+                      onClick={() => toggleMember(u.id)}
+                      className={`w-full flex items-center gap-2.5 text-left px-3 py-2.5 cursor-pointer transition-colors ${i !== 0 ? "border-t border-[#E2E6E9]" : ""} ${checked ? "bg-[#EAF1FB]" : "hover:bg-[#F7F7F7]"}`}
+                    >
+                      <span
+                        className={`flex items-center justify-center size-[16px] rounded-[4px] border-[1.5px] shrink-0 transition-colors ${checked ? "border-transparent" : "border-[#B8BCC2] bg-white"}`}
+                        style={checked ? { backgroundColor: EMAIL_TABLE_NAVY } : undefined}
+                      >
+                        {checked && <Check size={11} className="text-white" strokeWidth={3.5} />}
+                      </span>
+                      <span className={`text-[13px] ${checked ? "font-semibold text-[#262626]" : "text-[#4D4D4D]"}`}>{u.name}</span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2.5 px-6 py-4 border-t border-[#DEDEDE]">
+          {group ? (
+            <button onClick={onDelete} className="flex items-center gap-1.5 text-[12.5px] font-semibold cursor-pointer hover:underline" style={{ color: "#C83737" }}>
+              <Trash2 size={13} />
+              Delete group
+            </button>
+          ) : (
+            <span />
+          )}
+          <div className="flex items-center gap-2.5">
+            <button onClick={onClose} className="px-4 py-2 rounded-[8px] border border-[#E2E6E9] text-[13px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer">
+              Cancel
+            </button>
+            <button
+              onClick={save}
+              className="px-4 py-2 rounded-[8px] text-[13px] font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer"
+              style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+            >
+              {group ? "Save Changes" : "Create Group"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
@@ -254,6 +404,48 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
   const [timelineTab, setTimelineTab] = useState<string | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const timelineLabel = timelineTab ?? "Timeline";
+
+  // "My Holds" (default) vs. a saved group of teammates — persisted in localStorage so groups created
+  // today are still there next login.
+  const [holdGroups, setHoldGroups] = useState<HoldGroup[]>(() => loadHoldGroups());
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [groupPickerOpen, setGroupPickerOpen] = useState(false);
+  const groupPickerRef = useRef<HTMLDivElement>(null);
+  const [groupModal, setGroupModal] = useState<{ mode: "create" } | { mode: "edit"; group: HoldGroup } | null>(null);
+  const selectedGroup = holdGroups.find((g) => g.id === selectedGroupId) ?? null;
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (groupPickerRef.current && !groupPickerRef.current.contains(e.target as Node)) setGroupPickerOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const saveGroup = (name: string, memberIds: string[]) => {
+    if (groupModal?.mode === "edit") {
+      const updated = holdGroups.map((g) => (g.id === groupModal.group.id ? { ...g, name, memberIds } : g));
+      setHoldGroups(updated);
+      saveHoldGroups(updated);
+      toast.success(`"${name}" updated`);
+    } else {
+      const newGroup: HoldGroup = { id: `g${Date.now()}`, name, memberIds };
+      const updated = [...holdGroups, newGroup];
+      setHoldGroups(updated);
+      saveHoldGroups(updated);
+      setSelectedGroupId(newGroup.id);
+      toast.success(`"${name}" created`);
+    }
+    setGroupModal(null);
+  };
+  const deleteGroup = (id: string) => {
+    const updated = holdGroups.filter((g) => g.id !== id);
+    setHoldGroups(updated);
+    saveHoldGroups(updated);
+    if (selectedGroupId === id) setSelectedGroupId(null);
+    setGroupModal(null);
+    toast.info("Group deleted");
+  };
 
   const sortCards = (cards: HoldCardData[]): HoldCardData[] => {
     const sorted = [...cards];
@@ -377,7 +569,33 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
     },
   ];
 
-  const totalHoldCount = holdPanels.reduce((sum, p) => sum + p.count, 0);
+  // Credit view — same panel/carousel shape as the CSR panels above, just one panel covering the three
+  // credit-specific hold types instead of the full CSR breakdown.
+  const creditPanel: HoldPanelData = {
+    title: "Credit Holds", count: 25, critical: 3, total: "$3.3M", accentColor: "#7C3AED",
+    cards: [
+      {
+        code: "Credit Check Failure", badge: "CREDIT", badgeColor: "#7C3AED", orders: "12", breached: "04", value: "$1.8M", critical: true,
+        agingDays: 9, ssdProximityDays: 4, ageHours: 70,
+        tags: [{ label: "Line", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "At Risk", color: "#E67919", bg: "rgba(230,121,25,0.1)" }],
+      },
+      {
+        code: "Credit Hold at Pick", badge: "CREDIT", badgeColor: "#7C3AED", orders: "08", breached: "01", value: "$0.9M",
+        agingDays: 3, ssdProximityDays: 10, ageHours: 20,
+        tags: [{ label: "Line", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "On Track", color: "#468657", bg: "rgba(70,134,87,0.1)" }],
+      },
+      {
+        code: "Manual Credit Hold", badge: "CREDIT", badgeColor: "#7C3AED", orders: "05", breached: "02", value: "$0.6M",
+        agingDays: 18, ssdProximityDays: 2, ageHours: 200,
+        tags: [{ label: "Header", color: "#637590", bg: "rgba(99,117,144,0.1)" }, { label: "Late", color: "#C83737", bg: "rgba(200,55,55,0.1)" }],
+      },
+    ],
+  };
+  const displayedPanels = activeView === "Credit" ? [creditPanel] : holdPanels;
+  const totalHoldCount = displayedPanels.reduce((sum, p) => sum + p.count, 0);
+  // No real per-user hold assignment in the mock data yet — a stable, illustrative count per group
+  // (scales with member count) stands in until that data model exists.
+  const groupHoldCount = (group: HoldGroup) => Math.max(5, group.memberIds.length * 9 + 3);
 
   const releasedOrders = [
     { id: "#7800011", value: "$340K", company: "Acme Industries Ltd", reason: "Credit Check Failure", time: "Released 2d ago" },
@@ -464,25 +682,48 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
             </div>
           </div>
 
-          {/* ── KPI strip ── */}
+          {/* ── KPI strip (CSR) / Priority Queue (Credit) ── */}
           {kpisExpanded && (
-          <div className="flex flex-wrap gap-4">
-            {kpis.map((kpi) => (
-              <div
-                key={kpi.label}
-                className="relative overflow-hidden flex-1 min-w-[220px] rounded-[8px] border border-[#E2E6E9] p-4 flex items-center gap-3.5"
-                style={{ background: `linear-gradient(135deg, ${kpi.accent}10, #ffffff 65%)` }}
-              >
-                <div className="size-[42px] rounded-[8px] flex items-center justify-center shrink-0" style={{ backgroundColor: `${kpi.accent}1A` }}>
-                  <kpi.icon size={19} style={{ color: kpi.accent }} />
-                </div>
-                <div className="flex flex-col gap-1 min-w-0">
-                  <p className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide truncate">{kpi.label}</p>
-                  <p className="text-[22px] font-bold text-[#262626] leading-none">{kpi.value}</p>
-                </div>
+            activeView === "Credit" ? (
+              <div className="flex flex-wrap gap-4">
+                {PRIORITY_QUEUE.map((item) => (
+                  <div
+                    key={item.label}
+                    className="relative overflow-hidden flex-1 min-w-[220px] rounded-[8px] border border-[#E2E6E9] p-4 flex items-center gap-3.5"
+                    style={{ background: `linear-gradient(135deg, ${item.color}10, #ffffff 65%)` }}
+                  >
+                    <div className="size-[42px] rounded-[8px] flex items-center justify-center shrink-0" style={{ backgroundColor: `${item.color}1A` }}>
+                      <item.icon size={19} style={{ color: item.color }} />
+                    </div>
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <p className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide truncate">{item.label}</p>
+                      <div className="flex items-baseline gap-1.5 min-w-0">
+                        <p className="text-[22px] font-bold text-[#262626] leading-none shrink-0">{item.value}</p>
+                        <p className="text-[10.5px] text-[#97999B] truncate">{item.caption}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="flex flex-wrap gap-4">
+                {kpis.map((kpi) => (
+                  <div
+                    key={kpi.label}
+                    className="relative overflow-hidden flex-1 min-w-[220px] rounded-[8px] border border-[#E2E6E9] p-4 flex items-center gap-3.5"
+                    style={{ background: `linear-gradient(135deg, ${kpi.accent}10, #ffffff 65%)` }}
+                  >
+                    <div className="size-[42px] rounded-[8px] flex items-center justify-center shrink-0" style={{ backgroundColor: `${kpi.accent}1A` }}>
+                      <kpi.icon size={19} style={{ color: kpi.accent }} />
+                    </div>
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <p className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide truncate">{kpi.label}</p>
+                      <p className="text-[22px] font-bold text-[#262626] leading-none">{kpi.value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           )}
 
           {/* ── Body: panels + sidebar — stacks to one column below the `lg` breakpoint (same responsive
@@ -491,15 +732,90 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-5 items-start">
 
             {/* ── Left column ── */}
-            <div className="min-w-0 bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden">
+            <div className="min-w-0">
+            <div className="bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden">
 
               {/* Filter bar — no border-b here: each panel below already has its own border-t, which serves
                   as the single divider (both this boundary and every boundary between panels); adding one
                   here too would stack two 1px borders back-to-back and read as one thick, muddy line. */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5">
-                <h3 className="text-[14px] font-bold text-[#111827]">
-                  Holds <span className="text-[#9ca3af] font-medium">({totalHoldCount})</span>
-                </h3>
+                {/* My Holds / saved group picker — Credit-only; CSR keeps the plain "Holds (N)" title since
+                    holds there aren't scoped by user/group. */}
+                {activeView !== "Credit" ? (
+                  <h3 className="text-[14px] font-bold text-[#111827]">
+                    Holds <span className="text-[#9ca3af] font-medium">({totalHoldCount})</span>
+                  </h3>
+                ) : (
+                <div className="relative" ref={groupPickerRef}>
+                  <button
+                    onClick={() => setGroupPickerOpen((v) => !v)}
+                    className={`flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-medium transition-colors cursor-pointer ${
+                      groupPickerOpen ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#111827] hover:bg-[#F7F7F7]"
+                    }`}
+                  >
+                    {selectedGroup ? (
+                      <Users size={13} className={groupPickerOpen ? "text-[#30578D]" : "text-[#97999B]"} />
+                    ) : (
+                      <User size={13} className={groupPickerOpen ? "text-[#30578D]" : "text-[#97999B]"} />
+                    )}
+                    {selectedGroup ? selectedGroup.name : "My Holds"}
+                    <span className="text-[#9ca3af] font-medium">({selectedGroup ? groupHoldCount(selectedGroup) : totalHoldCount})</span>
+                    <ChevronDown size={13} className={`transition-transform duration-200 ${groupPickerOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {groupPickerOpen && (
+                    <div className="absolute top-full left-0 mt-1 bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-40 py-1 w-[240px]">
+                      <button
+                        onClick={() => { setSelectedGroupId(null); setGroupPickerOpen(false); toast.success("Showing My Holds"); }}
+                        className={`w-full flex items-center gap-2 text-left px-3.5 py-2 text-[12.5px] cursor-pointer transition-colors ${!selectedGroup ? "font-bold bg-[#EAF1FB]" : "font-normal hover:bg-[#F7F7F7]"}`}
+                        style={{ color: !selectedGroup ? EMAIL_TABLE_NAVY : "#4D4D4D" }}
+                      >
+                        <User size={12} className={!selectedGroup ? "text-[#30578D]" : "text-[#97999B]"} />
+                        My Holds <span className="text-[#97999B] font-normal">({totalHoldCount})</span>
+                      </button>
+                      {holdGroups.length > 0 && (
+                        <>
+                          <div className="h-px bg-[#E2E6E9] my-1" />
+                          {holdGroups.map((g) => {
+                            const selected = g.id === selectedGroupId;
+                            return (
+                            <div
+                              key={g.id}
+                              className={`group flex items-center gap-1 px-1.5 ${selected ? "bg-[#EAF1FB]" : "hover:bg-[#F7F7F7]"} transition-colors`}
+                            >
+                              <button
+                                onClick={() => { setSelectedGroupId(g.id); setGroupPickerOpen(false); toast.success(`Showing holds for "${g.name}"`); }}
+                                className={`flex-1 min-w-0 flex items-center gap-2 text-left pl-2 pr-1 py-2 text-[12.5px] truncate cursor-pointer ${selected ? "font-bold" : "font-normal"}`}
+                                style={{ color: selected ? EMAIL_TABLE_NAVY : "#4D4D4D" }}
+                              >
+                                <Users size={12} className={selected ? "text-[#30578D]" : "text-[#97999B]"} />
+                                {g.name}
+                                <span className="text-[10.5px] text-[#97999B] font-normal ml-1">({groupHoldCount(g)})</span>
+                              </button>
+                              <button
+                                onClick={() => { setGroupModal({ mode: "edit", group: g }); setGroupPickerOpen(false); }}
+                                title="Edit group"
+                                className="shrink-0 p-1.5 rounded-[6px] text-[#97999B] hover:text-[#30578D] hover:bg-white cursor-pointer transition-colors opacity-0 group-hover:opacity-100"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                            </div>
+                            );
+                          })}
+                        </>
+                      )}
+                      <div className="h-px bg-[#E2E6E9] my-1" />
+                      <button
+                        onClick={() => { setGroupModal({ mode: "create" }); setGroupPickerOpen(false); }}
+                        className="w-full flex items-center gap-1.5 text-left px-3.5 py-2 text-[12.5px] font-semibold hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                        style={{ color: EMAIL_TABLE_NAVY }}
+                      >
+                        <Plus size={13} />
+                        Create New Group
+                      </button>
+                    </div>
+                  )}
+                </div>
+                )}
 
                 {/* Sort By + Timeline, grouped together on the right edge of the toolbar */}
                 <div className="flex items-center gap-2.5 flex-wrap ml-auto">
@@ -556,19 +872,20 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
               </div>
 
               {/* Panel sections */}
-              {holdPanels.map((panel) => {
+              {displayedPanels.map((panel) => {
                 const displayCards = sortCards(filterByTimeline(panel.cards));
                 return (
                   <HoldCardCarousel
                     key={panel.title}
                     panel={panel}
                     cards={displayCards}
-                    resetKey={`${activeSort}-${sortDirection}-${timelineTab}`}
+                    resetKey={`${activeView}-${activeSort}-${sortDirection}-${timelineTab}`}
                     onViewAll={() => onViewAllOrders ? onViewAllOrders() : toast.info(`Viewing all ${displayCards.length} holds for ${panel.title}`)}
                     onCardClick={() => onNavigateOrderListing ? onNavigateOrderListing() : toast.info("Opening order listing")}
                   />
                 );
               })}
+            </div>
             </div>
 
             {/* ── Right sidebar (380px at lg+, full width below it — matching the workflow pages' right column) ── */}
@@ -751,6 +1068,15 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
           </div>
         </main>
       </div>
+
+      {groupModal && (
+        <HoldGroupModal
+          group={groupModal.mode === "edit" ? groupModal.group : null}
+          onClose={() => setGroupModal(null)}
+          onSave={saveGroup}
+          onDelete={groupModal.mode === "edit" ? () => deleteGroup(groupModal.group.id) : undefined}
+        />
+      )}
     </div>
   );
 }
