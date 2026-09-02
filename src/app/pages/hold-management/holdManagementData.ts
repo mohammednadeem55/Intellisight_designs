@@ -62,7 +62,7 @@ export const ALL_RELEASED = [
 
 export const HOLD_ROWS = [
   { id: 1, name: "CIA Hold",            category: "Financial",  level: "Header", workflow: "Immediate", owner: "CSR",         impact: "Ship", erd: "",  notes: "Dual: CIA Outstanding", hasRelease: true },
-  { id: 2, name: "Shipping Line Hold",  category: "Factory",    level: "Header", workflow: "Pick",      owner: "Factory",     impact: "Ship", erd: "",  notes: "Dual: CIA Outstanding", hasRelease: false },
+  { id: 2, name: "CIA Hold",            category: "Factory",    level: "Header", workflow: "Pick",      owner: "Factory",     impact: "Ship", erd: "",  notes: "Dual: CIA Outstanding", hasRelease: false },
   { id: 3, name: "Lorem Ipsum",         category: "Forecast",   level: "Header", workflow: "Immediate", owner: "CSR",         impact: "Ship", erd: "",  notes: "Dual: CIA Outstanding", hasRelease: false },
   { id: 4, name: "Lorem Ipsum",         category: "Framework",  level: "Header", workflow: "Immediate", owner: "CSR",         impact: "Ship", erd: "",  notes: "Dual: CIA Outstanding", hasRelease: false },
   { id: 5, name: "Bill Only Line Order",category: "Folio",      level: "Metasite Inc", workflow: "Immediate", owner: "CSR",   impact: "Ship", erd: "",  notes: "Dual: CIA Outstanding", hasRelease: false },
@@ -76,8 +76,7 @@ export const AUDIT_NOTES = [
     date: "19/05/2026",
     ago: "1 day ago",
     agent: "CSR Agent 001",
-    agentColor: "#c53e6c",
-    dotColor: "#3b82f6",
+    source: "oracle" as const,
     text: "BIZ: SI\nFE/AE/PM: Brenden Kirby /Jouni Lantto/\nSol.Sp: Sari Pellinen\nTarget Acceptance Date: May26\nServices A/W Approval: May26\nAcceptance Criteria: Acceptance of standard products upon delivery / Acceptance of custom HW items upon commissioning / Services upon completion. Where acceptance is delayed by Volvo by 30 days or more following notification by Keysight that the Solution is ready for acceptance test, then custom HW and SW items shall be deemed accepted on the 31st day following such notice.",
   },
   {
@@ -85,8 +84,7 @@ export const AUDIT_NOTES = [
     date: "19/05/2026",
     ago: "10 days ago",
     agent: "CSR Agent 001",
-    agentColor: "#c53e6c",
-    dotColor: "#3b82f6",
+    source: "manual" as const,
     text: "Lines showing in RMT hold management as SSD < 5 days - all lines are IM1 - not taking any action.",
   },
   {
@@ -94,9 +92,41 @@ export const AUDIT_NOTES = [
     date: "02/02/2026",
     ago: "1 day ago",
     agent: "CSR Agent 002",
-    agentColor: "#c53e6c",
-    dotColor: "#16a34a",
+    source: "manual" as const,
     text: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500sLorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s",
+  },
+];
+
+export const AUDIT_HISTORY_ENTRIES = [
+  {
+    id: 1,
+    user: "Winstina",
+    field: "Close Date",
+    from: "1/26/2026",
+    to: "3/26/2026",
+    timestamp: "12/12/2025, 11:25 AM",
+    details:
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500sLorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s",
+  },
+  {
+    id: 2,
+    user: "Winstina",
+    field: "Close Date",
+    from: "1/26/2026",
+    to: "3/26/2026",
+    timestamp: "12/12/2025, 11:25 AM",
+    details:
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.",
+  },
+  {
+    id: 3,
+    user: "Winstina",
+    field: "Close Date",
+    from: "1/26/2026",
+    to: "3/26/2026",
+    timestamp: "12/12/2025, 11:25 AM",
+    details:
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.",
   },
 ];
 
