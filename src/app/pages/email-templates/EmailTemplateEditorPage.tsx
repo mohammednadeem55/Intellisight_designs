@@ -228,6 +228,7 @@ export function EmailTemplateEditorPage({
   onNavigateHoldManagementOverview,
   onNavigateOrderListing,
   onNavigateReleasedOrders,
+  onNavigateCommunication,
   onNavigateEmailTemplate,
   onNavigateReview,
   onNavigateEmailWorkflow,
@@ -242,6 +243,7 @@ export function EmailTemplateEditorPage({
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
@@ -341,6 +343,7 @@ export function EmailTemplateEditorPage({
             onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
+            onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
             onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}

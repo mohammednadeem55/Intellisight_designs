@@ -1,7 +1,7 @@
 import { AppHeader } from "../../components/common/AppHeader";
 import { EmailViewBody } from "./emailViewShared";
 
-export function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -12,6 +12,7 @@ export function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
@@ -29,6 +30,7 @@ export function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome
         onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
+        onNavigateCommunication={onNavigateCommunication}
         onNavigateEmailTemplate={onNavigateEmailTemplate}
         onNavigateReview={onNavigateReview}
         onNavigateEmailWorkflow={onNavigateEmailWorkflow}

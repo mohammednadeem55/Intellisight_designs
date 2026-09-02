@@ -14,6 +14,7 @@ import { HoldManagementOverview } from "./pages/hold-management/HoldManagementOv
 import { OrderListingPage } from "./pages/hold-management/OrderListingPage";
 import { ReleasedOrdersPage } from "./pages/hold-management/ReleasedOrdersPage";
 import { OrderDetailsPage } from "./pages/hold-management/OrderDetailsPage";
+import { CommunicationPage } from "./pages/hold-management/CommunicationPage";
 import { ALL_EMAILS_WITH_CCC } from "./pages/command-center/emailData";
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
@@ -31,6 +32,7 @@ type NavCallbacks = {
   onNavigateHoldManagementOverview: () => void;
   onNavigateOrderListing: () => void;
   onNavigateReleasedOrders: () => void;
+  onNavigateCommunication: () => void;
   onNavigateEmailTemplate: () => void;
   onNavigateReview: () => void;
   onNavigateEmailWorkflow: () => void;
@@ -60,6 +62,7 @@ function AppRoutes() {
     onNavigateHoldManagementOverview: () => navigate("/hold-management"),
     onNavigateOrderListing: () => navigate("/hold-management/orders"),
     onNavigateReleasedOrders: () => navigate("/hold-management/orders/released"),
+    onNavigateCommunication: () => navigate("/hold-management/communication"),
     onNavigateEmailTemplate: () => navigate("/email-template"),
     onNavigateReview: () => navigate("/review"),
     onNavigateEmailWorkflow: () => navigate(`/command-center/email/${ALL_EMAILS_WITH_CCC[0].id}`),
@@ -84,6 +87,7 @@ function AppRoutes() {
       <Route path="/hold-management/orders" element={<OrderListingPage {...nav} onNavigateOverview={onNavigateOverview} onNavigateOrderDetails={onNavigateOrderDetails} />} />
       <Route path="/hold-management/orders/released" element={<ReleasedOrdersPage {...nav} onNavigateOverview={onNavigateOverview} onNavigateOrderDetails={onNavigateOrderDetails} />} />
       <Route path="/hold-management/orders/:orderId" element={<OrderDetailsRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />
+      <Route path="/hold-management/communication" element={<CommunicationPage {...nav} onNavigateOverview={onNavigateOverview} />} />
 
       <Route
         path="/email-template"

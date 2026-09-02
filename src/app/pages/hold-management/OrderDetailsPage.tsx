@@ -6,7 +6,7 @@ import detailsSvg from "@/imports/HoldManagementOrderDetailsV2/svg-wic8forngq";
 import { AppHeader } from "../../components/common/AppHeader";
 import { ALL_ORDERS, HOLD_ROWS, AUDIT_NOTES, HOLD_COLUMNS, HOLD_FILTER_SECTIONS } from "./holdManagementData";
 
-export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
   orderId: string;
   onLogout: () => void;
   onViewAllNotifications: () => void;
@@ -17,6 +17,7 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
   onNavigateOverview: () => void;
   onNavigateOrderListing: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
@@ -64,26 +65,28 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
   const order = ALL_ORDERS.find(o => o.id === orderId) ?? ALL_ORDERS[0];
 
   return (
-    <div className="bg-[#f5f6fa] flex size-full min-h-screen">
-      <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-auto">
-        {/* Header */}
-        <AppHeader
-          activeNav="Hold Management"
-          onViewAllNotifications={onViewAllNotifications}
-          onLogout={onLogout}
-          onNavigateHome={onNavigateHome}
-          onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-          onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
-          onNavigateNewOverview={onNavigateNewOverview}
-          onNavigateHoldManagementOverview={onNavigateOverview}
-          onNavigateOrderListing={onNavigateOrderListing}
-          onNavigateReleasedOrders={onNavigateReleasedOrders}
-          onNavigateEmailTemplate={onNavigateEmailTemplate}
-          onNavigateReview={onNavigateReview}
-          onNavigateEmailWorkflow={onNavigateEmailWorkflow}
-        />
+    <div className="bg-[#f5f6fa] flex size-full h-screen overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
+        <div className="shrink-0 shadow-[0_2px_6px_rgba(15,23,42,0.06)] relative z-50">
+          <AppHeader
+            activeNav="Hold Management"
+            onViewAllNotifications={onViewAllNotifications}
+            onLogout={onLogout}
+            onNavigateHome={onNavigateHome}
+            onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
+            onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
+            onNavigateNewOverview={onNavigateNewOverview}
+            onNavigateHoldManagementOverview={onNavigateOverview}
+            onNavigateOrderListing={onNavigateOrderListing}
+            onNavigateReleasedOrders={onNavigateReleasedOrders}
+            onNavigateCommunication={onNavigateCommunication}
+            onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateReview={onNavigateReview}
+            onNavigateEmailWorkflow={onNavigateEmailWorkflow}
+          />
+        </div>
 
-        <main className="flex-1 flex flex-col w-full max-w-[1600px] mx-auto">
+        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto overflow-y-auto">
 
           {/* Order Banner */}
           <div className="bg-[#f1f5f9] px-5 py-[10px] border-b border-[#e2e8f0] shrink-0">

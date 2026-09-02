@@ -44,6 +44,7 @@ export function NotificationsPage({
   onNavigateHoldManagementOverview,
   onNavigateOrderListing,
   onNavigateReleasedOrders,
+  onNavigateCommunication,
   onNavigateEmailTemplate,
   onNavigateReview,
   onNavigateEmailWorkflow,
@@ -57,6 +58,7 @@ export function NotificationsPage({
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
@@ -103,6 +105,7 @@ export function NotificationsPage({
         onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
         onNavigateOrderListing={onNavigateOrderListing}
         onNavigateReleasedOrders={onNavigateReleasedOrders}
+        onNavigateCommunication={onNavigateCommunication}
         onNavigateEmailTemplate={onNavigateEmailTemplate}
         onNavigateReview={onNavigateReview}
         onNavigateEmailWorkflow={onNavigateEmailWorkflow}

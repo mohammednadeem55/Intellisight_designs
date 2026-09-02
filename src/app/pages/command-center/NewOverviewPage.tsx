@@ -233,7 +233,7 @@ function NewOverviewListView({ rows, selectedId, selected, onSelect, expandedIds
   );
 }
 
-export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateWorkflow, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateWorkflow, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -244,6 +244,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
@@ -524,6 +525,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
               onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
               onNavigateOrderListing={onNavigateOrderListing}
               onNavigateReleasedOrders={onNavigateReleasedOrders}
+              onNavigateCommunication={onNavigateCommunication}
               onNavigateEmailTemplate={onNavigateEmailTemplate}
               onNavigateReview={onNavigateReview}
               onNavigateEmailWorkflow={onNavigateEmailWorkflow}
@@ -566,6 +568,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
             onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
+            onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
             onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}

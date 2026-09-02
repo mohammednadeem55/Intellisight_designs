@@ -222,7 +222,7 @@ function HoldCardCarousel({
   );
 }
 
-export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -232,6 +232,7 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
   onViewAllOrders?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
@@ -386,8 +387,8 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
   ];
 
   return (
-    <div className="bg-[#f5f6fa] flex size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
-      <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-auto">
+    <div className="bg-[#f5f6fa] flex size-full h-screen overflow-hidden" style={{ fontFamily: "Inter, sans-serif" }}>
+      <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
         <div className="shrink-0 shadow-[0_2px_6px_rgba(15,23,42,0.06)] relative z-50">
           <AppHeader
             activeNav="Hold Management"
@@ -400,13 +401,14 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
             onNavigateHoldManagementOverview={() => {}}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
+            onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
             onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
 
-        <main className="flex-1 w-full max-w-[1600px] mx-auto px-5 py-5 flex flex-col gap-4">
+        <main className="flex-1 min-h-0 overflow-y-auto w-full max-w-[1600px] mx-auto px-5 py-5 flex flex-col gap-4">
 
           {/* ── Page header ── */}
           <div className="flex items-center justify-between flex-wrap gap-3">
@@ -483,11 +485,13 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
           </div>
           )}
 
-          {/* ── Body: panels + sidebar ── */}
-          <div className="flex gap-5 items-start">
+          {/* ── Body: panels + sidebar — stacks to one column below the `lg` breakpoint (same responsive
+              pattern as the workflow step bodies' [1fr_380px] grid) instead of a fixed-width sidebar that
+              never adapts and crowds the panels on narrower viewports. ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-5 items-start">
 
             {/* ── Left column ── */}
-            <div className="flex-1 min-w-0 bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden">
+            <div className="min-w-0 bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden">
 
               {/* Filter bar — no border-b here: each panel below already has its own border-t, which serves
                   as the single divider (both this boundary and every boundary between panels); adding one
@@ -567,8 +571,8 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
               })}
             </div>
 
-            {/* ── Right sidebar (380px, matching the workflow pages' right column) ── */}
-            <div className="w-[380px] shrink-0 flex flex-col gap-4">
+            {/* ── Right sidebar (380px at lg+, full width below it — matching the workflow pages' right column) ── */}
+            <div className="min-w-0 flex flex-col gap-4">
 
               {/* Attention Required */}
               <div className="bg-white rounded-[8px] border border-[#ebebeb] py-4 overflow-hidden">
