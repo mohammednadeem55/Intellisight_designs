@@ -32,7 +32,7 @@ const HOLD_CATEGORIES = Array.from(new Set(ALL_RELEASED.map((o) => o.holdType)))
 // Mirrors the original page's dropdown exactly: labeled "Hold Type" but filters on `title`.
 const HOLD_TYPES = Array.from(new Set(ALL_RELEASED.map((o) => o.title)));
 
-export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -42,6 +42,7 @@ export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigat
   onNavigateOverview: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateCommunication?: () => void;
   onNavigateOrderDetails?: (orderId: string) => void;
   onNavigateEmailTemplate?: () => void;
   onNavigateReview?: () => void;
@@ -159,8 +160,8 @@ export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigat
   };
 
   return (
-    <div className="bg-[#f5f6fa] flex size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
-      <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-auto">
+    <div className="bg-[#f5f6fa] flex size-full h-screen overflow-hidden" style={{ fontFamily: "Inter, sans-serif" }}>
+      <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
         <div className="shrink-0 shadow-[0_2px_6px_rgba(15,23,42,0.06)] relative z-50">
           <AppHeader
             activeNav="Hold Management"
@@ -173,13 +174,14 @@ export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigat
             onNavigateHoldManagementOverview={onNavigateOverview}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
+            onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
             onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
 
-        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 py-5 gap-4">
+        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 py-5 gap-4 overflow-hidden">
           {/* Page header */}
           <div className="flex items-start gap-2.5">
             <button

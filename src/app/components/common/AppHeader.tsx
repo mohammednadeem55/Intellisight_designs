@@ -20,6 +20,7 @@ export function AppHeader({
   onNavigateHoldManagementOverview,
   onNavigateOrderListing,
   onNavigateReleasedOrders,
+  onNavigateCommunication,
   onNavigateEmailTemplate,
   onNavigateReview,
   onNavigateEmailWorkflow,
@@ -34,6 +35,7 @@ export function AppHeader({
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
@@ -78,7 +80,7 @@ export function AppHeader({
       children: [
         { label: "Overview", onClick: onNavigateHoldManagementOverview },
         { label: "Order Listing", onClick: onNavigateOrderListing },
-        { label: "Released Orders", onClick: onNavigateReleasedOrders },
+        { label: "Communication", onClick: onNavigateCommunication },
       ],
     },
     { label: "Email Template", match: (n) => n === "Email Template", onClick: onNavigateEmailTemplate },

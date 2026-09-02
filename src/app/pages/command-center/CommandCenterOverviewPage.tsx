@@ -11,7 +11,7 @@ import {
 import { type Email, ALL_EMAILS, ALL_EMAILS_WITH_CCC } from "./emailData";
 import { EmailStatusBadge, EmailViewBody } from "./emailViewShared";
 
-export function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -22,6 +22,7 @@ export function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, on
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
@@ -258,6 +259,7 @@ export function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, on
           onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
           onNavigateOrderListing={onNavigateOrderListing}
           onNavigateReleasedOrders={onNavigateReleasedOrders}
+          onNavigateCommunication={onNavigateCommunication}
           onNavigateEmailTemplate={onNavigateEmailTemplate}
           onNavigateReview={onNavigateReview}
           onNavigateEmailWorkflow={onNavigateEmailWorkflow}

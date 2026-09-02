@@ -135,6 +135,7 @@ export function HomePage({
   onNavigateHoldManagementOverview,
   onNavigateOrderListing,
   onNavigateReleasedOrders,
+  onNavigateCommunication,
   onNavigateEmailTemplate,
   onNavigateReview,
   onNavigateEmailWorkflow,
@@ -147,6 +148,7 @@ export function HomePage({
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
+  onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
@@ -164,6 +166,7 @@ export function HomePage({
           onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
           onNavigateOrderListing={onNavigateOrderListing}
           onNavigateReleasedOrders={onNavigateReleasedOrders}
+          onNavigateCommunication={onNavigateCommunication}
           onNavigateEmailTemplate={onNavigateEmailTemplate}
           onNavigateReview={onNavigateReview}
           onNavigateEmailWorkflow={onNavigateEmailWorkflow}
