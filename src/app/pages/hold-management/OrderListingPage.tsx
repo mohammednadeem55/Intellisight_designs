@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   CheckCircle2,
   ChevronsUpDown,
@@ -227,9 +228,18 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
         <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 py-5 gap-4">
           {/* Page header */}
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <h1 className="text-[18px] font-semibold text-[#262626] leading-tight">Order Listing</h1>
-              <p className="text-[12px] text-[#97999B] mt-0.5">All orders currently on hold across every category</p>
+            <div className="flex items-start gap-2.5">
+              <button
+                onClick={onNavigateOverview}
+                title="Back to Overview"
+                className="text-[#6b7280] hover:text-[#111827] cursor-pointer transition-colors shrink-0 mt-0.5"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <div>
+                <h1 className="text-[18px] font-semibold text-[#262626] leading-tight">Order Listing</h1>
+                <p className="text-[12px] text-[#97999B] mt-0.5">All orders currently on hold across every category</p>
+              </div>
             </div>
             <div className="flex items-center gap-2.5">
               <span className="flex items-center gap-1.5 text-[12px] text-[#4D4D4D]">

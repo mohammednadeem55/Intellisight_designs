@@ -1,18 +1,225 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import holdSvg from "@/imports/HoldManagementDesktopV3/svg-5pa1ejxi9n";
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock, DollarSign, Inbox, Maximize2, Minimize2, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronsUpDown, Clock, DollarSign, GripVertical, Inbox, Maximize2, Minimize2, Package, Plus, RefreshCw, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { EMAIL_TABLE_NAVY } from "../../components/common/EmailTable";
 
-const CARDS_PER_PAGE = 4;
+const HOLD_CARD_WIDTH = 280;
 const TIMELINE_OPTIONS = ["24h", "48h", "72h", "1 Week", "2 Weeks"];
 const TIMELINE_HOURS: Record<string, number> = { "24h": 24, "48h": 48, "72h": 72, "1 Week": 168, "2 Weeks": 336 };
 const SORT_OPTIONS = ["Aging", "SSD Proximity", "Value", "Order Volume"];
+const VIEW_OPTIONS = ["CSR", "Credit"];
+// Grey → orange → red — clicking a to-do's priority dot cycles through these, low to high urgency.
+const TODO_PRIORITIES = ["#D9D9D6", "#E67919", "#C83737"];
 
 // Parses "$3.8M" / "$0.9M" style card values into a plain number for sorting.
 function parseValue(v: string): number {
   return parseFloat(v.replace(/[^0-9.]/g, "")) || 0;
+}
+
+type Tag = { label: string; color: string; bg: string };
+type HoldCardData = {
+  code: string; badge: string; badgeColor: string; orders: string; breached: string; value: string; tags: Tag[]; critical?: boolean; dividers?: boolean;
+  // Drives the Sort By / Timeline controls — not just for display.
+  agingDays: number; ssdProximityDays: number; ageHours: number;
+};
+type HoldPanelData = { title: string; count: number; critical: number; total: string; accentColor: string; cards: HoldCardData[] };
+
+// A single hold-panel section: header (title, counts, View All, prev/next) + a smooth horizontally-scrolling,
+// snap-aligned card carousel. Kept as its own component (rather than inline in the parent's .map) so the
+// scroll-position state driving the progress bar/arrow-disabled state only re-renders this panel, not the
+// whole page, on every scroll frame.
+function HoldCardCarousel({
+  panel,
+  cards,
+  resetKey,
+  onViewAll,
+  onCardClick,
+}: {
+  panel: HoldPanelData;
+  cards: HoldCardData[];
+  /** Changes whenever sort/timeline change — scrolls back to the start and re-measures on change. */
+  resetKey: string;
+  onViewAll: () => void;
+  onCardClick: () => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollState, setScrollState] = useState({ progress: 0, visibleFraction: 1 });
+
+  const updateScrollState = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    const visibleFraction = el.scrollWidth > 0 ? el.clientWidth / el.scrollWidth : 1;
+    setScrollState({
+      progress: max > 4 ? Math.min(1, Math.max(0, el.scrollLeft / max)) : 0,
+      visibleFraction: max > 4 ? visibleFraction : 1,
+    });
+  };
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ left: 0 });
+    updateScrollState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetKey, cards.length]);
+
+  const scrollByCard = (dir: "prev" | "next") => {
+    const step = HOLD_CARD_WIDTH + 16; // card width + gap-4
+    scrollRef.current?.scrollBy({ left: dir === "next" ? step : -step, behavior: "smooth" });
+  };
+
+  const canScroll = scrollState.visibleFraction < 0.999;
+  const canPrev = scrollState.progress > 0.01;
+  const canNext = canScroll && scrollState.progress < 0.99;
+
+  return (
+    <div className="border-t border-[#E2E6E9]">
+      {/* Panel header with accent left border — the tint gradient is scoped to this element's own height
+          (0%→100%), so it always fades out exactly by the header's bottom edge and never bleeds into the
+          cards below, no matter how tall the header ends up being (e.g. pills wrapping on a narrow viewport). */}
+      <div className="relative py-4 px-5" style={{ background: `linear-gradient(180deg, ${panel.accentColor}0A 0%, #ffffff 100%)` }}>
+        <div className="absolute left-0 inset-y-0 w-1" style={{ backgroundColor: panel.accentColor }} />
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex flex-col gap-2 min-w-0">
+            <p className="text-[#262626] text-[15px] font-bold truncate">{panel.title}</p>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-[#F1F2F4] text-[#4D4D4D] text-[11.5px] font-semibold whitespace-nowrap">
+                <Inbox size={11} className="shrink-0" style={{ color: panel.accentColor }} />
+                {cards.length} Holds
+              </span>
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11.5px] font-semibold whitespace-nowrap"
+                style={{ backgroundColor: "rgba(200,55,55,0.1)", color: "#C83737" }}
+              >
+                <AlertTriangle size={11} className="shrink-0" />
+                {panel.critical} Critical
+              </span>
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11.5px] font-semibold whitespace-nowrap"
+                style={{ backgroundColor: `${panel.accentColor}1A`, color: panel.accentColor }}
+              >
+                <DollarSign size={11} className="shrink-0" />
+                {panel.total} Total
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            {cards.length > 1 && (
+              <button onClick={onViewAll} className="text-[#30578D] text-[12px] font-semibold cursor-pointer hover:underline whitespace-nowrap">
+                View all {cards.length} holds →
+              </button>
+            )}
+            {canScroll && (
+            <>
+            <div className="w-px h-5 bg-[#E2E6E9]" />
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={!canPrev}
+                onClick={() => scrollByCard("prev")}
+                className={`size-[28px] rounded-[8px] border flex items-center justify-center transition-colors ${canPrev ? "border-[#E2E6E9] hover:bg-[#F7F7F7] cursor-pointer" : "border-[#F1F2F4] opacity-40 cursor-not-allowed"}`}
+              >
+                <svg fill="none" viewBox="0 0 16 16" className="size-[14px]"><path d="M10 12L6 8L10 4" stroke="#666666" strokeLinecap="round" strokeWidth="2" /></svg>
+              </button>
+              <button
+                disabled={!canNext}
+                onClick={() => scrollByCard("next")}
+                className={`size-[28px] rounded-[8px] border flex items-center justify-center transition-colors ${canNext ? "border-[#E2E6E9] hover:bg-[#F7F7F7] cursor-pointer" : "border-[#F1F2F4] opacity-40 cursor-not-allowed"}`}
+              >
+                <svg fill="none" viewBox="0 0 16 16" className="size-[14px]"><path d="M6 12L10 8L6 4" stroke="#666666" strokeLinecap="round" strokeWidth="2" /></svg>
+              </button>
+            </div>
+            </>
+            )}
+            </div>
+          </div>
+        </div>
+
+      <div className="bg-[#F7F7F7] h-px" />
+
+      {cards.length === 0 ? (
+        <p className="text-[12.5px] text-[#97999B] text-center py-8">No holds match the current Timeline filter.</p>
+      ) : (
+        <div className="relative">
+        {canPrev && <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-white to-transparent z-10" />}
+        {canNext && <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-white to-transparent z-10" />}
+        <div
+          ref={scrollRef}
+          onScroll={updateScrollState}
+          className="flex gap-4 px-5 py-4 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+          style={{
+            scrollSnapType: "x mandatory",
+            scrollPadding: "0 20px", // keeps the px-5 edge gap visible at the start/end snap positions
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+        >
+          {cards.map((card, ci) => (
+            <div
+              key={ci}
+              onClick={onCardClick}
+              className={`flex flex-col gap-2.5 p-3.5 rounded-[10px] cursor-pointer transition-all bg-white shrink-0 border hover:border-[#30578D] hover:shadow-[0_6px_16px_rgba(15,23,42,0.08)] hover:-translate-y-px ${
+                card.critical ? "border-[#C83737]/40" : "border-[#E2E6E9]"
+              }`}
+              style={{ width: HOLD_CARD_WIDTH, scrollSnapAlign: "start" }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="size-[7px] rounded-full shrink-0" style={{ backgroundColor: card.badgeColor }} />
+                  <p className="text-[14px] font-bold text-[#262626] truncate">{card.code}</p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {card.critical && (
+                    <span
+                      className="px-[6px] py-[2px] rounded-[6px] text-[9px] font-bold uppercase tracking-wide whitespace-nowrap"
+                      style={{ color: "#C83737", backgroundColor: "rgba(200,55,55,0.1)" }}
+                    >
+                      Critical
+                    </span>
+                  )}
+                  <div className="px-[7px] py-[3px] rounded-[6px]" style={{ backgroundColor: `${card.badgeColor}1f` }}>
+                    <p className="text-[10px] font-semibold" style={{ color: card.badgeColor }}>{card.badge}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 py-0.5">
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="flex items-center gap-1 text-[#97999B] text-[9px] font-semibold uppercase tracking-wide">
+                    <Package size={10} className="shrink-0" /> Orders
+                  </span>
+                  <p className="text-[#262626] text-[17px] font-bold leading-none">{card.orders}</p>
+                </div>
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="flex items-center gap-1 text-[#C83737] text-[9px] font-semibold uppercase tracking-wide">
+                    <AlertTriangle size={10} className="shrink-0" /> Breached
+                  </span>
+                  <p className="text-[#C83737] text-[17px] font-bold leading-none">{card.breached}</p>
+                </div>
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="flex items-center gap-1 text-[#97999B] text-[9px] font-semibold uppercase tracking-wide">
+                    <DollarSign size={10} className="shrink-0" /> Value
+                  </span>
+                  <p className="text-[#262626] text-[17px] font-bold leading-none">{card.value}</p>
+                </div>
+              </div>
+
+              <div className="h-px bg-[#F1F2F4]" />
+
+              <div className="flex items-center gap-[6px] flex-wrap">
+                {card.tags.map((tag, ti) => (
+                  <div key={ti} className="px-[6px] py-[3px] rounded-[6px]" style={{ backgroundColor: tag.bg }}>
+                    <p className="text-[10px] font-medium whitespace-nowrap" style={{ color: tag.color }}>{tag.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
@@ -30,34 +237,31 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
   onNavigateEmailWorkflow?: () => void;
 }) {
   const [activeSort, setActiveSort] = useState("Aging");
-  const [sortOpen, setSortOpen] = useState(false);
-  const sortRef = useRef<HTMLDivElement>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const toggleSort = (opt: string) => {
+    if (activeSort === opt) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setActiveSort(opt);
+      setSortDirection("asc");
+    }
+  };
+  const [activeView, setActiveView] = useState("CSR");
+  const [viewOpen, setViewOpen] = useState(false);
+  const viewRef = useRef<HTMLDivElement>(null);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [timelineTab, setTimelineTab] = useState<string | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const timelineLabel = timelineTab ?? "Timeline";
-  // per-panel slider state
-  const [panelPage, setPanelPage] = useState<Record<string, number>>({});
-  const [slideDir, setSlideDir] = useState<Record<string, "next" | "prev">>({});
-
-  const navigatePanel = (title: string, dir: "next" | "prev") => {
-    setSlideDir(d => ({ ...d, [title]: dir }));
-    setPanelPage(p => ({ ...p, [title]: (p[title] ?? 0) + (dir === "next" ? 1 : -1) }));
-  };
-
-  // Sort By / Timeline actually reorder and filter the cards below (not just decorative), so a page that
-  // no longer exists after re-sorting/filtering would strand the user — reset pagination when either changes.
-  useEffect(() => {
-    setPanelPage({});
-  }, [activeSort, timelineTab]);
 
   const sortCards = (cards: HoldCardData[]): HoldCardData[] => {
     const sorted = [...cards];
+    const dir = sortDirection === "asc" ? 1 : -1;
     switch (activeSort) {
-      case "Aging": return sorted.sort((a, b) => b.agingDays - a.agingDays);
-      case "SSD Proximity": return sorted.sort((a, b) => a.ssdProximityDays - b.ssdProximityDays);
-      case "Value": return sorted.sort((a, b) => parseValue(b.value) - parseValue(a.value));
-      case "Order Volume": return sorted.sort((a, b) => parseInt(b.orders, 10) - parseInt(a.orders, 10));
+      case "Aging": return sorted.sort((a, b) => (a.agingDays - b.agingDays) * dir);
+      case "SSD Proximity": return sorted.sort((a, b) => (a.ssdProximityDays - b.ssdProximityDays) * dir);
+      case "Value": return sorted.sort((a, b) => (parseValue(a.value) - parseValue(b.value)) * dir);
+      case "Order Volume": return sorted.sort((a, b) => (parseInt(a.orders, 10) - parseInt(b.orders, 10)) * dir);
       default: return sorted;
     }
   };
@@ -88,10 +292,41 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
     { id: 5, label: "Weekly Hold Report", priority: "#D9D9D6", done: false },
   ]);
 
+  // To-Do — add (inline input), remove (hover X), reorder (drag handle), and cycle priority (click the dot).
+  const [addingTodo, setAddingTodo] = useState(false);
+  const [newTodoText, setNewTodoText] = useState("");
+  const addTodo = () => {
+    const text = newTodoText.trim();
+    if (!text) { setAddingTodo(false); return; }
+    setTodos((prev) => [...prev, { id: Date.now(), label: text, priority: TODO_PRIORITIES[0], done: false }]);
+    setNewTodoText("");
+    setAddingTodo(false);
+  };
+  const removeTodo = (id: number) => setTodos((prev) => prev.filter((t) => t.id !== id));
+  const cycleTodoPriority = (id: number) => {
+    setTodos((prev) =>
+      prev.map((t) => {
+        if (t.id !== id) return t;
+        const next = TODO_PRIORITIES[(TODO_PRIORITIES.indexOf(t.priority) + 1) % TODO_PRIORITIES.length];
+        return { ...t, priority: next };
+      })
+    );
+  };
+  const [dragTodoIdx, setDragTodoIdx] = useState<number | null>(null);
+  const [dragOverTodoIdx, setDragOverTodoIdx] = useState<number | null>(null);
+  const reorderTodo = (from: number, to: number) => {
+    setTodos((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (timelineRef.current && !timelineRef.current.contains(e.target as Node)) setTimelineOpen(false);
-      if (sortRef.current && !sortRef.current.contains(e.target as Node)) setSortOpen(false);
+      if (viewRef.current && !viewRef.current.contains(e.target as Node)) setViewOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -104,14 +339,6 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
     { label: "TOTAL VALUE", value: "$ 5060M", accent: "#387D85", icon: DollarSign },
     { label: "ON TRACK", value: "234", accent: "#468657", icon: CheckCircle2 },
   ];
-
-  type Tag = { label: string; color: string; bg: string };
-  type HoldCardData = {
-    code: string; badge: string; badgeColor: string; orders: string; breached: string; value: string; tags: Tag[]; critical?: boolean; dividers?: boolean;
-    // Drives the Sort By / Timeline controls — not just for display.
-    agingDays: number; ssdProximityDays: number; ageHours: number;
-  };
-  type HoldPanelData = { title: string; count: number; critical: number; total: string; accentColor: string; cards: HoldCardData[] };
 
   const holdPanels: HoldPanelData[] = [
     {
@@ -149,6 +376,8 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
     },
   ];
 
+  const totalHoldCount = holdPanels.reduce((sum, p) => sum + p.count, 0);
+
   const releasedOrders = [
     { id: "#7800011", value: "$340K", company: "Acme Industries Ltd", reason: "Credit Check Failure", time: "Released 2d ago" },
     { id: "#7800042", value: "$215K", company: "GlobalTech Solutions", reason: "Credit Check Failure", time: "Released 1d ago" },
@@ -158,18 +387,6 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
 
   return (
     <div className="bg-[#f5f6fa] flex size-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
-      <style>{`
-        @keyframes slideInFromRight {
-          from { opacity: 0; transform: translateX(48px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes slideInFromLeft {
-          from { opacity: 0; transform: translateX(-48px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-        .slide-next { animation: slideInFromRight 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
-        .slide-prev { animation: slideInFromLeft  0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
-      `}</style>
       <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-auto">
         <div className="shrink-0 shadow-[0_2px_6px_rgba(15,23,42,0.06)] relative z-50">
           <AppHeader
@@ -217,6 +434,31 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
               >
                 {kpisExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
               </button>
+              <div className="relative" ref={viewRef}>
+                <button
+                  onClick={() => setViewOpen((v) => !v)}
+                  className={`flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-medium transition-colors cursor-pointer ${
+                    viewOpen ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7]"
+                  }`}
+                >
+                  {activeView}
+                  <ChevronDown size={13} className={`transition-transform duration-200 ${viewOpen ? "rotate-180" : ""}`} />
+                </button>
+                {viewOpen && (
+                  <div className="absolute top-full right-0 mt-1 bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-40 py-1 w-[120px]">
+                    {VIEW_OPTIONS.map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => { setActiveView(opt); setViewOpen(false); }}
+                        className="w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                        style={opt === activeView ? { color: EMAIL_TABLE_NAVY, fontWeight: 600 } : { color: "#4D4D4D" }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -247,36 +489,38 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
             {/* ── Left column ── */}
             <div className="flex-1 min-w-0 bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden">
 
-              {/* Filter bar */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 border-b border-[#DEDEDE]">
-                {/* Sort By + Timeline, grouped together on the right edge of the toolbar — same single-select
-                    dropdown pattern for both, so they read as one consistent filter language */}
+              {/* Filter bar — no border-b here: each panel below already has its own border-t, which serves
+                  as the single divider (both this boundary and every boundary between panels); adding one
+                  here too would stack two 1px borders back-to-back and read as one thick, muddy line. */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5">
+                <h3 className="text-[14px] font-bold text-[#111827]">
+                  Holds <span className="text-[#9ca3af] font-medium">({totalHoldCount})</span>
+                </h3>
+
+                {/* Sort By + Timeline, grouped together on the right edge of the toolbar */}
                 <div className="flex items-center gap-2.5 flex-wrap ml-auto">
-                  <div className="relative" ref={sortRef}>
-                    <button
-                      onClick={() => setSortOpen((v) => !v)}
-                      className={`flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-medium transition-colors cursor-pointer ${
-                        sortOpen ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7]"
-                      }`}
-                    >
-                      Sort by: {activeSort}
-                      <ChevronDown size={13} className={`transition-transform duration-200 ${sortOpen ? "rotate-180" : ""}`} />
-                    </button>
-                    {sortOpen && (
-                      <div className="absolute top-full left-0 mt-1 bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-40 py-1 w-[160px]">
-                        {SORT_OPTIONS.map((opt) => (
-                          <button
-                            key={opt}
-                            onClick={() => { setActiveSort(opt); setSortOpen(false); }}
-                            className="w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
-                            style={opt === activeSort ? { color: EMAIL_TABLE_NAVY, fontWeight: 600 } : { color: "#4D4D4D" }}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                  {/* Sort By — plain toggle buttons (not a dropdown): click a button to sort by it, click the
+                      already-active one again to flip direction, same as a table header sort click. */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {SORT_OPTIONS.map((opt) => {
+                      const active = activeSort === opt;
+                      const SortIcon = sortDirection === "desc" ? ArrowDown : ArrowUp;
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => toggleSort(opt)}
+                          className={`flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-medium transition-colors cursor-pointer ${
+                            active ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7]"
+                          }`}
+                        >
+                          {opt}
+                          {active ? <SortIcon size={13} style={{ color: EMAIL_TABLE_NAVY }} /> : <ChevronsUpDown size={13} className="text-[#97999B]" />}
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  <div className="w-px h-5 bg-[#E2E6E9]" />
 
                 {/* Timeline — same single-select toolbar dropdown as NewOverviewPage's Interval filter */}
                   <div className="relative" ref={timelineRef}>
@@ -309,136 +553,26 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
 
               {/* Panel sections */}
               {holdPanels.map((panel) => {
-                const page = panelPage[panel.title] ?? 0;
                 const displayCards = sortCards(filterByTimeline(panel.cards));
-                const totalPages = Math.max(1, Math.ceil(displayCards.length / CARDS_PER_PAGE));
-                const visibleCards = displayCards.slice(page * CARDS_PER_PAGE, (page + 1) * CARDS_PER_PAGE);
-                const canPrev = page > 0;
-                const canNext = page < totalPages - 1;
                 return (
-                  <div key={panel.title} className="border-t border-[#DEDEDE]">
-                    {/* Panel header with accent left border */}
-                    <div className="relative bg-white pt-[18px] pb-[14px] px-5">
-                      <div className="absolute left-0 inset-y-0 w-1" style={{ backgroundColor: panel.accentColor }} />
-                      <div className="flex flex-col gap-[6px]">
-                        <p className="text-[#262626] text-[14px] font-semibold">{panel.title}</p>
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <div className="flex items-center gap-3">
-                            <p className="text-[#666666] text-[12px] whitespace-nowrap">{displayCards.length} Holds</p>
-                            <div className="bg-[#E2E6E9] h-[12px] w-px" />
-                            <div className="flex items-center gap-[6px]">
-                              <div className="size-[6px] rounded-full bg-[#C83737] shrink-0" />
-                              <p className="text-[#C83737] text-[12px] whitespace-nowrap">{panel.critical} Critical</p>
-                            </div>
-                            <div className="bg-[#E2E6E9] h-[12px] w-px" />
-                            <p className="text-[#666666] text-[12px] whitespace-nowrap">{panel.total} Total value</p>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <button
-                              onClick={() => onViewAllOrders ? onViewAllOrders() : toast.info(`Viewing all ${displayCards.length} holds for ${panel.title}`)}
-                              className="text-[#30578D] text-[12px] font-medium cursor-pointer hover:underline whitespace-nowrap"
-                            >
-                              View all {displayCards.length} holds →
-                            </button>
-                            <div className="flex items-center gap-2">
-                              {/* Page indicator dots */}
-                              <div className="flex items-center gap-1 mr-1">
-                                {Array.from({ length: totalPages }).map((_, i) => (
-                                  <button
-                                    key={i}
-                                    onClick={() => setPanelPage(p => ({ ...p, [panel.title]: i }))}
-                                    className={`rounded-full transition-all cursor-pointer ${i === page ? "w-[16px] h-[5px] bg-[#30578D]" : "size-[5px] bg-[#E2E6E9] hover:bg-[#D9D9D6]"}`}
-                                  />
-                                ))}
-                              </div>
-                              <button
-                                disabled={!canPrev}
-                                onClick={() => navigatePanel(panel.title, "prev")}
-                                className={`size-[28px] rounded-[8px] border flex items-center justify-center transition-colors ${canPrev ? "border-[#E2E6E9] hover:bg-[#F7F7F7] cursor-pointer" : "border-[#F1F2F4] opacity-40 cursor-not-allowed"}`}
-                              >
-                                <svg fill="none" viewBox="0 0 16 16" className="size-[14px]"><path d="M10 12L6 8L10 4" stroke="#666666" strokeLinecap="round" strokeWidth="2" /></svg>
-                              </button>
-                              <button
-                                disabled={!canNext}
-                                onClick={() => navigatePanel(panel.title, "next")}
-                                className={`size-[28px] rounded-[8px] border flex items-center justify-center transition-colors ${canNext ? "border-[#E2E6E9] hover:bg-[#F7F7F7] cursor-pointer" : "border-[#F1F2F4] opacity-40 cursor-not-allowed"}`}
-                              >
-                                <svg fill="none" viewBox="0 0 16 16" className="size-[14px]"><path d="M6 12L10 8L6 4" stroke="#666666" strokeLinecap="round" strokeWidth="2" /></svg>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-[#F7F7F7] h-px" />
-
-                    {/* Cards row — 4 equal columns, paginated */}
-                    {displayCards.length === 0 ? (
-                      <p className="text-[12.5px] text-[#97999B] text-center py-8">No holds match the current Timeline filter.</p>
-                    ) : (
-                    <div className="overflow-hidden">
-                    <div
-                      key={`${panel.title}-${page}`}
-                      className={`grid grid-cols-4 gap-4 px-5 py-4 ${slideDir[panel.title] === "prev" ? "slide-prev" : "slide-next"}`}
-                    >
-                      {visibleCards.map((card, ci) => (
-                        <div
-                          key={ci}
-                          onClick={() => toast.info(`${card.code} — ${card.orders} orders, ${card.breached} breached`)}
-                          className="flex flex-col gap-2 p-3 rounded-[8px] cursor-pointer transition-all border border-[#E2E6E9] bg-[#F7F7F7]/60 hover:bg-white hover:border-[#30578D]"
-                        >
-                          <div className="flex items-center justify-between">
-                            <p className="text-[#262626] text-[13px] font-bold">{card.code}</p>
-                            <div className="px-[7px] py-[3px] rounded-[8px]" style={{ backgroundColor: `${card.badgeColor}1f` }}>
-                              <p className="text-[10px] font-semibold" style={{ color: card.badgeColor }}>{card.badge}</p>
-                            </div>
-                          </div>
-
-                          <div className="h-px bg-[#E2E6E9]" />
-
-                          <div className="flex items-center py-[2px]">
-                            <div className="flex flex-col gap-[2px] flex-1 min-w-0">
-                              <p className="text-[#97999B] text-[10px] uppercase">ORDERS</p>
-                              <p className="text-[#262626] text-[16px] font-bold leading-none">{card.orders}</p>
-                            </div>
-                            {card.dividers && <div className="bg-[#E2E6E9] h-[24px] w-px shrink-0 mx-1" />}
-                            <div className="flex flex-col gap-[2px] flex-1 min-w-0 text-[#C83737]">
-                              <p className="text-[10px] uppercase">BREACHED</p>
-                              <p className="text-[16px] font-bold leading-none">{card.breached}</p>
-                            </div>
-                            {card.dividers && <div className="bg-[#E2E6E9] h-[24px] w-px shrink-0 mx-1" />}
-                            <div className="flex flex-col gap-[2px] flex-1 min-w-0">
-                              <p className="text-[#97999B] text-[10px] uppercase">VALUE</p>
-                              <p className="text-[#262626] text-[16px] font-bold leading-none">{card.value}</p>
-                            </div>
-                          </div>
-
-                          <div className="h-px bg-[#E2E6E9]" />
-
-                          <div className="flex items-center gap-[6px] flex-wrap">
-                            {card.tags.map((tag, ti) => (
-                              <div key={ti} className="px-[6px] py-[3px] rounded-[8px]" style={{ backgroundColor: tag.bg }}>
-                                <p className="text-[10px] font-medium whitespace-nowrap" style={{ color: tag.color }}>{tag.label}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    </div>
-                    )}
-                  </div>
+                  <HoldCardCarousel
+                    key={panel.title}
+                    panel={panel}
+                    cards={displayCards}
+                    resetKey={`${activeSort}-${sortDirection}-${timelineTab}`}
+                    onViewAll={() => onViewAllOrders ? onViewAllOrders() : toast.info(`Viewing all ${displayCards.length} holds for ${panel.title}`)}
+                    onCardClick={() => onNavigateOrderListing ? onNavigateOrderListing() : toast.info("Opening order listing")}
+                  />
                 );
               })}
             </div>
 
-            {/* ── Right sidebar (296px) ── */}
-            <div className="w-[296px] shrink-0 flex flex-col gap-4">
+            {/* ── Right sidebar (380px, matching the workflow pages' right column) ── */}
+            <div className="w-[380px] shrink-0 flex flex-col gap-4">
 
               {/* Attention Required */}
-              <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
-                <div className="flex items-center gap-2">
+              <div className="bg-white rounded-[8px] border border-[#ebebeb] py-4 overflow-hidden">
+                <div className="flex items-center gap-2 px-5">
                   <h3 className="text-[14px] font-bold text-[#111827]">Attention Required</h3>
                   <span className="bg-[#FAEBEB] px-2 py-[2px] rounded-full text-[#C83737] text-[10px] font-bold">3</span>
                 </div>
@@ -448,15 +582,17 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
                     { dot: "#E67919", text: "4 SLA breaches in 2h", action: "Review", actionColor: "#E67919", toastMsg: "Opening SLA breach review", type: "warning" as const },
                     { dot: "#E67919", text: "$5.2M at risk value", action: "View", actionColor: "#E67919", toastMsg: "Viewing at-risk value breakdown", type: "warning" as const },
                   ].map((alert, i) => (
-                    <div key={i} className="flex items-center justify-between py-[13px]">
-                      <div className="flex items-center gap-2">
-                        <div className="size-[6px] rounded-full shrink-0" style={{ backgroundColor: alert.dot }} />
-                        <p className="text-[#111827] text-[11px]">{alert.text}</p>
+                    <div key={i} className="flex items-center justify-between gap-2 px-5 py-3 hover:bg-[#F7F7F7] transition-colors">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="flex items-center justify-center size-[22px] rounded-[6px] shrink-0" style={{ backgroundColor: `${alert.dot}1A` }}>
+                          <AlertTriangle size={11} style={{ color: alert.dot }} />
+                        </span>
+                        <p className="text-[#111827] text-[12px] font-semibold truncate">{alert.text}</p>
                       </div>
                       <button
                         onClick={() => alert.type === "error" ? toast.error(alert.toastMsg) : toast.warning(alert.toastMsg)}
-                        className="text-[11px] font-bold cursor-pointer hover:opacity-70 transition-opacity ml-3 shrink-0"
-                        style={{ color: alert.actionColor }}
+                        className="shrink-0 px-2.5 py-1 rounded-[6px] text-[11px] font-semibold cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap"
+                        style={{ color: alert.actionColor, backgroundColor: `${alert.actionColor}14` }}
                       >
                         {alert.action}
                       </button>
@@ -466,21 +602,75 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
               </div>
 
               {/* To-Do */}
-              <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
-                <div className="flex items-center justify-between">
+              <div className="bg-white rounded-[8px] border border-[#ebebeb] py-4 overflow-hidden">
+                <div className="flex items-center justify-between px-5">
                   <div className="flex items-center gap-2">
                     <h3 className="text-[14px] font-bold text-[#111827]">To-Do</h3>
                     <span className="bg-[#f3f4f6] px-2 py-[2px] rounded-full text-[#6b7280] text-[10px] font-bold">{todos.filter(t => !t.done).length}</span>
                   </div>
-                  <button className="bg-[#f3f4f6] size-[22px] rounded-[8px] flex items-center justify-center hover:bg-[#e5e7eb] cursor-pointer transition-colors">
-                    <svg fill="none" viewBox="0 0 14 14" className="size-[12px]">
-                      <path d={holdSvg.p133cc000} stroke="#6b7280" strokeLinecap="round" strokeWidth="2" />
-                    </svg>
+                  <button
+                    onClick={() => setAddingTodo(true)}
+                    title="Add a task"
+                    className="bg-[#f3f4f6] size-[22px] rounded-[8px] flex items-center justify-center hover:bg-[#e5e7eb] cursor-pointer transition-colors"
+                  >
+                    <Plus size={12} className="text-[#6b7280]" strokeWidth={2.5} />
                   </button>
                 </div>
                 <div className="mt-3 flex flex-col divide-y divide-[#f3f4f6]">
-                  {todos.map((task) => (
-                    <div key={task.id} className="flex items-center gap-3 py-[12px]">
+                  {addingTodo && (
+                    <div className="px-5 py-3 bg-[#F7F7F7]">
+                      <input
+                        autoFocus
+                        value={newTodoText}
+                        onChange={(e) => setNewTodoText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") addTodo();
+                          if (e.key === "Escape") { setAddingTodo(false); setNewTodoText(""); }
+                        }}
+                        placeholder="Type a task…"
+                        className="w-full h-[32px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[12px] font-medium text-[#111827] placeholder:text-[#9ca3af] placeholder:font-normal outline-none focus:border-[#30578D] transition-colors"
+                      />
+                      <div className="flex items-center justify-end gap-2 mt-2.5">
+                        <button
+                          onClick={() => { setAddingTodo(false); setNewTodoText(""); }}
+                          className="px-3 h-[26px] rounded-[6px] text-[11px] font-semibold text-[#6b7280] hover:bg-[#e5e7eb] cursor-pointer transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={addTodo}
+                          disabled={!newTodoText.trim()}
+                          className="px-3 h-[26px] rounded-[6px] text-[11px] font-semibold text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                          style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+                        >
+                          Add Task
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {todos.map((task, idx) => (
+                    <div
+                      key={task.id}
+                      draggable
+                      onDragStart={() => setDragTodoIdx(idx)}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverTodoIdx(idx); }}
+                      onDrop={() => {
+                        if (dragTodoIdx === null || dragTodoIdx === idx) return;
+                        reorderTodo(dragTodoIdx, idx);
+                        setDragTodoIdx(null);
+                        setDragOverTodoIdx(null);
+                      }}
+                      onDragEnd={() => { setDragTodoIdx(null); setDragOverTodoIdx(null); }}
+                      className={`group relative flex items-center gap-2 px-5 py-[12px] transition-colors hover:bg-[#F7F7F7] ${
+                        dragOverTodoIdx === idx && dragTodoIdx !== idx ? "bg-[#30578D]/[0.05] border-t-2 border-t-[#30578D]" : ""
+                      }`}
+                    >
+                      {/* Positioned in the card's own left padding gutter (not inline) so it never pushes the
+                          checkbox out of alignment with the "To-Do" title above. */}
+                      <GripVertical
+                        size={12}
+                        className="absolute left-[5px] top-1/2 -translate-y-1/2 text-[#d1d5db] cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+                      />
                       <button
                         onClick={() => setTodos(prev => prev.map(t => t.id === task.id ? { ...t, done: !t.done } : t))}
                         className={`size-[16px] rounded-[8px] border-[1.5px] shrink-0 flex items-center justify-center cursor-pointer transition-all ${
@@ -493,41 +683,61 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
                           </svg>
                         )}
                       </button>
-                      <p className={`flex-1 min-w-0 text-[11px] font-semibold leading-tight ${task.done ? "line-through text-[#9ca3af]" : "text-[#111827]"}`}>{task.label}</p>
-                      <div className="size-[6px] rounded-full shrink-0" style={{ backgroundColor: task.priority }} />
+                      <p className={`flex-1 min-w-0 text-[12px] font-semibold leading-tight truncate ${task.done ? "line-through text-[#9ca3af]" : "text-[#111827]"}`}>{task.label}</p>
+                      <button onClick={() => cycleTodoPriority(task.id)} title="Click to change priority" className="size-[6px] rounded-full shrink-0 cursor-pointer" style={{ backgroundColor: task.priority }} />
+                      <div className="w-[12px] h-[12px] shrink-0 flex items-center justify-center">
+                        <button
+                          onClick={() => removeTodo(task.id)}
+                          title="Remove"
+                          className="text-[#d1d5db] hover:text-[#C83737] cursor-pointer transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
                     </div>
                   ))}
+                  {todos.length === 0 && !addingTodo && (
+                    <p className="text-[11px] text-[#9ca3af] text-center py-4">No tasks yet</p>
+                  )}
                 </div>
               </div>
 
               {/* Released Orders */}
-              <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
-                <h3 className="text-[14px] font-bold text-[#111827]">Released Orders</h3>
-                <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">{releasedOrders.length} recent releases</p>
-                <div className="flex flex-col gap-3">
+              <div className="bg-white rounded-[8px] border border-[#ebebeb] py-4 overflow-hidden">
+                <div className="px-5">
+                  <h3 className="text-[14px] font-bold text-[#111827]">Released Orders</h3>
+                  <p className="text-[12px] text-[#9ca3af] mt-0.5">{releasedOrders.length} recent releases</p>
+                </div>
+                <div className="mt-3 flex flex-col">
                   {releasedOrders.map((order, i) => (
                     <div key={i}>
-                      <div className="flex flex-col gap-[2px]">
-                        <div className="flex items-center justify-between">
-                          <p className="text-[#111827] text-[12px] font-semibold">{order.id}</p>
-                          <p className="text-[#111827] text-[11px] font-semibold">{order.value}</p>
-                        </div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-[#6b7280] text-[11px]">{order.company}</p>
-                            <p className="text-[#6b7280] text-[11px]">{order.reason}</p>
+                      <button
+                        onClick={() => (onNavigateReleasedOrders ? onNavigateReleasedOrders() : toast.info(`Viewing ${order.id}`))}
+                        className="group w-full flex items-center gap-2.5 text-left px-5 py-2.5 hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                      >
+                        <span className="flex items-center justify-center size-[28px] rounded-[8px] bg-[#EFF6F1] shrink-0">
+                          <CheckCircle2 size={13} className="text-[#468657]" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[#111827] text-[12px] font-semibold truncate group-hover:text-[#30578D] transition-colors">{order.id}</p>
+                            <p className="text-[#111827] text-[12px] font-bold shrink-0">{order.value}</p>
                           </div>
-                          <p className="text-[#468657] text-[10px] font-semibold whitespace-nowrap mt-px">{order.time}</p>
+                          <p className="text-[#6b7280] text-[11px] font-medium truncate mt-px">{order.company}</p>
+                          <div className="flex items-center justify-between gap-2 mt-1.5">
+                            <span className="text-[10px] font-medium text-[#6b7280] bg-[#f3f4f6] px-[6px] py-[2px] rounded-[6px] truncate">{order.reason}</span>
+                            <span className="text-[#468657] text-[10.5px] font-semibold whitespace-nowrap shrink-0">{order.time}</span>
+                          </div>
                         </div>
-                      </div>
-                      {i < releasedOrders.length - 1 && <div className="bg-[#f3f4f6] h-px mt-3" />}
+                      </button>
+                      {i < releasedOrders.length - 1 && <div className="bg-[#f3f4f6] h-px" />}
                     </div>
                   ))}
                 </div>
                 <div className="flex items-center justify-center pt-3">
                   <button
                     onClick={() => (onNavigateReleasedOrders ? onNavigateReleasedOrders() : toast.info("Opening full released orders list"))}
-                    className="text-[#30578D] text-[12px] font-medium cursor-pointer hover:underline"
+                    className="text-[#30578D] text-[12px] font-semibold cursor-pointer hover:underline"
                   >
                     View all →
                   </button>

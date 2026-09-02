@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { ArrowLeft } from "lucide-react";
 import filterSvg from "@/imports/HoldManagementListingFilter/svg-o1nvoo6krn";
 import detailsSvg from "@/imports/HoldManagementOrderDetailsV2/svg-wic8forngq";
 import { AppHeader } from "../../components/common/AppHeader";
@@ -86,19 +87,15 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
 
           {/* Order Banner */}
           <div className="bg-[#f1f5f9] px-5 py-[10px] border-b border-[#e2e8f0] shrink-0">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-[5px] mb-[6px]">
-              <button onClick={onNavigateOrderListing} className="text-[#cd1453] text-[12px] cursor-pointer hover:underline bg-transparent border-0 p-0">
-                Order Listing
-              </button>
-              <svg fill="none" viewBox="0 0 12 12" className="size-[10px] shrink-0">
-                <path clipRule="evenodd" d={detailsSvg.p39b4900} fill="#cd1453" fillRule="evenodd" />
-              </svg>
-              <span className="text-[#cd1453] text-[12px]">#{orderId}</span>
-            </div>
-
             {/* Title row */}
             <div className="flex items-center gap-[8px] mb-[4px]">
+              <button
+                onClick={onNavigateOrderListing}
+                title="Back to Order Listing"
+                className="text-[#6b7280] hover:text-[#111827] cursor-pointer transition-colors shrink-0"
+              >
+                <ArrowLeft size={20} />
+              </button>
               <span className="font-bold text-[#333] text-[24px] leading-[28px]">Order #{orderId}</span>
               <span className="inline-flex items-center px-[6px] py-[3px] rounded-[8px] text-[9px] font-medium"
                 style={{ color: "#dc2626", backgroundColor: "rgba(220,38,38,0.1)" }}>
