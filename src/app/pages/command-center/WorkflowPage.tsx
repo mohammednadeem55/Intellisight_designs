@@ -147,7 +147,9 @@ export function WorkflowPage({
   const CURRENT_USER = { name: "Jagdish K.", initials: "JK" };
   const auditLog = useAuditLog();
   const [auditModalOpen, setAuditModalOpen] = useState(false);
-  const currentStageKey = WORKFLOW_STAGES[currentStageIndex].key;
+  // Namespaced by email id so the same stage key across different emails doesn't collide, and so the
+  // listing table's "Overall Audit" button (getAllAuditEntriesForEmail) can find every stage's entries.
+  const currentStageKey = `${email.id}:${WORKFLOW_STAGES[currentStageIndex].key}`;
   // AI Order Validation owns its own versioned data (see AiOrderValidationBody), so the footer's
   // "Re-Validate" button reaches into it through a function handed up via onRevalidateReady rather than
   // WorkflowPage holding the validation data itself.

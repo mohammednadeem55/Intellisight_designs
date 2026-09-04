@@ -31,6 +31,7 @@ import {
   X,
 } from "lucide-react";
 import { type Email, BUSINESS_GROUPS } from "../../pages/command-center/emailData";
+import { AuditTrailModal, getAllAuditEntriesForEmail } from "./AuditTrail";
 
 // Shared table for Email-domain listings: sticky From/Subject + Action columns, per-column filters, row
 // density, and the Like/Dislike/Comment "review" system with its own modals — currently used by Command
@@ -935,6 +936,7 @@ function EmailTableActionCell({
   reaction,
   onToggleReaction,
   onAssign,
+  onAudit,
   onSendEmail,
   onComment,
 }: {
@@ -942,10 +944,12 @@ function EmailTableActionCell({
   reaction: "like" | "dislike" | undefined;
   onToggleReaction: (reaction: "like" | "dislike") => void;
   onAssign: () => void;
+  onAudit: () => void;
   onSendEmail: () => void;
   onComment: () => void;
 }) {
   const isAssigned = !!entity.assignedTo && entity.assignedTo !== "Unassigned";
+  const auditCount = getAllAuditEntriesForEmail(entity.id).length;
   return (
     <div className="flex items-center gap-1.5">
       <EmailTableIconButton
@@ -956,6 +960,7 @@ function EmailTableActionCell({
         activeColor={EMAIL_TABLE_NAVY}
         activeBg="#E9EEF5"
       />
+      <EmailTableIconButton icon={History} label={auditCount > 0 ? `Audit (${auditCount})` : "Audit"} onClick={onAudit} />
       <EmailTableMoreActionsButton reaction={reaction} onToggleReaction={onToggleReaction} onSendEmail={onSendEmail} onComment={onComment} />
     </div>
   );
@@ -1124,6 +1129,7 @@ export function EmailTable({
   const [sendEmailModalRow, setSendEmailModalRow] = useState<Email | null>(null);
   const [commentModalRow, setCommentModalRow] = useState<Email | null>(null);
   const [reviewsModalRow, setReviewsModalRow] = useState<Email | null>(null);
+  const [auditModalRow, setAuditModalRow] = useState<Email | null>(null);
   const colCount = additionalColumns.length + 3; // chevron + subject + action, minus the +1 below for the no-results colspan
 
   return (
@@ -1232,6 +1238,7 @@ export function EmailTable({
                     reaction={reactions[row.id]}
                     onToggleReaction={(r) => onToggleReaction(row.id, r)}
                     onAssign={() => setAssignModalRow(row)}
+                    onAudit={() => setAuditModalRow(row)}
                     onSendEmail={() => setSendEmailModalRow(row)}
                     onComment={() => setCommentModalRow(row)}
                   />
@@ -1260,6 +1267,7 @@ export function EmailTable({
                     reaction={reactions[ccc.id]}
                     onToggleReaction={(r) => onToggleReaction(ccc.id, r)}
                     onAssign={() => setAssignModalRow(ccc)}
+                    onAudit={() => setAuditModalRow(ccc)}
                     onSendEmail={() => setSendEmailModalRow(ccc)}
                     onComment={() => setCommentModalRow(ccc)}
                   />
@@ -1294,6 +1302,14 @@ export function EmailTable({
         email={reviewsModalRow}
         entries={reviews[reviewsModalRow.id] ?? []}
         onClose={() => setReviewsModalRow(null)}
+      />
+    )}
+    {auditModalRow && (
+      <AuditTrailModal
+        title="Overall Audit"
+        subtitle={`Every change made across ${auditModalRow.id}'s workflow`}
+        entries={getAllAuditEntriesForEmail(auditModalRow.id)}
+        onClose={() => setAuditModalRow(null)}
       />
     )}
     </>
