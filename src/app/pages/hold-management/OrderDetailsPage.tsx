@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  Ban,
   Building2,
   Calendar,
   Check,
@@ -16,11 +17,13 @@ import {
   DollarSign,
   History,
   Layers,
+  List,
   MapPin,
   Maximize2,
   MessageSquareText,
   Minimize2,
   NotebookPen,
+  Plus,
   RefreshCw,
   Search,
   TriangleAlert,
@@ -33,7 +36,17 @@ import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch, us
 import { TableFilterPanel, TableFilterTrigger, type TableColumnDef } from "../../components/common/TableFilterPanel";
 import { TableColumnMgmtPanel, TableColumnMgmtTrigger } from "../../components/common/TableColumnMgmtPanel";
 import { TablePagination, type RowDensity } from "../../components/common/TablePagination";
-import { ALL_ORDERS, AUDIT_HISTORY_ENTRIES, AUDIT_NOTES, FOLLOWUP_ESCALATION_LOG, HOLD_ROWS, type FollowUpEscalationEntry } from "./holdManagementData";
+import {
+  ALL_ORDERS,
+  AUDIT_HISTORY_ENTRIES,
+  AUDIT_NOTES,
+  CREDIT_HOLD_TYPES,
+  FOLLOWUP_ESCALATION_LOG,
+  HOLD_ROWS,
+  LINE_LISTING_ROWS,
+  type FollowUpEscalationEntry,
+  type LineListingRow,
+} from "./holdManagementData";
 
 type FollowUpLogEntry = FollowUpEscalationEntry;
 
@@ -54,6 +67,22 @@ const FILTER_COLUMNS: TableColumnDef[] = COLUMNS.filter((c) => c.key !== "erd" &
 
 const HOLD_CATEGORIES = Array.from(new Set(HOLD_ROWS.map((r) => r.category)));
 const HOLD_TYPES = Array.from(new Set(HOLD_ROWS.map((r) => r.name)));
+
+// Line Listing (Credit view only) — same shared-table system as Hold Listings above.
+type LineColumnKey = "lineNum" | "lineId" | "item" | "description" | "level" | "holdStatus" | "status" | "response";
+const LINE_COLUMNS: { key: LineColumnKey; label: string }[] = [
+  { key: "lineNum", label: "Line #" },
+  { key: "lineId", label: "Line ID" },
+  { key: "item", label: "Item" },
+  { key: "description", label: "Description" },
+  { key: "level", label: "Level" },
+  { key: "holdStatus", label: "Hold Status" },
+  { key: "status", label: "Status" },
+  { key: "response", label: "Response" },
+];
+const LINE_FILTER_COLUMNS: TableColumnDef[] = LINE_COLUMNS.filter((c) => c.key === "level" || c.key === "holdStatus" || c.key === "status");
+const LINE_LEVELS = Array.from(new Set(LINE_LISTING_ROWS.map((r) => r.level)));
+const LINE_STATUSES = Array.from(new Set(LINE_LISTING_ROWS.map((r) => r.status)));
 
 const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
   "On Track": { color: "#468657", bg: "#EFF6F1" },
@@ -478,8 +507,159 @@ function FollowUpLogCard({ entry }: { entry: FollowUpLogEntry }) {
   );
 }
 
-export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+// Credit-only: apply a hold to one or several selected lines at once. Same modal chrome as
+// ReleaseHoldModal/FollowUpEscalateModal (white header, navy primary action) rather than the reference's
+// dark header/red button.
+function ApplyHoldModal({ rows, orderId, onClose, onConfirm }: {
+  rows: LineListingRow[];
   orderId: string;
+  onClose: () => void;
+  onConfirm: (holdType: string) => void;
+}) {
+  const [holdType, setHoldType] = useState("");
+  const [holdTypeOpen, setHoldTypeOpen] = useState(false);
+  const [holdUntil, setHoldUntil] = useState("");
+  const [reason, setReason] = useState("");
+  const [linesExpanded, setLinesExpanded] = useState(false);
+  const holdUntilRef = useRef<HTMLInputElement>(null);
+
+  const LINES_COLLAPSED_COUNT = 3;
+  const visibleLineRows = linesExpanded ? rows : rows.slice(0, LINES_COLLAPSED_COUNT);
+
+  const confirm = () => {
+    if (!holdType) { toast.warning("Select a hold type"); return; }
+    if (!reason.trim()) { toast.warning("Enter a reason for applying this hold"); return; }
+    onConfirm(holdType);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-[8px] shadow-xl w-full max-w-[480px] max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#DEDEDE]">
+          <div>
+            <span className="text-[16px] font-bold text-[#262626]">Apply Hold</span>
+            <p className="text-[12px] text-[#97999B] mt-0.5">Order #{orderId} · {rows.length} record{rows.length > 1 ? "s" : ""} selected</p>
+          </div>
+          <button onClick={onClose} className="shrink-0 text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-auto px-6 py-5 flex flex-col gap-4">
+          <div>
+            <label className={fieldLabelClass}>Lines ({rows.length})</label>
+            <div className="rounded-[8px] border border-[#E2E6E9] overflow-hidden">
+              {visibleLineRows.map((row, i) => (
+                <div key={row.id} className={`flex items-center gap-3 px-3 py-2 ${i > 0 ? "border-t border-[#E2E6E9]" : ""}`}>
+                  <span
+                    className="shrink-0 inline-flex items-center justify-center min-w-[46px] px-2 py-1 rounded-[6px] text-[11px] font-bold whitespace-nowrap"
+                    style={{ color: EMAIL_TABLE_NAVY, backgroundColor: "#EAF1FB" }}
+                  >
+                    {row.lineNum}
+                  </span>
+                  <span className="text-[12.5px] text-[#262626] font-medium truncate">{row.item !== "—" ? row.item : row.holdStatus}</span>
+                </div>
+              ))}
+              {rows.length > LINES_COLLAPSED_COUNT && (
+                <button
+                  onClick={() => setLinesExpanded((v) => !v)}
+                  className="w-full flex items-center justify-center gap-1 py-2 text-[12px] font-semibold border-t border-[#E2E6E9] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                  style={{ color: EMAIL_TABLE_NAVY }}
+                >
+                  {linesExpanded ? "View less" : `View ${rows.length - LINES_COLLAPSED_COUNT} more`}
+                  <ChevronDown size={13} className={`transition-transform duration-200 ${linesExpanded ? "rotate-180" : ""}`} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className={fieldLabelClass}>Hold Type *</label>
+            <div className="relative">
+              <button
+                onClick={() => setHoldTypeOpen((v) => !v)}
+                className="w-full flex items-center justify-between gap-2 h-[38px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[13px] text-left cursor-pointer hover:bg-[#F7F7F7] transition-colors"
+              >
+                <span className={holdType ? "text-[#262626]" : "text-[#97999B]"}>{holdType || "— Select a hold type (required) —"}</span>
+                <ChevronDown size={14} className={`text-[#97999B] shrink-0 transition-transform duration-200 ${holdTypeOpen ? "rotate-180" : ""}`} />
+              </button>
+              {holdTypeOpen && (
+                <div className="absolute left-0 top-full mt-1 w-full bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-20 py-1">
+                  {CREDIT_HOLD_TYPES.map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => { setHoldType(opt); setHoldTypeOpen(false); }}
+                      className={`w-full text-left px-3 py-2 text-[12.5px] cursor-pointer transition-colors ${
+                        opt === holdType ? "font-semibold text-[#30578D] bg-[#EAF1FB]" : "text-[#4D4D4D] hover:bg-[#F7F7F7]"
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className={fieldLabelClass}>Hold Until Date</label>
+            <button
+              onClick={() => {
+                const el = holdUntilRef.current;
+                if (!el) return;
+                if (typeof el.showPicker === "function") el.showPicker();
+                else el.focus();
+              }}
+              className="relative w-full flex items-center gap-2 h-[38px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-left cursor-pointer hover:bg-[#F7F7F7] transition-colors"
+            >
+              <Calendar size={13} className="text-[#97999B] shrink-0" />
+              <span className={`text-[13px] ${holdUntil ? "text-[#262626]" : "text-[#97999B]"}`}>{holdUntil || "Select date (optional)"}</span>
+              <input
+                ref={holdUntilRef}
+                type="date"
+                value={holdUntil}
+                onChange={(e) => setHoldUntil(e.target.value)}
+                className="absolute inset-0 opacity-0 pointer-events-none"
+                tabIndex={-1}
+              />
+            </button>
+          </div>
+
+          <div>
+            <label className={fieldLabelClass}>Hold Reason *</label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Enter the reason for applying this hold (required)…"
+              className="w-full min-h-[100px] px-3 py-2.5 rounded-[8px] border border-[#E2E6E9] bg-white text-[13px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors resize-y"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[#DEDEDE]">
+          <button onClick={onClose} className="px-4 py-2 rounded-[8px] border border-[#E2E6E9] text-[13px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer">
+            Cancel
+          </button>
+          <button
+            onClick={confirm}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-[13px] font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer"
+            style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+          >
+            <Plus size={14} />
+            Confirm Apply Hold
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function OrderDetailsPage({ orderId, view, onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+  orderId: string;
+  /** "credit" when this order was reached via the Overview page's Credit view — shows the credit-only Line
+      Listing table (with per-line Apply Hold) alongside the usual Hold Listings. */
+  view?: string;
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -531,8 +711,142 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
   const [checkedRows, setCheckedRows] = useState<Set<number>>(new Set());
   const toggleRow = (id: number) => setCheckedRows((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [releaseRows, setReleaseRows] = useState<HoldRow[] | null>(null);
+  // Credit-view orders show Hold Listing and Line Listing as tabs of one card instead of two stacked cards.
+  const [listingTab, setListingTab] = useState<"hold" | "line">("hold");
   const [followUpRow, setFollowUpRow] = useState<HoldRow | null>(null);
   const [followUpLog, setFollowUpLog] = useState<FollowUpLogEntry[]>(FOLLOWUP_ESCALATION_LOG);
+
+  // Line Listing — Credit view only.
+  const [checkedLineRows, setCheckedLineRows] = useState<Set<number>>(new Set());
+  const toggleLineRow = (id: number) => setCheckedLineRows((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const [applyHoldRows, setApplyHoldRows] = useState<LineListingRow[] | null>(null);
+
+  // Line Listing toolbar/table state — independent instances of the same shared-table hooks Hold Listings
+  // uses above, so both tables can have their own open filter/column panel at the same time.
+  const { openKey: lineOpenKey, setOpenKey: setLineOpenKey, registerRef: registerLineRef } = useExclusiveOpen();
+  const lineLevelFilter = useStagedMultiSelect(LINE_LEVELS);
+  const lineStatusFilter = useStagedMultiSelect(LINE_STATUSES);
+  const lineToolbarFiltersDirty = lineLevelFilter.dirty || lineStatusFilter.dirty;
+  const applyLineToolbarFilters = () => { lineLevelFilter.apply(); lineStatusFilter.apply(); setLineOpenKey(null); setLinePage(1); };
+  const resetLineToolbarFilters = () => { lineLevelFilter.reset(); lineStatusFilter.reset(); };
+
+  const [lineSearchQuery, setLineSearchQuery] = useState("");
+  const [linePage, setLinePage] = useState(1);
+
+  const [lineColumnFilters, setLineColumnFilters] = useState<Record<string, Set<string>>>({});
+  const lineColumnFilterOptions = (key: string): [string, number][] => {
+    const counts: Record<string, number> = {};
+    for (const r of LINE_LISTING_ROWS) {
+      const v = String(r[key as LineColumnKey]);
+      counts[v] = (counts[v] ?? 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  };
+  const toggleLineColumnFilterValue = (key: string, value: string) => {
+    setLineColumnFilters((prev) => {
+      const next = { ...prev };
+      const set = new Set(next[key] ?? []);
+      if (set.has(value)) set.delete(value); else set.add(value);
+      next[key] = set;
+      return next;
+    });
+    setLinePage(1);
+  };
+  const clearLineColumnFilter = (key: string) => {
+    setLineColumnFilters((prev) => ({ ...prev, [key]: new Set() }));
+    setLinePage(1);
+  };
+  const lineActiveFilterCount = Object.values(lineColumnFilters).reduce((sum, set) => sum + set.size, 0);
+
+  const [lineOpenPanel, setLineOpenPanel] = useState<"filter" | "columns" | null>(null);
+
+  const [lineSortKey, setLineSortKey] = useState<LineColumnKey>("lineNum");
+  const [lineSortDirection, setLineSortDirection] = useState<"asc" | "desc">("asc");
+  const toggleLineSort = (key: LineColumnKey) => {
+    if (lineSortKey === key) {
+      setLineSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setLineSortKey(key);
+      setLineSortDirection("asc");
+    }
+  };
+
+  const [lineColOrder, setLineColOrder] = useState<LineColumnKey[]>(LINE_COLUMNS.map((c) => c.key));
+  const lineVisibleColumnList = lineColOrder.map((key) => LINE_COLUMNS.find((c) => c.key === key)).filter((c): c is { key: LineColumnKey; label: string } => Boolean(c));
+
+  const [lineRowDensity, setLineRowDensity] = useState<RowDensity>("large");
+  const [lineRowsPerPage, setLineRowsPerPage] = useState(10);
+  const changeLineRowsPerPage = (n: number) => { setLineRowsPerPage(n); setLinePage(1); };
+
+  const lineSortedRows = useMemo(() => {
+    const q = lineSearchQuery.trim().toLowerCase();
+    let filtered = LINE_LISTING_ROWS.filter((r) => {
+      if (q && !r.lineId.toLowerCase().includes(q) && !r.item.toLowerCase().includes(q) && !r.description.toLowerCase().includes(q) && !r.holdStatus.toLowerCase().includes(q)) return false;
+      if (lineLevelFilter.applied.length > 0 && !lineLevelFilter.applied.includes(r.level)) return false;
+      if (lineStatusFilter.applied.length > 0 && !lineStatusFilter.applied.includes(r.status)) return false;
+      for (const col of LINE_FILTER_COLUMNS) {
+        const active = lineColumnFilters[col.key];
+        if (active && active.size > 0 && !active.has(String(r[col.key as LineColumnKey]))) return false;
+      }
+      return true;
+    });
+    filtered = filtered.slice().sort((a, b) => {
+      const cmp = String(a[lineSortKey]).localeCompare(String(b[lineSortKey]), undefined, { numeric: true, sensitivity: "base" });
+      return lineSortDirection === "asc" ? cmp : -cmp;
+    });
+    return filtered;
+  }, [lineSearchQuery, lineLevelFilter.applied, lineStatusFilter.applied, lineColumnFilters, lineSortKey, lineSortDirection]);
+
+  const lineTotalPages = Math.max(1, Math.ceil(lineSortedRows.length / lineRowsPerPage));
+  const linePageRows = lineSortedRows.slice((linePage - 1) * lineRowsPerPage, linePage * lineRowsPerPage);
+  const lineRowPadY = lineRowDensity === "small" ? "py-1.5" : lineRowDensity === "medium" ? "py-2.5" : "py-3.5";
+
+  const renderLineCell = (key: LineColumnKey, row: LineListingRow) => {
+    switch (key) {
+      case "description":
+        return (
+          <TruncateTooltip
+            label={row.description}
+            className={`text-[12.5px] max-w-[220px] ${row.description === "—" ? "text-[#4D4D4D]" : "text-[#262626] font-semibold"}`}
+          />
+        );
+      case "level":
+        return (
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap"
+            style={row.level === "Header" ? { color: "#7C3AED", backgroundColor: "#EDE9FE" } : { color: EMAIL_TABLE_NAVY, backgroundColor: "#EAF1FB" }}
+          >
+            {row.level}
+          </span>
+        );
+      case "holdStatus":
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap" style={{ color: "#C83737", backgroundColor: "#FAEBEB" }}>
+            <Ban size={10} />
+            {row.holdStatus}
+          </span>
+        );
+      case "status":
+        return (
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap"
+            style={row.status === "Booked" ? { color: "#468657", backgroundColor: "#EFF6F1" } : { color: "#E67919", backgroundColor: "#FDF3E7" }}
+          >
+            {row.status}
+          </span>
+        );
+      case "response":
+        if (!row.response) return <span className="text-[12px] text-[#D9D9D6]">—</span>;
+        if (row.responseFailed) return <TruncateTooltip label={row.response} className="text-[11.5px] text-[#C83737] max-w-[140px]" />;
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap" style={{ color: "#468657", backgroundColor: "#EFF6F1" }}>
+            {row.response}
+          </span>
+        );
+      default:
+        return <span className="text-[12.5px] text-[#4D4D4D] whitespace-nowrap">{row[key]}</span>;
+    }
+  };
 
   // Toolbar quick filters — same staged multi-select pattern as Order Listing.
   const { openKey, setOpenKey, registerRef } = useExclusiveOpen();
@@ -617,6 +931,10 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
   const releasableCount = HOLD_ROWS.filter((r) => r.name !== "CIA Hold").length;
   const ownersInvolved = Array.from(new Set(HOLD_ROWS.map((r) => r.owner))).join(", ");
 
+  const lineAppliedCount = LINE_LISTING_ROWS.filter((r) => r.response && !r.responseFailed).length;
+  const linePendingCount = LINE_LISTING_ROWS.filter((r) => !r.response).length;
+  const lineFailedCount = LINE_LISTING_ROWS.filter((r) => r.responseFailed).length;
+
   const renderCell = (key: ColumnKey, row: HoldRow) => {
     switch (key) {
       case "category":
@@ -659,6 +977,477 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
         return <span className="text-[12.5px] text-[#4D4D4D]">{row[key]}</span>;
     }
   };
+
+  // Hold Listings' header/table/pagination — rendered as its own standalone card on CSR-view orders, or as
+  // one of two tabs (alongside Line Listing) inside a single card on credit-view orders. The "Hold Listings"
+  // title only shows standalone, since the tab strip itself names the section when tabbed.
+  const holdListingsContent = (
+    <>
+      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[#DEDEDE] flex-wrap">
+        <div className="shrink-0">
+          {view !== "credit" && <h2 className="text-[14px] font-bold text-[#262626] whitespace-nowrap leading-none mb-1.5">Hold Listings</h2>}
+          <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-semibold">
+            <span className="inline-flex items-center gap-1" style={{ color: EMAIL_TABLE_NAVY }}>
+              <Layers size={11} />
+              {HOLD_ROWS.length} Holds
+            </span>
+            <span className="text-[#D9D9D6]">•</span>
+            <span className="inline-flex items-center gap-1 text-[#468657]">
+              <CheckCircle2 size={11} />
+              {releasableCount} Releasable
+            </span>
+            <span className="text-[#D9D9D6]">•</span>
+            <span className="inline-flex items-center gap-1 text-[#E67919]">
+              <Calendar size={11} />
+              ERD Not Set
+            </span>
+            <span className="text-[#D9D9D6]">•</span>
+            <span className="inline-flex items-center gap-1 text-[#387D85]">
+              <UserCog size={11} />
+              {ownersInvolved}
+            </span>
+          </div>
+        </div>
+
+        <TableToolbarSearch value={searchQuery} onCommit={(v) => { setSearchQuery(v); setPage(1); }} placeholder="Search holds..." />
+
+        <div className="flex items-center gap-2.5 ml-auto flex-wrap">
+          {checkedRows.size > 0 && (
+            <>
+              <button
+                onClick={() => setReleaseRows(sortedRows.filter((r) => checkedRows.has(r.id)))}
+                className="flex items-center gap-1.5 h-[36px] pl-3 pr-2 rounded-[8px] text-white text-[12px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+              >
+                <CheckCircle2 size={13} />
+                Release Selected
+                <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-white/25 text-[10.5px] font-bold">
+                  {checkedRows.size}
+                </span>
+              </button>
+              <button
+                onClick={() => setCheckedRows(new Set())}
+                title="Clear selection"
+                className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+              >
+                <X size={14} />
+              </button>
+              <div className="w-px h-5 bg-[#E2E6E9]" />
+            </>
+          )}
+          <TableToolbarMultiSelect
+            label="Hold Category"
+            options={HOLD_CATEGORIES}
+            pending={categoryFilter.pending}
+            onToggle={categoryFilter.toggle}
+            onToggleAll={categoryFilter.toggleAll}
+            onClear={categoryFilter.clear}
+            open={openKey === "category"}
+            onOpenChange={(o) => setOpenKey(o ? "category" : null)}
+            containerRef={registerRef("category")}
+            appliedCount={categoryFilter.applied.length}
+            dirty={categoryFilter.dirty}
+            width={220}
+          />
+          <TableToolbarMultiSelect
+            label="Hold Type"
+            options={HOLD_TYPES}
+            pending={holdTypeFilter.pending}
+            onToggle={holdTypeFilter.toggle}
+            onToggleAll={holdTypeFilter.toggleAll}
+            onClear={holdTypeFilter.clear}
+            open={openKey === "holdType"}
+            onOpenChange={(o) => setOpenKey(o ? "holdType" : null)}
+            containerRef={registerRef("holdType")}
+            appliedCount={holdTypeFilter.applied.length}
+            dirty={holdTypeFilter.dirty}
+            width={220}
+          />
+          <TableToolbarApplyReset dirty={toolbarFiltersDirty} onApply={applyToolbarFilters} onReset={resetToolbarFilters} />
+
+          <div className="w-px h-5 bg-[#E2E6E9]" />
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <TableFilterTrigger open={openPanel === "filter"} onOpenChange={(o) => setOpenPanel(o ? "filter" : null)} activeCount={activeFilterCount} />
+            <TableColumnMgmtTrigger open={openPanel === "columns"} onOpenChange={(o) => setOpenPanel(o ? "columns" : null)} />
+          </div>
+        </div>
+      </div>
+
+      {/* Table body — Filter and Column Mgmt slide-in panels overlay this area only */}
+      <div className="relative overflow-hidden">
+        <div className="overflow-auto" style={{ minHeight: 240, maxHeight: 360 }}>
+          <table className="w-full min-w-[1000px] border-separate border-spacing-0">
+            <thead>
+              <tr className="bg-[#F7F7F7]">
+                <th className="sticky top-0 z-10 bg-[#F7F7F7] w-[42px] px-4 h-[42px] border-b border-[#DEDEDE]">
+                  <button
+                    onClick={() => {
+                      const allIds = sortedRows.map((r) => r.id);
+                      const allChecked = allIds.length > 0 && allIds.every((id) => checkedRows.has(id));
+                      setCheckedRows(allChecked ? new Set() : new Set(allIds));
+                    }}
+                    className={`flex items-center justify-center size-[16px] rounded-[4px] border-[1.5px] shrink-0 transition-colors cursor-pointer ${
+                      sortedRows.length > 0 && sortedRows.every((r) => checkedRows.has(r.id)) ? "border-transparent" : "border-[#B8BCC2] bg-white"
+                    }`}
+                    style={sortedRows.length > 0 && sortedRows.every((r) => checkedRows.has(r.id)) ? { backgroundColor: EMAIL_TABLE_NAVY } : undefined}
+                  >
+                    {sortedRows.length > 0 && sortedRows.every((r) => checkedRows.has(r.id)) && (
+                      <Check size={11} className="text-white" strokeWidth={3.5} />
+                    )}
+                  </button>
+                </th>
+                {visibleColumnList.map((col) => {
+                  const active = sortKey === col.key;
+                  const SortIcon = sortDirection === "desc" ? ArrowDown : ArrowUp;
+                  return (
+                    <th key={col.key} className="group sticky top-0 z-10 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => toggleSort(col.key)} className="flex items-center gap-1 cursor-pointer">
+                          <span className={`text-[12px] font-semibold ${active ? "text-[#262626]" : "text-[#4D4D4D]"}`}>{col.label}</span>
+                          {active ? (
+                            <SortIcon size={12} style={{ color: EMAIL_TABLE_NAVY }} />
+                          ) : (
+                            <ChevronsUpDown size={12} className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity" style={{ color: "#97999B" }} />
+                          )}
+                        </button>
+                        {FILTER_COLUMNS.some((c) => c.key === col.key) && (
+                          <EmailTableColumnFilterButton
+                            colKey={col.key}
+                            getOptions={columnFilterOptions}
+                            selected={columnFilters[col.key] ?? EMPTY_SET}
+                            onToggle={(v) => toggleColumnFilterValue(col.key, v)}
+                            onClear={() => clearColumnFilter(col.key)}
+                          />
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
+                <th className="sticky top-0 right-0 z-30 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
+                  <span className="text-[12px] font-semibold text-[#4D4D4D]">Action</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageRows.length === 0 ? (
+                <tr>
+                  <td colSpan={visibleColumnList.length + 2} className="px-4 py-16 text-center text-[13px] text-[#97999B]">No holds match your filters</td>
+                </tr>
+              ) : (
+                pageRows.map((row) => {
+                  const checked = checkedRows.has(row.id);
+                  return (
+                  <tr
+                    key={row.id}
+                    className={`group transition-colors ${checked ? "bg-[#30578D]/[0.06] hover:bg-[#30578D]/[0.09]" : "hover:bg-[#F7F7F7]"}`}
+                  >
+                    <td className={`px-4 ${rowPadY} border-b border-[#DEDEDE]`}>
+                      <button
+                        onClick={() => toggleRow(row.id)}
+                        className={`flex items-center justify-center size-[16px] rounded-[4px] border-[1.5px] shrink-0 transition-colors cursor-pointer ${checked ? "border-transparent" : "border-[#B8BCC2] bg-white"}`}
+                        style={checked ? { backgroundColor: EMAIL_TABLE_NAVY } : undefined}
+                      >
+                        {checked && <Check size={11} className="text-white" strokeWidth={3.5} />}
+                      </button>
+                    </td>
+                    {visibleColumnList.map((col) => (
+                      <td key={col.key} className={`px-4 ${rowPadY} whitespace-nowrap border-b border-[#DEDEDE]`}>
+                        {renderCell(col.key, row)}
+                      </td>
+                    ))}
+                    <td
+                      className={`sticky right-0 z-10 px-4 ${rowPadY} whitespace-nowrap border-b border-[#DEDEDE] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] transition-colors ${
+                        checked ? "bg-[#EAF1FB] group-hover:bg-[#DCE9FA]" : "bg-white group-hover:bg-[#F7F7F7]"
+                      }`}
+                    >
+                      {row.name === "CIA Hold" ? (
+                        <button
+                          onClick={() => setFollowUpRow(row)}
+                          disabled={checkedRows.size > 1}
+                          title={checkedRows.size > 1 ? "Clear the current selection to act on this row individually" : undefined}
+                          className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] text-[12px] font-semibold hover:border-[#30578D] hover:bg-[#EAF1FB] hover:text-[#30578D] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[#E2E6E9] disabled:hover:bg-white disabled:hover:text-[#4D4D4D]"
+                        >
+                          <MessageSquareText size={13} />
+                          Follow-up / Escalate
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setReleaseRows([row])}
+                          disabled={checkedRows.size > 1}
+                          title={checkedRows.size > 1 ? "Clear the current selection to act on this row individually" : undefined}
+                          className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] text-[12px] font-semibold hover:border-[#30578D] hover:bg-[#EAF1FB] hover:text-[#30578D] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[#E2E6E9] disabled:hover:bg-white disabled:hover:text-[#4D4D4D]"
+                        >
+                          <CheckCircle2 size={13} />
+                          Release
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <TableFilterPanel
+          open={openPanel === "filter"}
+          onOpenChange={(o) => setOpenPanel(o ? "filter" : null)}
+          columns={FILTER_COLUMNS}
+          columnFilters={columnFilters}
+          getOptions={columnFilterOptions}
+          onApply={(next) => { setColumnFilters(next); setPage(1); }}
+        />
+
+        <TableColumnMgmtPanel
+          open={openPanel === "columns"}
+          onOpenChange={(o) => setOpenPanel(o ? "columns" : null)}
+          columns={COLUMNS}
+          value={colOrder}
+          onApply={(next) => setColOrder(next as ColumnKey[])}
+        />
+      </div>
+
+      <TablePagination
+        showing={pageRows.length}
+        total={sortedRows.length}
+        density={rowDensity}
+        onDensityChange={setRowDensity}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={changeRowsPerPage}
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
+    </>
+  );
+
+  // Line Listing's header/table/pagination — only ever shown as the second tab alongside Hold Listings
+  // (credit-view orders only), so it has no standalone title of its own; the tab strip names it.
+  const lineListingContent = (
+    <>
+      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[#DEDEDE] flex-wrap">
+        <div className="shrink-0 flex items-center gap-1.5 flex-wrap text-[11px] font-semibold">
+          <span className="inline-flex items-center gap-1" style={{ color: EMAIL_TABLE_NAVY }}>
+            <List size={11} />
+            {LINE_LISTING_ROWS.length} Lines
+          </span>
+          <span className="text-[#D9D9D6]">•</span>
+          <span className="inline-flex items-center gap-1 text-[#468657]">
+            <CheckCircle2 size={11} />
+            {lineAppliedCount} Applied
+          </span>
+          <span className="text-[#D9D9D6]">•</span>
+          <span className="inline-flex items-center gap-1 text-[#E67919]">
+            <Clock size={11} />
+            {linePendingCount} Pending
+          </span>
+          <span className="text-[#D9D9D6]">•</span>
+          <span className="inline-flex items-center gap-1 text-[#C83737]">
+            <TriangleAlert size={11} />
+            {lineFailedCount} Failed
+          </span>
+        </div>
+
+        <TableToolbarSearch value={lineSearchQuery} onCommit={(v) => { setLineSearchQuery(v); setLinePage(1); }} placeholder="Search lines..." />
+
+        <div className="flex items-center gap-2.5 ml-auto flex-wrap">
+          {checkedLineRows.size > 0 && (
+            <>
+              <button
+                onClick={() => setApplyHoldRows(lineSortedRows.filter((r) => checkedLineRows.has(r.id)))}
+                className="flex items-center gap-1.5 h-[36px] pl-3 pr-2 rounded-[8px] text-white text-[12px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+              >
+                <Plus size={13} />
+                Apply Hold
+                <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-white/25 text-[10.5px] font-bold">
+                  {checkedLineRows.size}
+                </span>
+              </button>
+              <button
+                onClick={() => setCheckedLineRows(new Set())}
+                title="Clear selection"
+                className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+              >
+                <X size={14} />
+              </button>
+              <div className="w-px h-5 bg-[#E2E6E9]" />
+            </>
+          )}
+          <TableToolbarMultiSelect
+            label="Level"
+            options={LINE_LEVELS}
+            pending={lineLevelFilter.pending}
+            onToggle={lineLevelFilter.toggle}
+            onToggleAll={lineLevelFilter.toggleAll}
+            onClear={lineLevelFilter.clear}
+            open={lineOpenKey === "level"}
+            onOpenChange={(o) => setLineOpenKey(o ? "level" : null)}
+            containerRef={registerLineRef("level")}
+            appliedCount={lineLevelFilter.applied.length}
+            dirty={lineLevelFilter.dirty}
+            width={180}
+          />
+          <TableToolbarMultiSelect
+            label="Status"
+            options={LINE_STATUSES}
+            pending={lineStatusFilter.pending}
+            onToggle={lineStatusFilter.toggle}
+            onToggleAll={lineStatusFilter.toggleAll}
+            onClear={lineStatusFilter.clear}
+            open={lineOpenKey === "status"}
+            onOpenChange={(o) => setLineOpenKey(o ? "status" : null)}
+            containerRef={registerLineRef("status")}
+            appliedCount={lineStatusFilter.applied.length}
+            dirty={lineStatusFilter.dirty}
+            width={180}
+          />
+          <TableToolbarApplyReset dirty={lineToolbarFiltersDirty} onApply={applyLineToolbarFilters} onReset={resetLineToolbarFilters} />
+
+          <div className="w-px h-5 bg-[#E2E6E9]" />
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <TableFilterTrigger open={lineOpenPanel === "filter"} onOpenChange={(o) => setLineOpenPanel(o ? "filter" : null)} activeCount={lineActiveFilterCount} />
+            <TableColumnMgmtTrigger open={lineOpenPanel === "columns"} onOpenChange={(o) => setLineOpenPanel(o ? "columns" : null)} />
+          </div>
+        </div>
+      </div>
+
+      {/* Table body — Filter and Column Mgmt slide-in panels overlay this area only */}
+      <div className="relative overflow-hidden">
+        <div className="overflow-auto" style={{ minHeight: 240, maxHeight: 360 }}>
+          <table className="w-full min-w-[1080px] border-separate border-spacing-0">
+            <thead>
+              <tr className="bg-[#F7F7F7]">
+                <th className="sticky top-0 z-10 bg-[#F7F7F7] w-[42px] px-4 h-[42px] border-b border-[#DEDEDE]">
+                  <button
+                    onClick={() => {
+                      const allIds = lineSortedRows.map((r) => r.id);
+                      const allChecked = allIds.length > 0 && allIds.every((id) => checkedLineRows.has(id));
+                      setCheckedLineRows(allChecked ? new Set() : new Set(allIds));
+                    }}
+                    className={`flex items-center justify-center size-[16px] rounded-[4px] border-[1.5px] shrink-0 transition-colors cursor-pointer ${
+                      lineSortedRows.length > 0 && lineSortedRows.every((r) => checkedLineRows.has(r.id)) ? "border-transparent" : "border-[#B8BCC2] bg-white"
+                    }`}
+                    style={lineSortedRows.length > 0 && lineSortedRows.every((r) => checkedLineRows.has(r.id)) ? { backgroundColor: EMAIL_TABLE_NAVY } : undefined}
+                  >
+                    {lineSortedRows.length > 0 && lineSortedRows.every((r) => checkedLineRows.has(r.id)) && (
+                      <Check size={11} className="text-white" strokeWidth={3.5} />
+                    )}
+                  </button>
+                </th>
+                {lineVisibleColumnList.map((col) => {
+                  const active = lineSortKey === col.key;
+                  const SortIcon = lineSortDirection === "desc" ? ArrowDown : ArrowUp;
+                  return (
+                    <th key={col.key} className="group sticky top-0 z-10 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => toggleLineSort(col.key)} className="flex items-center gap-1 cursor-pointer">
+                          <span className={`text-[12px] font-semibold ${active ? "text-[#262626]" : "text-[#4D4D4D]"}`}>{col.label}</span>
+                          {active ? (
+                            <SortIcon size={12} style={{ color: EMAIL_TABLE_NAVY }} />
+                          ) : (
+                            <ChevronsUpDown size={12} className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity" style={{ color: "#97999B" }} />
+                          )}
+                        </button>
+                        {LINE_FILTER_COLUMNS.some((c) => c.key === col.key) && (
+                          <EmailTableColumnFilterButton
+                            colKey={col.key}
+                            getOptions={lineColumnFilterOptions}
+                            selected={lineColumnFilters[col.key] ?? EMPTY_SET}
+                            onToggle={(v) => toggleLineColumnFilterValue(col.key, v)}
+                            onClear={() => clearLineColumnFilter(col.key)}
+                          />
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
+                <th className="sticky top-0 right-0 z-30 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
+                  <span className="text-[12px] font-semibold text-[#4D4D4D]">Action</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {linePageRows.length === 0 ? (
+                <tr>
+                  <td colSpan={lineVisibleColumnList.length + 2} className="px-4 py-16 text-center text-[13px] text-[#97999B]">No lines match your filters</td>
+                </tr>
+              ) : (
+                linePageRows.map((row) => {
+                  const checked = checkedLineRows.has(row.id);
+                  return (
+                    <tr key={row.id} className={`group transition-colors ${checked ? "bg-[#30578D]/[0.06] hover:bg-[#30578D]/[0.09]" : "hover:bg-[#F7F7F7]"}`}>
+                      <td className={`px-4 ${lineRowPadY} border-b border-[#DEDEDE]`}>
+                        <button
+                          onClick={() => toggleLineRow(row.id)}
+                          className={`flex items-center justify-center size-[16px] rounded-[4px] border-[1.5px] shrink-0 transition-colors cursor-pointer ${checked ? "border-transparent" : "border-[#B8BCC2] bg-white"}`}
+                          style={checked ? { backgroundColor: EMAIL_TABLE_NAVY } : undefined}
+                        >
+                          {checked && <Check size={11} className="text-white" strokeWidth={3.5} />}
+                        </button>
+                      </td>
+                      {lineVisibleColumnList.map((col) => (
+                        <td key={col.key} className={`px-4 ${lineRowPadY} whitespace-nowrap border-b border-[#DEDEDE]`}>
+                          {renderLineCell(col.key, row)}
+                        </td>
+                      ))}
+                      <td
+                        className={`sticky right-0 z-10 px-4 ${lineRowPadY} whitespace-nowrap border-b border-[#DEDEDE] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] transition-colors ${
+                          checked ? "bg-[#EAF1FB] group-hover:bg-[#DCE9FA]" : "bg-white group-hover:bg-[#F7F7F7]"
+                        }`}
+                      >
+                        <button
+                          onClick={() => setApplyHoldRows([row])}
+                          disabled={checkedLineRows.size > 1}
+                          title={checkedLineRows.size > 1 ? "Clear the current selection to act on this row individually" : undefined}
+                          className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] text-[12px] font-semibold hover:border-[#30578D] hover:bg-[#EAF1FB] hover:text-[#30578D] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[#E2E6E9] disabled:hover:bg-white disabled:hover:text-[#4D4D4D]"
+                        >
+                          <Plus size={13} />
+                          Apply Hold
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <TableFilterPanel
+          open={lineOpenPanel === "filter"}
+          onOpenChange={(o) => setLineOpenPanel(o ? "filter" : null)}
+          columns={LINE_FILTER_COLUMNS}
+          columnFilters={lineColumnFilters}
+          getOptions={lineColumnFilterOptions}
+          onApply={(next) => { setLineColumnFilters(next); setLinePage(1); }}
+        />
+
+        <TableColumnMgmtPanel
+          open={lineOpenPanel === "columns"}
+          onOpenChange={(o) => setLineOpenPanel(o ? "columns" : null)}
+          columns={LINE_COLUMNS}
+          value={lineColOrder}
+          onApply={(next) => setLineColOrder(next as LineColumnKey[])}
+        />
+      </div>
+
+      <TablePagination
+        showing={linePageRows.length}
+        total={lineSortedRows.length}
+        density={lineRowDensity}
+        onDensityChange={setLineRowDensity}
+        rowsPerPage={lineRowsPerPage}
+        onRowsPerPageChange={changeLineRowsPerPage}
+        page={linePage}
+        totalPages={lineTotalPages}
+        onPageChange={setLinePage}
+      />
+    </>
+  );
 
   return (
     <div className="bg-[#f5f6fa] flex size-full h-screen overflow-hidden" style={{ fontFamily: "Inter, sans-serif" }}>
@@ -781,242 +1570,45 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
             </div>
             )}
 
-            {/* Hold Listings card */}
-            <div className="bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden flex flex-col">
-              <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[#DEDEDE] flex-wrap">
-                <div className="shrink-0">
-                  <h2 className="text-[14px] font-bold text-[#262626] whitespace-nowrap leading-none">Hold Listings</h2>
-                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap text-[11px] font-semibold">
-                    <span className="inline-flex items-center gap-1" style={{ color: EMAIL_TABLE_NAVY }}>
-                      <Layers size={11} />
-                      {HOLD_ROWS.length} Holds
-                    </span>
-                    <span className="text-[#D9D9D6]">•</span>
-                    <span className="inline-flex items-center gap-1 text-[#468657]">
-                      <CheckCircle2 size={11} />
-                      {releasableCount} Releasable
-                    </span>
-                    <span className="text-[#D9D9D6]">•</span>
-                    <span className="inline-flex items-center gap-1 text-[#E67919]">
-                      <Calendar size={11} />
-                      ERD Not Set
-                    </span>
-                    <span className="text-[#D9D9D6]">•</span>
-                    <span className="inline-flex items-center gap-1 text-[#387D85]">
-                      <UserCog size={11} />
-                      {ownersInvolved}
-                    </span>
+            {/* Hold Listings / Line Listing card — tabbed together on credit-view orders (Line Listing only
+                exists there); Hold Listings renders as its own standalone card otherwise. */}
+            {view === "credit" ? (
+              <div className="bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden flex flex-col">
+                <div className="px-5 py-3 shrink-0 border-b border-[#E2E6E9]">
+                  <div className="inline-flex items-center gap-1 p-1 rounded-[8px] bg-[#F1F2F4]">
+                    {(["hold", "line"] as const).map((tab) => {
+                      const active = listingTab === tab;
+                      const Icon = tab === "hold" ? Layers : List;
+                      const label = tab === "hold" ? "Hold Listing" : "Line Listing";
+                      const count = tab === "hold" ? HOLD_ROWS.length : LINE_LISTING_ROWS.length;
+                      return (
+                        <button
+                          key={tab}
+                          onClick={() => setListingTab(tab)}
+                          className={`flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-[6px] text-[12px] font-semibold cursor-pointer transition-colors ${
+                            active ? "bg-white text-[#262626] shadow-[0_1px_2px_rgba(15,23,42,0.08)]" : "text-[#666666] hover:text-[#262626]"
+                          }`}
+                        >
+                          <Icon size={13} style={{ color: active ? EMAIL_TABLE_NAVY : "#97999B" }} />
+                          {label}
+                          <span
+                            className="flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full text-white text-[9.5px] font-bold"
+                            style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+                          >
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-
-                <TableToolbarSearch value={searchQuery} onCommit={(v) => { setSearchQuery(v); setPage(1); }} placeholder="Search holds..." />
-
-                <div className="flex items-center gap-2.5 ml-auto flex-wrap">
-                  {checkedRows.size > 0 && (
-                    <>
-                      <button
-                        onClick={() => setReleaseRows(sortedRows.filter((r) => checkedRows.has(r.id)))}
-                        className="flex items-center gap-1.5 h-[36px] pl-3 pr-2 rounded-[8px] text-white text-[12px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
-                        style={{ backgroundColor: EMAIL_TABLE_NAVY }}
-                      >
-                        <CheckCircle2 size={13} />
-                        Release Selected
-                        <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-white/25 text-[10.5px] font-bold">
-                          {checkedRows.size}
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => setCheckedRows(new Set())}
-                        title="Clear selection"
-                        className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
-                      >
-                        <X size={14} />
-                      </button>
-                      <div className="w-px h-5 bg-[#E2E6E9]" />
-                    </>
-                  )}
-                  <TableToolbarMultiSelect
-                    label="Hold Category"
-                    options={HOLD_CATEGORIES}
-                    pending={categoryFilter.pending}
-                    onToggle={categoryFilter.toggle}
-                    onToggleAll={categoryFilter.toggleAll}
-                    onClear={categoryFilter.clear}
-                    open={openKey === "category"}
-                    onOpenChange={(o) => setOpenKey(o ? "category" : null)}
-                    containerRef={registerRef("category")}
-                    appliedCount={categoryFilter.applied.length}
-                    dirty={categoryFilter.dirty}
-                    width={220}
-                  />
-                  <TableToolbarMultiSelect
-                    label="Hold Type"
-                    options={HOLD_TYPES}
-                    pending={holdTypeFilter.pending}
-                    onToggle={holdTypeFilter.toggle}
-                    onToggleAll={holdTypeFilter.toggleAll}
-                    onClear={holdTypeFilter.clear}
-                    open={openKey === "holdType"}
-                    onOpenChange={(o) => setOpenKey(o ? "holdType" : null)}
-                    containerRef={registerRef("holdType")}
-                    appliedCount={holdTypeFilter.applied.length}
-                    dirty={holdTypeFilter.dirty}
-                    width={220}
-                  />
-                  <TableToolbarApplyReset dirty={toolbarFiltersDirty} onApply={applyToolbarFilters} onReset={resetToolbarFilters} />
-
-                  <div className="w-px h-5 bg-[#E2E6E9]" />
-
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <TableFilterTrigger open={openPanel === "filter"} onOpenChange={(o) => setOpenPanel(o ? "filter" : null)} activeCount={activeFilterCount} />
-                    <TableColumnMgmtTrigger open={openPanel === "columns"} onOpenChange={(o) => setOpenPanel(o ? "columns" : null)} />
-                  </div>
-                </div>
+                {listingTab === "hold" ? holdListingsContent : lineListingContent}
               </div>
-
-              {/* Table body — Filter and Column Mgmt slide-in panels overlay this area only */}
-              <div className="relative overflow-hidden" style={{ height: 360 }}>
-                <div className="h-full min-h-0 overflow-auto">
-                  <table className="w-full min-w-[1000px] border-separate border-spacing-0">
-                    <thead>
-                      <tr className="bg-[#F7F7F7]">
-                        <th className="sticky top-0 z-10 bg-[#F7F7F7] w-[42px] px-4 h-[42px] border-b border-[#DEDEDE]">
-                          <button
-                            onClick={() => {
-                              const allIds = sortedRows.map((r) => r.id);
-                              const allChecked = allIds.length > 0 && allIds.every((id) => checkedRows.has(id));
-                              setCheckedRows(allChecked ? new Set() : new Set(allIds));
-                            }}
-                            className={`flex items-center justify-center size-[16px] rounded-[4px] border-[1.5px] shrink-0 transition-colors cursor-pointer ${
-                              sortedRows.length > 0 && sortedRows.every((r) => checkedRows.has(r.id)) ? "border-transparent" : "border-[#B8BCC2] bg-white"
-                            }`}
-                            style={sortedRows.length > 0 && sortedRows.every((r) => checkedRows.has(r.id)) ? { backgroundColor: EMAIL_TABLE_NAVY } : undefined}
-                          >
-                            {sortedRows.length > 0 && sortedRows.every((r) => checkedRows.has(r.id)) && (
-                              <Check size={11} className="text-white" strokeWidth={3.5} />
-                            )}
-                          </button>
-                        </th>
-                        {visibleColumnList.map((col) => {
-                          const active = sortKey === col.key;
-                          const SortIcon = sortDirection === "desc" ? ArrowDown : ArrowUp;
-                          return (
-                            <th key={col.key} className="group sticky top-0 z-10 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
-                              <div className="flex items-center gap-1.5">
-                                <button onClick={() => toggleSort(col.key)} className="flex items-center gap-1 cursor-pointer">
-                                  <span className={`text-[12px] font-semibold ${active ? "text-[#262626]" : "text-[#4D4D4D]"}`}>{col.label}</span>
-                                  {active ? (
-                                    <SortIcon size={12} style={{ color: EMAIL_TABLE_NAVY }} />
-                                  ) : (
-                                    <ChevronsUpDown size={12} className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity" style={{ color: "#97999B" }} />
-                                  )}
-                                </button>
-                                {FILTER_COLUMNS.some((c) => c.key === col.key) && (
-                                  <EmailTableColumnFilterButton
-                                    colKey={col.key}
-                                    getOptions={columnFilterOptions}
-                                    selected={columnFilters[col.key] ?? EMPTY_SET}
-                                    onToggle={(v) => toggleColumnFilterValue(col.key, v)}
-                                    onClear={() => clearColumnFilter(col.key)}
-                                  />
-                                )}
-                              </div>
-                            </th>
-                          );
-                        })}
-                        <th className="sticky top-0 z-10 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
-                          <span className="text-[12px] font-semibold text-[#4D4D4D]">Action</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pageRows.length === 0 ? (
-                        <tr>
-                          <td colSpan={visibleColumnList.length + 2} className="px-4 py-16 text-center text-[13px] text-[#97999B]">No holds match your filters</td>
-                        </tr>
-                      ) : (
-                        pageRows.map((row) => {
-                          const checked = checkedRows.has(row.id);
-                          return (
-                          <tr
-                            key={row.id}
-                            className={`transition-colors ${checked ? "bg-[#30578D]/[0.06] hover:bg-[#30578D]/[0.09]" : "hover:bg-[#F7F7F7]"}`}
-                          >
-                            <td className={`px-4 ${rowPadY} border-b border-[#DEDEDE]`}>
-                              <button
-                                onClick={() => toggleRow(row.id)}
-                                className={`flex items-center justify-center size-[16px] rounded-[4px] border-[1.5px] shrink-0 transition-colors cursor-pointer ${checked ? "border-transparent" : "border-[#B8BCC2] bg-white"}`}
-                                style={checked ? { backgroundColor: EMAIL_TABLE_NAVY } : undefined}
-                              >
-                                {checked && <Check size={11} className="text-white" strokeWidth={3.5} />}
-                              </button>
-                            </td>
-                            {visibleColumnList.map((col) => (
-                              <td key={col.key} className={`px-4 ${rowPadY} whitespace-nowrap border-b border-[#DEDEDE]`}>
-                                {renderCell(col.key, row)}
-                              </td>
-                            ))}
-                            <td className={`px-4 ${rowPadY} border-b border-[#DEDEDE]`}>
-                              {row.name === "CIA Hold" ? (
-                                <button
-                                  onClick={() => setFollowUpRow(row)}
-                                  disabled={checkedRows.size > 1}
-                                  title={checkedRows.size > 1 ? "Clear the current selection to act on this row individually" : undefined}
-                                  className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] text-[12px] font-semibold hover:border-[#30578D] hover:bg-[#EAF1FB] hover:text-[#30578D] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[#E2E6E9] disabled:hover:bg-white disabled:hover:text-[#4D4D4D]"
-                                >
-                                  <MessageSquareText size={13} />
-                                  Follow-up / Escalate
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => setReleaseRows([row])}
-                                  disabled={checkedRows.size > 1}
-                                  title={checkedRows.size > 1 ? "Clear the current selection to act on this row individually" : undefined}
-                                  className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] text-[12px] font-semibold hover:border-[#30578D] hover:bg-[#EAF1FB] hover:text-[#30578D] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[#E2E6E9] disabled:hover:bg-white disabled:hover:text-[#4D4D4D]"
-                                >
-                                  <CheckCircle2 size={13} />
-                                  Release
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <TableFilterPanel
-                  open={openPanel === "filter"}
-                  onOpenChange={(o) => setOpenPanel(o ? "filter" : null)}
-                  columns={FILTER_COLUMNS}
-                  columnFilters={columnFilters}
-                  getOptions={columnFilterOptions}
-                  onApply={(next) => { setColumnFilters(next); setPage(1); }}
-                />
-
-                <TableColumnMgmtPanel
-                  open={openPanel === "columns"}
-                  onOpenChange={(o) => setOpenPanel(o ? "columns" : null)}
-                  columns={COLUMNS}
-                  value={colOrder}
-                  onApply={(next) => setColOrder(next as ColumnKey[])}
-                />
+            ) : (
+              <div className="bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden flex flex-col">
+                {holdListingsContent}
               </div>
-
-              <TablePagination
-                showing={pageRows.length}
-                total={sortedRows.length}
-                density={rowDensity}
-                onDensityChange={setRowDensity}
-                rowsPerPage={rowsPerPage}
-                onRowsPerPageChange={changeRowsPerPage}
-                page={page}
-                totalPages={totalPages}
-                onPageChange={setPage}
-              />
-            </div>
+            )}
 
             {/* Notes/Follow-up panel + Audit History panel — two separate cards, side by side */}
             <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-4 items-start">
@@ -1233,6 +1825,19 @@ export function OrderDetailsPage({ orderId, onLogout, onViewAllNotifications, on
           onClose={() => setFollowUpRow(null)}
           onNavigateCommunication={() => onNavigateCommunication?.(orderId)}
           onSent={(entry) => { setFollowUpLog((prev) => [entry, ...prev]); setActiveTab("followup"); }}
+        />
+      )}
+
+      {applyHoldRows && (
+        <ApplyHoldModal
+          rows={applyHoldRows}
+          orderId={orderId}
+          onClose={() => setApplyHoldRows(null)}
+          onConfirm={(holdType) => {
+            toast.success(`${holdType} applied to ${applyHoldRows.length} line${applyHoldRows.length > 1 ? "s" : ""}`);
+            setCheckedLineRows((prev) => { const n = new Set(prev); applyHoldRows.forEach((r) => n.delete(r.id)); return n; });
+            setApplyHoldRows(null);
+          }}
         />
       )}
     </div>

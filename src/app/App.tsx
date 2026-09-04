@@ -46,7 +46,18 @@ function WorkflowRoute({ nav }: { nav: NavCallbacks }) {
 
 function OrderDetailsRoute({ nav, onNavigateOverview }: { nav: NavCallbacks; onNavigateOverview: () => void }) {
   const { orderId } = useParams<{ orderId: string }>();
-  return <OrderDetailsPage orderId={orderId ?? ""} onNavigateOverview={onNavigateOverview} {...nav} />;
+  const [searchParams] = useSearchParams();
+  return <OrderDetailsPage orderId={orderId ?? ""} view={searchParams.get("view") ?? undefined} onNavigateOverview={onNavigateOverview} {...nav} />;
+}
+
+// Order Listing itself doesn't need to know about ?view= — it just needs to keep carrying it forward when a
+// row is clicked, so Order Details on the other end still knows this order was reached via the Credit view.
+function OrderListingRoute({ nav, onNavigateOverview }: { nav: NavCallbacks; onNavigateOverview: () => void }) {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const view = searchParams.get("view");
+  const onNavigateOrderDetails = (orderId: string) => navigate(view ? `/hold-management/orders/${orderId}?view=${view}` : `/hold-management/orders/${orderId}`);
+  return <OrderListingPage {...nav} onNavigateOverview={onNavigateOverview} onNavigateOrderDetails={onNavigateOrderDetails} />;
 }
 
 // Communication's back arrow returns to wherever it was opened from — Order Details when reached via its
@@ -94,8 +105,11 @@ function AppRoutes() {
       <Route path="/command-center/email-view" element={<EmailViewPage {...nav} onNavigateWorkflow={onNavigateWorkflow} />} />
       <Route path="/command-center/email/:emailId" element={<WorkflowRoute nav={nav} />} />
 
-      <Route path="/hold-management" element={<HoldManagementOverview {...nav} onViewAllOrders={() => navigate("/hold-management/orders")} />} />
-      <Route path="/hold-management/orders" element={<OrderListingPage {...nav} onNavigateOverview={onNavigateOverview} onNavigateOrderDetails={onNavigateOrderDetails} />} />
+      <Route
+        path="/hold-management"
+        element={<HoldManagementOverview {...nav} onViewAllOrders={(view) => navigate(view ? `/hold-management/orders?view=${view}` : "/hold-management/orders")} />}
+      />
+      <Route path="/hold-management/orders" element={<OrderListingRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />
       <Route path="/hold-management/orders/released" element={<ReleasedOrdersPage {...nav} onNavigateOverview={onNavigateOverview} onNavigateOrderDetails={onNavigateOrderDetails} />} />
       <Route path="/hold-management/orders/:orderId" element={<OrderDetailsRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />
       <Route path="/hold-management/communication" element={<CommunicationRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />

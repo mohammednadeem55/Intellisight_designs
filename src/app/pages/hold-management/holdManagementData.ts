@@ -169,6 +169,38 @@ export const FOLLOWUP_ESCALATION_LOG: FollowUpEscalationEntry[] = [
   },
 ];
 
+// Credit-view-only: line-level detail for an order, so a credit user can apply a hold to one or several
+// specific lines rather than only at the hold-type level (Hold Listings above).
+export type LineListingRow = {
+  id: number;
+  lineNum: string;
+  lineId: string;
+  item: string;
+  description: string;
+  level: "Header" | "Line";
+  holdStatus: string;
+  status: "Entered" | "Booked" | "AWAITING_FULFILLMENT";
+  response?: string;
+  responseFailed?: boolean;
+};
+
+export const CREDIT_HOLD_TYPES = ["Credit Hold at Pick", "Credit Check Failure", "Manual Credit Hold"];
+
+export const LINE_LISTING_ROWS: LineListingRow[] = [
+  { id: 1, lineNum: "—", lineId: "—", item: "—", description: "—", level: "Header", holdStatus: "Credit Hold at Pick", status: "Entered" },
+  { id: 2, lineNum: "—", lineId: "—", item: "—", description: "—", level: "Header", holdStatus: "Credit Check Failure", status: "Entered" },
+  { id: 3, lineNum: "1.1", lineId: "181925072", item: "N5766A", description: "DC Power Supply 40V, 38A, 1520W; GPIB, LAN, USB, LXI", level: "Line", holdStatus: "Credit Hold at Pick", status: "Booked", response: "Applied" },
+  { id: 4, lineNum: "1.1", lineId: "181925072", item: "N5766A", description: "DC Power Supply 40V, 38A, 1520W; GPIB, LAN, USB, LXI", level: "Line", holdStatus: "Credit Check Failure", status: "Booked", response: "Applied" },
+  { id: 5, lineNum: "2.1", lineId: "181925073", item: "N5766A", description: "DC Power Supply 40V, 38A, 1520W; GPIB, LAN, USB, LXI", level: "Line", holdStatus: "Manual Credit Hold", status: "AWAITING_FULFILLMENT", response: "Applied" },
+  { id: 6, lineNum: "2.1", lineId: "181925112", item: "—", description: "—", level: "Line", holdStatus: "Credit Hold at Pick", status: "Entered" },
+  { id: 7, lineNum: "4.1", lineId: "181925075", item: "—", description: "Surcharge", level: "Line", holdStatus: "Credit Hold at Pick", status: "AWAITING_FULFILLMENT", response: "Applied" },
+  {
+    id: 8, lineNum: "6.1", lineId: "182049079", item: "E4368A", description: "Configured E4360A SAS Mainframe with 2 E4362A Modules", level: "Line", holdStatus: "Credit Check Failure", status: "Booked",
+    response: "User does not have an active Order Management responsibility for operating unit [USO-OU-8213]. Cannot authorize apply of hold [Credit Check Failure].",
+    responseFailed: true,
+  },
+];
+
 export const HOLD_COLUMNS = ["Hold Name", "Category", "Level/Line", "Workflow", "Owner", "Impact", "ERD", "Notes Preview", "Action"];
 export const HOLD_FILTER_SECTIONS = [
   { key: "Category",  label: "Category",  options: { Financial: 2, Factory: 1, Forecast: 1, Framework: 1, Folio: 1, Fusion: 1 } },
