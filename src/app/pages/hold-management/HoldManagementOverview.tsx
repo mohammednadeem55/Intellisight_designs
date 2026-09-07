@@ -379,7 +379,7 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
-  onViewAllOrders?: () => void;
+  onViewAllOrders?: (view?: string) => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
@@ -535,36 +535,25 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
 
   const holdPanels: HoldPanelData[] = [
     {
-      title: "Shipment Impacting Holds", count: 18, critical: 5, total: "$24.5M", accentColor: EMAIL_TABLE_NAVY,
+      title: "Shipment Impacting Holds", count: 3, critical: 3, total: "$285.2K", accentColor: EMAIL_TABLE_NAVY,
       cards: [
-        { code: "MFG", badge: "SHP", badgeColor: EMAIL_TABLE_NAVY, orders: "06", breached: "01", value: "$3.8M", critical: true, agingDays: 12, ssdProximityDays: 2, ageHours: 18, tags: [{ label: "Header", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "On track", color: "#468657", bg: "rgba(70,134,87,0.1)" }] },
-        { code: "LOG", badge: "SHP", badgeColor: EMAIL_TABLE_NAVY, orders: "08", breached: "02", value: "$4.1M", agingDays: 5, ssdProximityDays: 6, ageHours: 40, tags: [{ label: "Line", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "At Risk", color: "#E67919", bg: "rgba(230,121,25,0.1)" }] },
-        { code: "WHS", badge: "SHP", badgeColor: EMAIL_TABLE_NAVY, orders: "05", breached: "00", value: "$2.9M", agingDays: 2, ssdProximityDays: 10, ageHours: 20, tags: [{ label: "Header", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "On track", color: "#468657", bg: "rgba(70,134,87,0.1)" }] },
-        { code: "DST", badge: "SHP", badgeColor: EMAIL_TABLE_NAVY, orders: "07", breached: "03", value: "$5.2M", agingDays: 20, ssdProximityDays: 1, ageHours: 96, tags: [{ label: "Line", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "Late", color: "#C83737", bg: "rgba(200,55,55,0.1)" }] },
-        { code: "FRT", badge: "SHP", badgeColor: EMAIL_TABLE_NAVY, orders: "04", breached: "01", value: "$2.1M", agingDays: 8, ssdProximityDays: 4, ageHours: 150, tags: [{ label: "Header", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "On track", color: "#468657", bg: "rgba(70,134,87,0.1)" }] },
-        { code: "EXP", badge: "SHP", badgeColor: EMAIL_TABLE_NAVY, orders: "03", breached: "00", value: "$1.7M", agingDays: 1, ssdProximityDays: 14, ageHours: 6, tags: [{ label: "Line", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "On track", color: "#468657", bg: "rgba(70,134,87,0.1)" }] },
+        { code: "Shipping Line Hold", badge: "SHP", badgeColor: EMAIL_TABLE_NAVY, orders: "2", breached: "2", value: "$71.3K", agingDays: 5, ssdProximityDays: 6, ageHours: 40, tags: [{ label: "Line", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "2 Breached", color: "#C83737", bg: "rgba(200,55,55,0.1)" }] },
+        { code: "Pick Release Line Hold", badge: "SHP", badgeColor: EMAIL_TABLE_NAVY, orders: "2", breached: "1", value: "$142.6K", agingDays: 8, ssdProximityDays: 4, ageHours: 60, tags: [{ label: "Line", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "1 Breached", color: "#C83737", bg: "rgba(200,55,55,0.1)" }] },
+        { code: "Ship To Confirmation Hold", badge: "SHP", badgeColor: EMAIL_TABLE_NAVY, orders: "1", breached: "1", value: "$71.3K", agingDays: 3, ssdProximityDays: 10, ageHours: 20, tags: [{ label: "Line", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "1 Breached", color: "#C83737", bg: "rgba(200,55,55,0.1)" }] },
       ],
     },
     {
-      title: "Invoicing Only Holds", count: 20, critical: 3, total: "$18.2M", accentColor: "#823E81",
+      title: "Invoicing Only Holds", count: 1, critical: 1, total: "$142.6K", accentColor: "#823E81",
       cards: [
-        { code: "FIN", badge: "INV", badgeColor: "#823E81", orders: "05", breached: "02", value: "$2.8M", agingDays: 15, ssdProximityDays: 3, ageHours: 60, dividers: true, tags: [{ label: "INV", color: "#823E81", bg: "rgba(130,62,129,0.1)" }, { label: "Late", color: "#C83737", bg: "rgba(200,55,55,0.1)" }] },
-        { code: "ACC", badge: "INV", badgeColor: "#823E81", orders: "03", breached: "03", value: "$1.6M", agingDays: 25, ssdProximityDays: 1, ageHours: 200, dividers: true, tags: [{ label: "INV", color: "#823E81", bg: "rgba(130,62,129,0.1)" }, { label: "Header", color: "#637590", bg: "rgba(99,117,144,0.1)" }] },
-        { code: "PAY", badge: "INV", badgeColor: "#823E81", orders: "08", breached: "01", value: "$4.2M", agingDays: 3, ssdProximityDays: 9, ageHours: 30, dividers: true, tags: [{ label: "INV", color: "#823E81", bg: "rgba(130,62,129,0.1)" }, { label: "On Track", color: "#468657", bg: "rgba(70,134,87,0.1)" }] },
-        { code: "BIL", badge: "INV", badgeColor: "#823E81", orders: "04", breached: "02", value: "$3.1M", agingDays: 10, ssdProximityDays: 5, ageHours: 90, dividers: true, tags: [{ label: "INV", color: "#823E81", bg: "rgba(130,62,129,0.1)" }, { label: "Late", color: "#C83737", bg: "rgba(200,55,55,0.1)" }] },
-        { code: "TAX", badge: "INV", badgeColor: "#823E81", orders: "06", breached: "00", value: "$2.4M", agingDays: 6, ssdProximityDays: 7, ageHours: 45, dividers: true, tags: [{ label: "INV", color: "#823E81", bg: "rgba(130,62,129,0.1)" }, { label: "On Track", color: "#468657", bg: "rgba(70,134,87,0.1)" }] },
-        { code: "CRD", badge: "INV", badgeColor: "#823E81", orders: "02", breached: "01", value: "$0.9M", agingDays: 18, ssdProximityDays: 2, ageHours: 300, dividers: true, tags: [{ label: "INV", color: "#823E81", bg: "rgba(130,62,129,0.1)" }, { label: "At Risk", color: "#E67919", bg: "rgba(230,121,25,0.1)" }] },
+        { code: "Bill Only Line Hold", badge: "INV", badgeColor: "#823E81", orders: "2", breached: "1", value: "$142.6K", agingDays: 15, ssdProximityDays: 3, ageHours: 60, dividers: true, tags: [{ label: "Line", color: "#823E81", bg: "rgba(130,62,129,0.1)" }, { label: "1 Breached", color: "#C83737", bg: "rgba(200,55,55,0.1)" }] },
       ],
     },
     {
-      title: "Non CC Holds", count: 30, critical: 4, total: "$31.0M", accentColor: "#387D85",
+      title: "Non CC Holds", count: 3, critical: 2, total: "$56.1K", accentColor: "#387D85",
       cards: [
-        { code: "GLB", badge: "NCC", badgeColor: "#387D85", orders: "06", breached: "02", value: "$5.2M", agingDays: 9, ssdProximityDays: 4, ageHours: 70, dividers: true, tags: [{ label: "GTL", color: "#387D85", bg: "rgba(56,125,133,0.1)" }, { label: "Header", color: "#637590", bg: "rgba(99,117,144,0.1)" }] },
-        { code: "TRD", badge: "NCC", badgeColor: "#387D85", orders: "04", breached: "04", value: "$2.3M", agingDays: 30, ssdProximityDays: 1, ageHours: 400, dividers: true, tags: [{ label: "GTL", color: "#387D85", bg: "rgba(56,125,133,0.1)" }, { label: "Escalate", color: "#C83737", bg: "rgba(200,55,55,0.1)" }] },
-        { code: "EXP", badge: "NCC", badgeColor: "#387D85", orders: "09", breached: "01", value: "$6.8M", agingDays: 4, ssdProximityDays: 8, ageHours: 50, dividers: true, tags: [{ label: "GTL", color: "#387D85", bg: "rgba(56,125,133,0.1)" }, { label: "On Fund", color: "#468657", bg: "rgba(70,134,87,0.1)" }] },
-        { code: "WHL", badge: "NCC", badgeColor: "#387D85", orders: "05", breached: "03", value: "$3.7M", agingDays: 14, ssdProximityDays: 3, ageHours: 130, dividers: true, tags: [{ label: "GTL", color: "#387D85", bg: "rgba(56,125,133,0.1)" }, { label: "Header", color: "#637590", bg: "rgba(99,117,144,0.1)" }] },
-        { code: "REG", badge: "NCC", badgeColor: "#387D85", orders: "07", breached: "02", value: "$4.5M", agingDays: 7, ssdProximityDays: 6, ageHours: 55, dividers: true, tags: [{ label: "GTL", color: "#387D85", bg: "rgba(56,125,133,0.1)" }, { label: "On Fund", color: "#468657", bg: "rgba(70,134,87,0.1)" }] },
-        { code: "CMP", badge: "NCC", badgeColor: "#387D85", orders: "03", breached: "01", value: "$1.9M", agingDays: 2, ssdProximityDays: 11, ageHours: 15, dividers: true, tags: [{ label: "GTL", color: "#387D85", bg: "rgba(56,125,133,0.1)" }, { label: "At Risk", color: "#E67919", bg: "rgba(230,121,25,0.1)" }] },
+        { code: "KSM Eligible Hold", badge: "NCC", badgeColor: "#387D85", orders: "1", breached: "1", value: "$67", agingDays: 9, ssdProximityDays: 4, ageHours: 70, dividers: true, tags: [{ label: "Line", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "1 Breached", color: "#C83737", bg: "rgba(200,55,55,0.1)" }] },
+        { code: "Manual Credit Hold", badge: "NCC", badgeColor: "#387D85", orders: "4", breached: "1", value: "$52.7K", agingDays: 14, ssdProximityDays: 3, ageHours: 130, dividers: true, tags: [{ label: "Header", color: "#637590", bg: "rgba(99,117,144,0.1)" }, { label: "1 Breached", color: "#C83737", bg: "rgba(200,55,55,0.1)" }] },
+        { code: "Credit Hold at Pick", badge: "NCC", badgeColor: "#387D85", orders: "2", breached: "0", value: "$3.3K", agingDays: 2, ssdProximityDays: 11, ageHours: 15, dividers: true, tags: [{ label: "Header", color: "#637590", bg: "rgba(99,117,144,0.1)" }, { label: "On track", color: "#468657", bg: "rgba(70,134,87,0.1)" }] },
       ],
     },
   ];
@@ -880,8 +869,8 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
                     panel={panel}
                     cards={displayCards}
                     resetKey={`${activeView}-${activeSort}-${sortDirection}-${timelineTab}`}
-                    onViewAll={() => onViewAllOrders ? onViewAllOrders() : toast.info(`Viewing all ${displayCards.length} holds for ${panel.title}`)}
-                    onCardClick={() => onNavigateOrderListing ? onNavigateOrderListing() : toast.info("Opening order listing")}
+                    onViewAll={() => onViewAllOrders ? onViewAllOrders(activeView === "Credit" ? "credit" : undefined) : toast.info(`Viewing all ${displayCards.length} holds for ${panel.title}`)}
+                    onCardClick={() => onViewAllOrders ? onViewAllOrders(activeView === "Credit" ? "credit" : undefined) : toast.info("Opening order listing")}
                   />
                 );
               })}
