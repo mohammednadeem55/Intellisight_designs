@@ -196,7 +196,9 @@ export function AiOrderValidationBody({ emailId, onRevalidateReady, onAudit }: {
   const { data: validation, loading, error, reload } = useOrderValidation(emailId);
   const [resultsOpen, setResultsOpen] = useState(true);
   const [freightTerms, setFreightTerms] = useState("");
+  const [freightTermsFilled, setFreightTermsFilled] = useState(false);
   const [discountApproval, setDiscountApproval] = useState("");
+  const [discountApprovalFilled, setDiscountApprovalFilled] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<{ name: string; size: string } | null>(null);
 
   // Versioning — each Re-Validate snapshots the currently-displayed data into `versions` before replacing
@@ -317,11 +319,13 @@ export function AiOrderValidationBody({ emailId, onRevalidateReady, onAudit }: {
           <TextField label="Ship-To Address" variant="matched" value={v.poParsing.shipToAddress} readOnly />
           <TextField
             label="Freight Terms"
-            variant="missing"
+            variant={freightTermsFilled ? "matched" : "missing"}
+            manuallyFilled={freightTermsFilled}
             value={freightTerms}
             onChange={setFreightTerms}
             onBlur={() => {
               if (!freightTerms.trim()) return;
+              setFreightTermsFilled(true);
               onAudit?.({ action: "Field Updated", icon: Check, detail: `Freight Terms: → ${freightTerms}` });
               logFieldChange(`Freight Terms: → ${freightTerms}`, Check);
             }}
@@ -336,11 +340,13 @@ export function AiOrderValidationBody({ emailId, onRevalidateReady, onAudit }: {
           <TextField label="Approval Status" variant="matched" value={v.salesForceQuote.approvalStatus} readOnly />
           <TextField
             label="Discount Approval"
-            variant="missing"
+            variant={discountApprovalFilled ? "matched" : "missing"}
+            manuallyFilled={discountApprovalFilled}
             value={discountApproval}
             onChange={setDiscountApproval}
             onBlur={() => {
               if (!discountApproval.trim()) return;
+              setDiscountApprovalFilled(true);
               onAudit?.({ action: "Field Updated", icon: Check, detail: `Discount Approval: → ${discountApproval}` });
               logFieldChange(`Discount Approval: → ${discountApproval}`, Check);
             }}

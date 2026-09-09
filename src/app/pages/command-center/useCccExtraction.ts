@@ -13,6 +13,8 @@ export type CccField = {
   systemValue?: string; // review — the trusted/system-of-record value; if absent, there's nothing to compare and the field is just editable
   suggestions?: string[]; // missing — AI-suggested values to pick from; omit/empty for no suggestions
   resolvedFrom?: "review" | "missing"; // set once Use/Apply is clicked — enables the revert icon
+  edited?: boolean; // review — user has typed into the extracted value directly, without resolving via Use yet
+  originalValue?: string; // matched, direct-edit case — the pre-edit value, so it can be reverted to
 };
 
 export type CccExtractionData = {

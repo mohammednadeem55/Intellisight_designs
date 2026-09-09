@@ -42,16 +42,36 @@ export type CccFieldAuditEntry = { action: string; icon?: LucideIcon; detail?: s
 // same granularity as the Classify step only logging on Submit rather than every dropdown pick.
 function renderCccField(field: CccField, onFieldChange: (next: CccField) => void, onAudit?: (entry: CccFieldAuditEntry) => void) {
   if (field.status === "matched") {
+    // Two distinct ways a matched field can need a revert: it was resolved here (via Apply/Use/typing into
+    // a blank field — `resolvedFrom` set), where revert undoes the resolution back to that prior status; or
+    // it arrived already matched (from extraction) and the user has since edited its value directly — where
+    // there's no prior status to go back to, so revert just restores the pre-edit value and stays matched.
+    const isDirectEdit = !field.resolvedFrom;
     return (
       <TextField
         label={field.label}
         variant="matched"
         value={field.value}
-        onChange={(v) => onFieldChange({ ...field, value: v })}
-        revertible={!!field.resolvedFrom}
+        onChange={(v) => {
+          const capturingOriginal = isDirectEdit && field.originalValue === undefined && v !== field.value;
+          onFieldChange({
+            ...field,
+            value: v,
+            edited: isDirectEdit ? true : field.edited,
+            originalValue: capturingOriginal ? field.value : field.originalValue,
+          });
+        }}
+        revertible={!!field.resolvedFrom || !!field.edited}
+        manuallyFilled={!!field.resolvedFrom || !!field.edited}
         onRevert={() => {
-          onFieldChange({ ...field, status: field.resolvedFrom!, value: "" });
-          onAudit?.({ action: "Field Reverted", detail: `${field.label} reverted` });
+          if (field.resolvedFrom) {
+            onFieldChange({ ...field, status: field.resolvedFrom, value: "" });
+            onAudit?.({ action: "Field Reverted", detail: `${field.label} reverted` });
+          } else {
+            const previous = field.originalValue ?? "";
+            onFieldChange({ ...field, value: previous, edited: false, originalValue: undefined });
+            onAudit?.({ action: "Field Reverted", detail: `${field.label}: ${field.value} → ${previous || "—"}` });
+          }
         }}
       />
     );
@@ -64,7 +84,8 @@ function renderCccField(field: CccField, onFieldChange: (next: CccField) => void
         extracted={field.extracted ?? ""}
         systemLabel="Salesforce"
         systemValue={field.systemValue}
-        onExtractedChange={(v) => onFieldChange({ ...field, extracted: v })}
+        manuallyFilled={!!field.edited}
+        onExtractedChange={(v) => onFieldChange({ ...field, extracted: v, edited: true })}
         onUse={() => {
           onFieldChange({ ...field, status: "matched", value: field.systemValue ?? "", resolvedFrom: "review" });
           onAudit?.({ action: "Field Updated", icon: Check, detail: `${field.label}: ${field.extracted || "—"} → ${field.systemValue} (from Salesforce)` });
@@ -84,7 +105,7 @@ function renderCccField(field: CccField, onFieldChange: (next: CccField) => void
       onChange={(v) => onFieldChange({ ...field, value: v })}
       onBlur={() => {
         if (field.value.trim()) {
-          onFieldChange({ ...field, status: "matched" });
+          onFieldChange({ ...field, status: "matched", resolvedFrom: "missing" });
           onAudit?.({ action: "Field Updated", icon: Check, detail: `${field.label}: → ${field.value}` });
         }
       }}

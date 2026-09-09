@@ -75,6 +75,15 @@ export function OrderCreationBody({ emailId, onAudit }: { emailId: string; onAud
   // Last-committed value per field, so blurring a field that wasn't actually edited (e.g. tabbing through)
   // doesn't log a no-op "changed" entry — only a real before → after diff does.
   const [baseline, setBaseline] = useState<Record<string, string>>({});
+  // Fields the user has actually typed a real change into — drives each field's "Manually Filled" pill.
+  const [manuallyEdited, setManuallyEdited] = useState<Set<string>>(new Set());
+  // Snapshot of each field's value as it first arrived (pre-edit), captured once and never mutated again —
+  // separate from `baseline` (which advances with every commit) so a revert has something fixed to go back to.
+  const [originalValues, setOriginalValues] = useState<Record<string, string>>({});
+  const fieldSetters: Record<string, (v: string) => void> = {
+    quoteNumber: setQuoteNumber, quoteVersion: setQuoteVersion, shipToCity: setShipToCity,
+    accountName: setAccountName, contactName: setContactName, email: setEmail, phone: setPhone,
+  };
 
   useEffect(() => {
     if (!creation) return;
@@ -86,7 +95,7 @@ export function OrderCreationBody({ emailId, onAudit }: { emailId: string; onAud
     setContactName(qf.contactName);
     setEmail(qf.email);
     setPhone(qf.phone);
-    setBaseline({
+    const seeded = {
       quoteNumber: qf.quoteNumber,
       quoteVersion: qf.quoteVersion,
       shipToCity: qf.shipToCity,
@@ -94,13 +103,25 @@ export function OrderCreationBody({ emailId, onAudit }: { emailId: string; onAud
       contactName: qf.contactName,
       email: qf.email,
       phone: qf.phone,
-    });
+    };
+    setBaseline(seeded);
+    setOriginalValues(seeded);
+    setManuallyEdited(new Set());
   }, [creation]);
 
   const commitField = (label: string, key: string, value: string) => {
     if (value === baseline[key]) return;
     onAudit?.({ action: "Field Updated", icon: Check, detail: `${label}: ${baseline[key] || "—"} → ${value}` });
     setBaseline(prev => ({ ...prev, [key]: value }));
+    setManuallyEdited(prev => new Set(prev).add(key));
+  };
+
+  const revertField = (label: string, key: string) => {
+    const previous = originalValues[key] ?? "";
+    fieldSetters[key]?.(previous);
+    setBaseline(prev => ({ ...prev, [key]: previous }));
+    setManuallyEdited(prev => { const next = new Set(prev); next.delete(key); return next; });
+    onAudit?.({ action: "Field Reverted", detail: `${label}: ${baseline[key] || "—"} → ${previous || "—"}` });
   };
 
   const copyToClipboard = (label: string, text: string) => {
@@ -135,18 +156,19 @@ export function OrderCreationBody({ emailId, onAudit }: { emailId: string; onAud
             <TextField
               label="Quote Number"
               required
-              variant="missing"
+              variant={manuallyEdited.has("quoteNumber") ? "matched" : "missing"}
+              manuallyFilled={manuallyEdited.has("quoteNumber")}
               value={quoteNumber}
               onChange={setQuoteNumber}
               onBlur={() => commitField("Quote Number", "quoteNumber", quoteNumber)}
               placeholder="Required - enter value"
             />
-            <TextField label="Ship To City" required variant="matched" value={shipToCity} onChange={setShipToCity} onBlur={() => commitField("Ship To City", "shipToCity", shipToCity)} />
-            <TextField label="Quote Version" required variant="matched" value={quoteVersion} onChange={setQuoteVersion} onBlur={() => commitField("Quote Version", "quoteVersion", quoteVersion)} />
-            <TextField label="Account Name" variant="matched" value={accountName} onChange={setAccountName} onBlur={() => commitField("Account Name", "accountName", accountName)} />
-            <TextField label="Contact Name" variant="matched" value={contactName} onChange={setContactName} onBlur={() => commitField("Contact Name", "contactName", contactName)} />
-            <TextField label="Email" variant="matched" value={email} onChange={setEmail} onBlur={() => commitField("Email", "email", email)} />
-            <TextField label="Phone" variant="matched" value={phone} onChange={setPhone} onBlur={() => commitField("Phone", "phone", phone)} />
+            <TextField label="Ship To City" required variant="matched" manuallyFilled={manuallyEdited.has("shipToCity")} revertible={manuallyEdited.has("shipToCity")} onRevert={() => revertField("Ship To City", "shipToCity")} value={shipToCity} onChange={setShipToCity} onBlur={() => commitField("Ship To City", "shipToCity", shipToCity)} />
+            <TextField label="Quote Version" required variant="matched" manuallyFilled={manuallyEdited.has("quoteVersion")} revertible={manuallyEdited.has("quoteVersion")} onRevert={() => revertField("Quote Version", "quoteVersion")} value={quoteVersion} onChange={setQuoteVersion} onBlur={() => commitField("Quote Version", "quoteVersion", quoteVersion)} />
+            <TextField label="Account Name" variant="matched" manuallyFilled={manuallyEdited.has("accountName")} revertible={manuallyEdited.has("accountName")} onRevert={() => revertField("Account Name", "accountName")} value={accountName} onChange={setAccountName} onBlur={() => commitField("Account Name", "accountName", accountName)} />
+            <TextField label="Contact Name" variant="matched" manuallyFilled={manuallyEdited.has("contactName")} revertible={manuallyEdited.has("contactName")} onRevert={() => revertField("Contact Name", "contactName")} value={contactName} onChange={setContactName} onBlur={() => commitField("Contact Name", "contactName", contactName)} />
+            <TextField label="Email" variant="matched" manuallyFilled={manuallyEdited.has("email")} revertible={manuallyEdited.has("email")} onRevert={() => revertField("Email", "email")} value={email} onChange={setEmail} onBlur={() => commitField("Email", "email", email)} />
+            <TextField label="Phone" variant="matched" manuallyFilled={manuallyEdited.has("phone")} revertible={manuallyEdited.has("phone")} onRevert={() => revertField("Phone", "phone")} value={phone} onChange={setPhone} onBlur={() => commitField("Phone", "phone", phone)} />
           </div>
         </Section>
       </div>

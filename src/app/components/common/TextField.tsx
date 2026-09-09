@@ -1,6 +1,6 @@
 import type { InputHTMLAttributes } from "react";
 import { useState } from "react";
-import { Check, ChevronDown, CircleAlert, Info, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, CircleAlert, Info, RotateCcw, User } from "lucide-react";
 
 // Shared input field — replaces every hand-rolled "bordered box with a label and maybe a status pill"
 // across the app (the CCC Creation extraction review, Classify Intent's overridden fields, etc.) with one
@@ -86,6 +86,7 @@ export function TextField({
   onApplySuggestion,
   revertible,
   onRevert,
+  manuallyFilled,
   className = "",
   ...inputProps
 }: {
@@ -102,6 +103,8 @@ export function TextField({
   /** Shows a revert-to-previous-state icon next to a matched field's checkmark. */
   revertible?: boolean;
   onRevert?: () => void;
+  /** Marks the label with a "Manually Filled" pill — this value was typed/edited/chosen by a person rather than arriving pre-populated from extraction. */
+  manuallyFilled?: boolean;
   className?: string;
 } & Omit<InputHTMLAttributes<HTMLInputElement>, "size" | "value" | "onChange">) {
   const style = VARIANT_STYLES[variant];
@@ -118,11 +121,18 @@ export function TextField({
             {label}
             {required && <span className="text-[#BA1C1C]"> *</span>}
           </p>
-          {badge && (
-            <span className="text-[10px] font-bold uppercase tracking-wide rounded-[8px] px-1.5 py-[1px]" style={{ color: badge.fg, backgroundColor: badge.bg }}>
-              {badge.text}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {manuallyFilled && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide rounded-[8px] px-1.5 py-[1px]" style={{ color: "#30578D", backgroundColor: "#EAF1FB" }}>
+                <User size={9} /> Manually Filled
+              </span>
+            )}
+            {badge && (
+              <span className="text-[10px] font-bold uppercase tracking-wide rounded-[8px] px-1.5 py-[1px]" style={{ color: badge.fg, backgroundColor: badge.bg }}>
+                {badge.text}
+              </span>
+            )}
+          </div>
         </div>
       )}
 
@@ -181,6 +191,7 @@ export function ReviewField({
   systemValue,
   onUse,
   onExtractedChange,
+  manuallyFilled,
 }: {
   label: string;
   extracted: string;
@@ -188,16 +199,25 @@ export function ReviewField({
   systemValue?: string;
   onUse: () => void;
   onExtractedChange?: (value: string) => void;
+  /** The extracted value has been directly edited by a person, not just left as AI-extracted. */
+  manuallyFilled?: boolean;
 }) {
   if (!systemValue) {
-    return <TextField label={label} variant="needsReview" value={extracted} onChange={onExtractedChange} />;
+    return <TextField label={label} variant="needsReview" value={extracted} onChange={onExtractedChange} manuallyFilled={manuallyFilled} />;
   }
 
   return (
     <div>
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wide">{label}</p>
-        <span className="text-[10px] font-bold uppercase tracking-wide text-[#92600B] bg-[#FDF3E7] px-1.5 py-[1px] rounded-[8px]">Needs Review</span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {manuallyFilled && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide rounded-[8px] px-1.5 py-[1px]" style={{ color: "#30578D", backgroundColor: "#EAF1FB" }}>
+              <User size={9} /> Manually Filled
+            </span>
+          )}
+          <span className="text-[10px] font-bold uppercase tracking-wide text-[#92600B] bg-[#FDF3E7] px-1.5 py-[1px] rounded-[8px]">Needs Review</span>
+        </div>
       </div>
       <div className="rounded-[8px] border border-[#E67919] bg-[#FDF3E7] px-3.5 py-2.5 flex flex-col gap-1.5">
         <p className="text-[12.5px] text-[#613305]">
