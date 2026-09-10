@@ -14,11 +14,11 @@ import {
   CirclePause,
   Copy,
   CornerDownRight,
-  EllipsisVertical,
   FileText,
   Filter,
   History,
   MessageSquare,
+  MessageSquareHeart,
   Paperclip,
   Plus,
   Send,
@@ -817,20 +817,49 @@ function EmailTableIconButton({
   );
 }
 
-// The ellipsis "More actions" trigger + its dropdown (Send Email, Comment, React) — split out from
-// EmailTableActionCell so other pages (e.g. the Email Details workflow header) can drop the exact same
-// menu in next to their own Assign button instead of pulling in the whole row-action cell.
-export function EmailTableMoreActionsButton({
+// Plain "Send Email" trigger — its own icon button rather than tucked inside a dropdown, since once
+// Feedback (Comment/React) moved out below it was the only item left in the old "More actions" menu, and a
+// one-item ellipsis menu is just an extra click for no reason.
+export function EmailTableSendEmailButton({
+  onSendEmail,
+  size = 28,
+  colorClassName = "border-[#E2E6E9] text-[#666666] hover:bg-[#F7F7F7]",
+}: {
+  onSendEmail: () => void;
+  /** Button size in px — defaults to the table row's 28px; pass a taller value to match a page-level
+      button group (e.g. 38px next to the Email Details header's Assign button). */
+  size?: number;
+  /** Border/text/hover color classes — defaults to the table's own grey palette; override to match
+      whatever button group this is sitting next to on a given page. */
+  colorClassName?: string;
+}) {
+  return (
+    <EmailTableTooltip label="Send Email">
+      <button
+        onClick={(e) => { e.stopPropagation(); onSendEmail(); }}
+        style={{ width: size, height: size }}
+        className={`flex items-center justify-center rounded-[8px] border cursor-pointer transition-colors ${colorClassName}`}
+      >
+        <Send size={13} />
+      </button>
+    </EmailTableTooltip>
+  );
+}
+
+// Feedback trigger + its dropdown (Comment, React) — split out from EmailTableActionCell so other pages
+// (e.g. the Email Details workflow header) can drop the exact same menu in next to their own Assign button
+// instead of pulling in the whole row-action cell. Comment and Like/Dislike are grouped here under one
+// "Feedback" affordance, kept separate from Send Email since they're a different kind of action (opinions
+// on the row itself, not a communication sent from it).
+export function EmailTableFeedbackButton({
   reaction,
   onToggleReaction,
-  onSendEmail,
   onComment,
   size = 28,
   colorClassName = "border-[#E2E6E9] text-[#666666] hover:bg-[#F7F7F7]",
 }: {
   reaction: "like" | "dislike" | undefined;
   onToggleReaction: (reaction: "like" | "dislike") => void;
-  onSendEmail: () => void;
   onComment: () => void;
   /** Trigger button's size in px — defaults to the table row's 28px; pass a taller value to match a
       page-level button group (e.g. 38px next to the Email Details header's Assign button). */
@@ -867,19 +896,25 @@ export function EmailTableMoreActionsButton({
 
   return (
     <>
-      <EmailTableTooltip label="More actions">
+      <EmailTableTooltip label="Feedback">
         <button
           ref={btnRef}
           onClick={(e) => { e.stopPropagation(); toggleOpen(); }}
-          style={{ width: size, height: size }}
-          className={`relative flex items-center justify-center rounded-[8px] border cursor-pointer transition-colors ${colorClassName}`}
+          style={{
+            width: size,
+            height: size,
+            ...(reaction
+              ? { borderColor: reaction === "like" ? "#468657" : "#dc2626", backgroundColor: reaction === "like" ? "#EFF6F1" : "#FAEBEB", color: reaction === "like" ? "#468657" : "#dc2626" }
+              : undefined),
+          }}
+          className={`flex items-center justify-center rounded-[8px] border cursor-pointer transition-colors ${reaction ? "" : colorClassName}`}
         >
-          <EllipsisVertical size={14} />
-          {reaction && (
-            <span
-              className="absolute -top-[3px] -right-[3px] size-[7px] rounded-full border border-white"
-              style={{ backgroundColor: reaction === "like" ? "#468657" : "#dc2626" }}
-            />
+          {reaction === "like" ? (
+            <ThumbsUp size={13} fill="currentColor" />
+          ) : reaction === "dislike" ? (
+            <ThumbsDown size={13} fill="currentColor" />
+          ) : (
+            <MessageSquareHeart size={13} />
           )}
         </button>
       </EmailTableTooltip>
@@ -890,13 +925,6 @@ export function EmailTableMoreActionsButton({
           style={{ top: pos.top, left: pos.left }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            onClick={() => run(onSendEmail)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[12.5px] text-[#4D4D4D] hover:bg-[#F7F7F7] cursor-pointer text-left transition-colors"
-          >
-            <Send size={13} className="text-[#97999B]" />
-            Send Email
-          </button>
           <button
             onClick={() => run(onComment)}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-[12.5px] text-[#4D4D4D] hover:bg-[#F7F7F7] cursor-pointer text-left transition-colors"
@@ -961,7 +989,8 @@ function EmailTableActionCell({
         activeBg="#E9EEF5"
       />
       <EmailTableIconButton icon={History} label={auditCount > 0 ? `Audit (${auditCount})` : "Audit"} onClick={onAudit} />
-      <EmailTableMoreActionsButton reaction={reaction} onToggleReaction={onToggleReaction} onSendEmail={onSendEmail} onComment={onComment} />
+      <EmailTableSendEmailButton onSendEmail={onSendEmail} />
+      <EmailTableFeedbackButton reaction={reaction} onToggleReaction={onToggleReaction} onComment={onComment} />
     </div>
   );
 }

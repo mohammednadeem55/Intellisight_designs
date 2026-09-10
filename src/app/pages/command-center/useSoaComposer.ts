@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 // Mock defaults for the SOA (Service Order Agreement) draft composer — the send-as addresses to choose
 // from, the initial To/CC/BCC/Subject, and the list of email templates available to apply.
-export type EmailTemplate = { label: string; recommended?: boolean; mostUsed?: boolean };
+export type EmailTemplate = { label: string; country: string; language: string; recommended?: boolean; mostUsed?: boolean };
 export type SoaComposerData = {
   fromOptions: string[];
   to: string[];
@@ -19,17 +19,17 @@ const MOCK_SOA_COMPOSER: SoaComposerData = {
   cc: ["R. Nair - Order Desk", "trade.compliance@macom.com"],
   bcc: ["soa.archive@macom.com"],
   templates: [
-    { label: "AP Standard SOA (EN)", recommended: true },
-    { label: "AP Summary SOA (EN)", mostUsed: true },
-    { label: "AP SOA with Export Conditions" },
-    { label: "AP SOA with Extended Warranty" },
-    { label: "AP SOA with Multi-Currency Terms" },
-    { label: "EMEA Standard SOA (EN)" },
-    { label: "EMEA SOA with Export Conditions" },
-    { label: "APAC Standard SOA (JP)" },
-    { label: "Service Renewal Agreement" },
-    { label: "Service Renewal with Extended Support" },
-    { label: "Custom Template — Legal Review" },
+    { label: "AP Standard SOA (EN)", country: "AP", language: "English", recommended: true },
+    { label: "AP Summary SOA (EN)", country: "AP", language: "English", mostUsed: true },
+    { label: "AP SOA with Export Conditions", country: "AP", language: "English" },
+    { label: "AP SOA with Extended Warranty", country: "AP", language: "English" },
+    { label: "AP SOA with Multi-Currency Terms", country: "AP", language: "English" },
+    { label: "EMEA Standard SOA (EN)", country: "EMEA", language: "English" },
+    { label: "EMEA SOA with Export Conditions", country: "EMEA", language: "English" },
+    { label: "APAC Standard SOA (JP)", country: "APAC", language: "Japanese" },
+    { label: "Service Renewal Agreement", country: "Global", language: "English" },
+    { label: "Service Renewal with Extended Support", country: "Global", language: "English" },
+    { label: "Custom Template — Legal Review", country: "Global", language: "English" },
   ],
 };
 
