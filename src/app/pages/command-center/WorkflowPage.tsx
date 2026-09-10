@@ -4,7 +4,7 @@ import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText
 import { AppHeader } from "../../components/common/AppHeader";
 import { Button, IconButton } from "../../components/common/Button";
 import { PageLoaderOverlay, WaveLoader } from "../../components/common/Loader";
-import { EMAIL_TABLE_NAVY, EmailTableAssignModal, EmailTableSendEmailModal, EmailTableCommentModal, EmailTableMoreActionsButton } from "../../components/common/EmailTable";
+import { EMAIL_TABLE_NAVY, EmailTableAssignModal, EmailTableSendEmailModal, EmailTableCommentModal, EmailTableSendEmailButton, EmailTableFeedbackButton } from "../../components/common/EmailTable";
 import { AuditTrailModal, useAuditLog } from "../../components/common/AuditTrail";
 import { AiOrderValidationBody } from "./AiOrderValidationBody";
 import { CccCreationBody, type CccExtractionStatus } from "./CccCreationBody";
@@ -411,10 +411,14 @@ export function WorkflowPage({
                   </span>
                 )}
               </button>
-              <EmailTableMoreActionsButton
+              <EmailTableSendEmailButton
+                onSendEmail={() => setSendEmailModalOpen(true)}
+                size={38}
+                colorClassName="bg-white border-[#e5e7eb] text-[#6b7280] hover:bg-[#f8fafc] hover:text-[#111827]"
+              />
+              <EmailTableFeedbackButton
                 reaction={reaction}
                 onToggleReaction={toggleReaction}
-                onSendEmail={() => setSendEmailModalOpen(true)}
                 onComment={() => setCommentModalOpen(true)}
                 size={38}
                 colorClassName="bg-white border-[#e5e7eb] text-[#6b7280] hover:bg-[#f8fafc] hover:text-[#111827]"

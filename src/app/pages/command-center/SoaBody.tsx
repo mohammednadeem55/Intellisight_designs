@@ -187,6 +187,47 @@ function ComposerSelectRow({ label, value, options, onChange }: { label: string;
   );
 }
 
+// Compact single-select filter pill for the templates sidebar — same visual language as ComposerSelectRow's
+// dropdown (menu, selected-row highlight) but sized to sit inline next to another filter instead of a
+// labeled form row, since Country/Language need to fit side-by-side under the template search box.
+function TemplateFilterDropdown({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative flex-1 min-w-0">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-[8px] border border-[#e5e7eb] bg-white hover:bg-[#f8fafc] text-[12px] text-[#374151] cursor-pointer transition-colors"
+      >
+        <span className={`truncate ${value === "All" ? "text-[#9ca3af]" : "font-medium text-[#111827]"}`}>{value === "All" ? `All ${label}` : value}</span>
+        <ChevronDown size={12} className={`shrink-0 text-[#9ca3af] transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 w-full min-w-[150px] bg-white border border-[#e5e7eb] rounded-[8px] shadow-lg z-20 py-1 max-h-[220px] overflow-y-auto">
+          <button
+            onClick={() => { onChange("All"); setOpen(false); }}
+            className={`w-full text-left px-3 py-2 text-[12.5px] cursor-pointer whitespace-nowrap transition-colors ${
+              value === "All" ? "font-semibold text-[#30578D] bg-[#EAF1FB]" : "text-[#374151] hover:bg-[#f8fafc]"
+            }`}
+          >
+            All {label}
+          </button>
+          {options.map(opt => (
+            <button
+              key={opt}
+              onClick={() => { onChange(opt); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 text-[12.5px] cursor-pointer whitespace-nowrap transition-colors ${
+                opt === value ? "font-semibold text-[#30578D] bg-[#EAF1FB]" : "text-[#374151] hover:bg-[#f8fafc]"
+              }`}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Purely-visual formatting button — toggles its own pressed state; there's no real rich-text engine behind
 // this editor, just a plain draft textarea. `label` shows via the same EmailTableTooltip used on the
 // Overview page's icon buttons, so hover tooltips look identical everywhere in the app.
@@ -224,6 +265,8 @@ export function SoaBody({ email, onAudit }: { email: Email; onAudit?: (entry: So
   const [format, setFormat] = useState({ bold: false, italic: false, underline: false, align: "left" as "left" | "center" | "right" });
   const [templateQuery, setTemplateQuery] = useState("");
   const [templatesScrolled, setTemplatesScrolled] = useState(false);
+  const [templateCountry, setTemplateCountry] = useState("All");
+  const [templateLanguage, setTemplateLanguage] = useState("All");
 
   useEffect(() => {
     if (!composer) return;
@@ -294,9 +337,14 @@ export function SoaBody({ email, onAudit }: { email: Email; onAudit?: (entry: So
 
   const c = composer!; // guaranteed non-null past the loading/error guard above
 
-  const filteredTemplates = c.templates.filter(t => t.label.toLowerCase().includes(templateQuery.toLowerCase())).sort(
-    (a, b) => (b.recommended ? 1 : 0) - (a.recommended ? 1 : 0)
-  );
+  const templateCountries = Array.from(new Set(c.templates.map(t => t.country)));
+  const templateLanguages = Array.from(new Set(c.templates.map(t => t.language)));
+
+  const filteredTemplates = c.templates
+    .filter(t => t.label.toLowerCase().includes(templateQuery.toLowerCase()))
+    .filter(t => templateCountry === "All" || t.country === templateCountry)
+    .filter(t => templateLanguage === "All" || t.language === templateLanguage)
+    .sort((a, b) => (b.recommended ? 1 : 0) - (a.recommended ? 1 : 0));
 
   return (
     <>
@@ -505,6 +553,11 @@ export function SoaBody({ email, onAudit }: { email: Email; onAudit?: (entry: So
               )}
             </div>
 
+            <div className="flex items-center gap-2 mb-3">
+              <TemplateFilterDropdown label="Countries" value={templateCountry} options={templateCountries} onChange={setTemplateCountry} />
+              <TemplateFilterDropdown label="Languages" value={templateLanguage} options={templateLanguages} onChange={setTemplateLanguage} />
+            </div>
+
             <div className="relative -mx-5">
               {templatesScrolled && (
                 <div className="absolute left-0 right-0 top-0 h-6 bg-gradient-to-b from-white to-transparent pointer-events-none z-10" />
@@ -514,7 +567,9 @@ export function SoaBody({ email, onAudit }: { email: Email; onAudit?: (entry: So
                 onScroll={e => setTemplatesScrolled(e.currentTarget.scrollTop > 0)}
               >
               {filteredTemplates.length === 0 ? (
-                <p className="text-[12.5px] text-[#9ca3af] text-center py-6">No templates match "{templateQuery}"</p>
+                <p className="text-[12.5px] text-[#9ca3af] text-center py-6">
+                  {templateQuery ? `No templates match "${templateQuery}"` : "No templates match the selected filters"}
+                </p>
               ) : (
                 filteredTemplates.map((t, i) => {
                   const selected = selectedTemplate === t.label;
