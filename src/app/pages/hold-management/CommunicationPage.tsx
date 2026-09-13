@@ -6,7 +6,6 @@ import {
   AlignLeft,
   AlignRight,
   Archive,
-  ArrowLeft,
   Bold,
   Check,
   ChevronDown,
@@ -35,6 +34,7 @@ import {
   X,
 } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
+import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import { EMAIL_TABLE_NAVY } from "../../components/common/EmailTable";
 
 type CommMessage = {
@@ -787,7 +787,7 @@ function ThreadAndReply({ order }: { order: CommOrderThread }) {
   );
 }
 
-export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateBack, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateBack, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateDefaultMapping, onNavigateFeedbackCenter, onNavigateReview, onNavigateEmailWorkflow, fromOrderId }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -800,8 +800,13 @@ export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigate
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateDefaultMapping?: () => void;
+  onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
+  /** Set when Communication was opened from a specific Order Details page — the breadcrumb then shows the
+      full path back through Order Listing/that order instead of just "Hold Mgmt". */
+  fromOrderId?: string;
 }) {
   const [orderSearch, setOrderSearch] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(COMM_ORDERS[0]?.orderId ?? null);
@@ -835,22 +840,29 @@ export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigate
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateDefaultMapping={onNavigateDefaultMapping}
+            onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
 
-        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 py-5 gap-4 overflow-hidden">
+        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 pt-3 pb-5 gap-4 overflow-hidden">
           {/* Page header */}
           <div className="flex items-start gap-2.5">
-            <button
-              onClick={() => (onNavigateBack ?? onNavigateOverview)()}
-              title="Back"
-              className="text-[#6b7280] hover:text-[#111827] cursor-pointer transition-colors shrink-0 mt-0.5"
-            >
-              <ArrowLeft size={20} />
-            </button>
             <div>
+              <Breadcrumbs
+                items={
+                  fromOrderId
+                    ? [
+                        { label: "Hold Mgmt", onClick: onNavigateOverview },
+                        { label: "Order Listing", onClick: onNavigateOrderListing },
+                        { label: `Order #${fromOrderId}`, onClick: onNavigateBack },
+                        { label: "Communication" },
+                      ]
+                    : [{ label: "Hold Mgmt", onClick: onNavigateOverview }, { label: "Communication" }]
+                }
+              />
               <h1 className="text-[18px] font-semibold text-[#262626] leading-tight">Communication</h1>
               <p className="text-[12px] text-[#97999B] mt-0.5">Follow-ups and escalations, by order</p>
             </div>

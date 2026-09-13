@@ -9,12 +9,15 @@ import { NotificationsPage } from "./pages/home/NotificationsPage";
 import { PlaceholderPage } from "./pages/placeholder/PlaceholderPage";
 import { EmailTemplatePage } from "./pages/email-templates/EmailTemplatePage";
 import { EmailTemplateEditorPage } from "./pages/email-templates/EmailTemplateEditorPage";
+import { DefaultMappingPage } from "./pages/email-templates/DefaultMappingPage";
 import { WorkflowPage } from "./pages/command-center/WorkflowPage";
 import { HoldManagementOverview } from "./pages/hold-management/HoldManagementOverview";
 import { OrderListingPage } from "./pages/hold-management/OrderListingPage";
 import { ReleasedOrdersPage } from "./pages/hold-management/ReleasedOrdersPage";
 import { OrderDetailsPage } from "./pages/hold-management/OrderDetailsPage";
 import { CommunicationPage } from "./pages/hold-management/CommunicationPage";
+import { FeedbackCenterPage } from "./pages/feedback-center/FeedbackCenterPage";
+import type { DocType } from "./pages/feedback-center/feedbackCenterData";
 import { ALL_EMAILS_WITH_CCC } from "./pages/command-center/emailData";
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
@@ -34,30 +37,58 @@ type NavCallbacks = {
   onNavigateReleasedOrders: () => void;
   onNavigateCommunication: (fromOrderId?: string) => void;
   onNavigateEmailTemplate: () => void;
+  onNavigateDefaultMapping: () => void;
+  onNavigateFeedbackCenter: (docType: DocType) => void;
   onNavigateReview: () => void;
   onNavigateEmailWorkflow: () => void;
 };
 
 function WorkflowRoute({ nav }: { nav: NavCallbacks }) {
   const { emailId } = useParams<{ emailId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  return <WorkflowPage emailId={emailId ?? ""} onBack={() => navigate("/command-center/overview")} {...nav} />;
+  const scope = searchParams.get("scope");
+  return (
+    <WorkflowPage
+      emailId={emailId ?? ""}
+      taskScope={scope === "all" ? "all" : "mine"}
+      onBack={() => navigate("/command-center/overview")}
+      {...nav}
+    />
+  );
 }
 
 function OrderDetailsRoute({ nav, onNavigateOverview }: { nav: NavCallbacks; onNavigateOverview: () => void }) {
   const { orderId } = useParams<{ orderId: string }>();
   const [searchParams] = useSearchParams();
-  return <OrderDetailsPage orderId={orderId ?? ""} view={searchParams.get("view") ?? undefined} onNavigateOverview={onNavigateOverview} {...nav} />;
+  const from = searchParams.get("from");
+  const entrySource = from === "listing" || from === "released" ? from : undefined;
+  return (
+    <OrderDetailsPage
+      orderId={orderId ?? ""}
+      view={searchParams.get("view") ?? undefined}
+      entrySource={entrySource}
+      onNavigateOverview={onNavigateOverview}
+      {...nav}
+    />
+  );
 }
 
 // Order Listing itself doesn't need to know about ?view= — it just needs to keep carrying it forward when a
 // row is clicked, so Order Details on the other end still knows this order was reached via the Credit view.
+// `from=listing` tells Order Details' breadcrumb it really did arrive via this page, as opposed to Released
+// Orders or a direct "Go to Order #" jump from the Overview page.
 function OrderListingRoute({ nav, onNavigateOverview }: { nav: NavCallbacks; onNavigateOverview: () => void }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const view = searchParams.get("view");
-  const onNavigateOrderDetails = (orderId: string) => navigate(view ? `/hold-management/orders/${orderId}?view=${view}` : `/hold-management/orders/${orderId}`);
-  return <OrderListingPage {...nav} onNavigateOverview={onNavigateOverview} onNavigateOrderDetails={onNavigateOrderDetails} />;
+  const sourceCardName = searchParams.get("card") ?? undefined;
+  const onNavigateOrderDetails = (orderId: string) => {
+    const params = new URLSearchParams({ from: "listing" });
+    if (view) params.set("view", view);
+    navigate(`/hold-management/orders/${orderId}?${params.toString()}`);
+  };
+  return <OrderListingPage {...nav} onNavigateOverview={onNavigateOverview} onNavigateOrderDetails={onNavigateOrderDetails} sourceCardName={sourceCardName} />;
 }
 
 // Communication's back arrow returns to wherever it was opened from — Order Details when reached via its
@@ -65,9 +96,9 @@ function OrderListingRoute({ nav, onNavigateOverview }: { nav: NavCallbacks; onN
 function CommunicationRoute({ nav, onNavigateOverview }: { nav: NavCallbacks; onNavigateOverview: () => void }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const fromOrderId = searchParams.get("orderId");
+  const fromOrderId = searchParams.get("orderId") ?? undefined;
   const onNavigateBack = fromOrderId ? () => navigate(`/hold-management/orders/${fromOrderId}`) : onNavigateOverview;
-  return <CommunicationPage onNavigateOverview={onNavigateOverview} onNavigateBack={onNavigateBack} {...nav} />;
+  return <CommunicationPage onNavigateOverview={onNavigateOverview} onNavigateBack={onNavigateBack} fromOrderId={fromOrderId} {...nav} />;
 }
 
 function AppRoutes() {
@@ -86,10 +117,13 @@ function AppRoutes() {
     onNavigateCommunication: (fromOrderId) =>
       navigate(fromOrderId ? `/hold-management/communication?orderId=${fromOrderId}` : "/hold-management/communication"),
     onNavigateEmailTemplate: () => navigate("/email-template"),
+    onNavigateDefaultMapping: () => navigate("/email-template/default-mapping"),
+    onNavigateFeedbackCenter: (docType) => navigate(`/feedback-center/${docType}`),
     onNavigateReview: () => navigate("/review"),
     onNavigateEmailWorkflow: () => navigate(`/command-center/email/${ALL_EMAILS_WITH_CCC[0].id}`),
   };
-  const onNavigateWorkflow = (emailId: string) => navigate(`/command-center/email/${emailId}`);
+  const onNavigateWorkflow = (emailId: string, scope?: "mine" | "all") =>
+    navigate(scope ? `/command-center/email/${emailId}?scope=${scope}` : `/command-center/email/${emailId}`);
   const onNavigateOverview = () => navigate("/hold-management");
   const onNavigateOrderDetails = (orderId: string) => navigate(`/hold-management/orders/${orderId}`);
 
@@ -107,10 +141,31 @@ function AppRoutes() {
 
       <Route
         path="/hold-management"
-        element={<HoldManagementOverview {...nav} onViewAllOrders={(view) => navigate(view ? `/hold-management/orders?view=${view}` : "/hold-management/orders")} />}
+        element={
+          <HoldManagementOverview
+            {...nav}
+            onViewAllOrders={(view, cardName) => {
+              const params = new URLSearchParams();
+              if (view) params.set("view", view);
+              if (cardName) params.set("card", cardName);
+              const query = params.toString();
+              navigate(query ? `/hold-management/orders?${query}` : "/hold-management/orders");
+            }}
+            onNavigateOrderDetails={onNavigateOrderDetails}
+          />
+        }
       />
       <Route path="/hold-management/orders" element={<OrderListingRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />
-      <Route path="/hold-management/orders/released" element={<ReleasedOrdersPage {...nav} onNavigateOverview={onNavigateOverview} onNavigateOrderDetails={onNavigateOrderDetails} />} />
+      <Route
+        path="/hold-management/orders/released"
+        element={
+          <ReleasedOrdersPage
+            {...nav}
+            onNavigateOverview={onNavigateOverview}
+            onNavigateOrderDetails={(orderId) => navigate(`/hold-management/orders/${orderId}?from=released`)}
+          />
+        }
+      />
       <Route path="/hold-management/orders/:orderId" element={<OrderDetailsRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />
       <Route path="/hold-management/communication" element={<CommunicationRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />
 
@@ -125,6 +180,10 @@ function AppRoutes() {
         }
       />
       <Route path="/email-template/new" element={<EmailTemplateEditorPage {...nav} onBack={() => navigate("/email-template")} />} />
+      <Route path="/email-template/default-mapping" element={<DefaultMappingPage {...nav} />} />
+      <Route path="/feedback-center/trade-order" element={<FeedbackCenterPage docType="trade-order" {...nav} />} />
+      <Route path="/feedback-center/service-agreement" element={<FeedbackCenterPage docType="service-agreement" {...nav} />} />
+      <Route path="/feedback-center/som" element={<FeedbackCenterPage docType="som" {...nav} />} />
       <Route
         path="/review"
         element={

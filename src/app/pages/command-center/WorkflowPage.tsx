@@ -2,9 +2,10 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText, History, Lightbulb, MessageSquare, Pencil, Sparkles, User, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
+import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import { Button, IconButton } from "../../components/common/Button";
 import { PageLoaderOverlay, WaveLoader } from "../../components/common/Loader";
-import { EMAIL_TABLE_NAVY, EmailTableAssignModal, EmailTableSendEmailModal, EmailTableCommentModal, EmailTableSendEmailButton, EmailTableFeedbackButton } from "../../components/common/EmailTable";
+import { EMAIL_TABLE_NAVY, EmailTableAssignModal, EmailTableSendEmailModal, EmailTableCommentModal, EmailTableSendEmailButton, EmailTableFeedbackButton, EmailTableStatusValuePill, EmailTableTatPill, CCC_STATUS_CSR_EXPECTATION } from "../../components/common/EmailTable";
 import { AuditTrailModal, useAuditLog } from "../../components/common/AuditTrail";
 import { AiOrderValidationBody } from "./AiOrderValidationBody";
 import { CccCreationBody, type CccExtractionStatus } from "./CccCreationBody";
@@ -96,6 +97,7 @@ Proceed to CCC Creation once the classification above is confirmed.`;
 // The email's detail/drill-down destination — clicking a row (table) or opening an email (Email View) lands here.
 export function WorkflowPage({
   emailId,
+  taskScope = "mine",
   onBack,
   onLogout,
   onViewAllNotifications,
@@ -108,10 +110,14 @@ export function WorkflowPage({
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
+  onNavigateDefaultMapping,
+  onNavigateFeedbackCenter,
   onNavigateReview,
   onNavigateEmailWorkflow,
 }: {
   emailId: string;
+  /** Which Overview tab this email was opened from — drives the breadcrumb's "(My Tasks)"/"(All Tasks)" label. */
+  taskScope?: "mine" | "all";
   onBack: () => void;
   onLogout?: () => void;
   onViewAllNotifications: () => void;
@@ -124,6 +130,8 @@ export function WorkflowPage({
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateDefaultMapping?: () => void;
+  onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -298,6 +306,8 @@ export function WorkflowPage({
               onNavigateReleasedOrders={onNavigateReleasedOrders}
               onNavigateCommunication={onNavigateCommunication}
               onNavigateEmailTemplate={onNavigateEmailTemplate}
+              onNavigateDefaultMapping={onNavigateDefaultMapping}
+              onNavigateFeedbackCenter={onNavigateFeedbackCenter}
               onNavigateReview={onNavigateReview}
               onNavigateEmailWorkflow={onNavigateEmailWorkflow}
             />
@@ -339,26 +349,27 @@ export function WorkflowPage({
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateDefaultMapping={onNavigateDefaultMapping}
+            onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
 
         <main className="flex-1 min-h-0 overflow-y-auto" onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 0)}>
-        <div className="max-w-[1600px] mx-auto px-5 py-5 flex flex-col gap-4">
+        <div className="max-w-[1600px] mx-auto px-5 pt-3 pb-5 flex flex-col gap-4">
 
         {/* Subject + classification/CCC/PO pills + assignee — plain, no card, scrolls away with the page */}
         <div className="shrink-0">
+          <Breadcrumbs
+            items={[
+              { label: `Overview (${taskScope === "all" ? "All Tasks" : "My Tasks"})`, onClick: onBack },
+              { label: email.subject.length > 40 ? `${email.subject.slice(0, 40)}…` : email.subject },
+            ]}
+          />
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="min-w-0">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <button
-                  onClick={onBack}
-                  title="Back to Overview"
-                  className="text-[#6b7280] hover:text-[#111827] cursor-pointer transition-colors shrink-0"
-                >
-                  <ArrowLeft size={20} />
-                </button>
                 <p className="text-[16px] font-bold text-[#111827] leading-snug">{email.subject}</p>
                 <span className="inline-flex items-center px-2.5 py-1 rounded-[8px] text-[11px] font-semibold bg-[#FDECEA] text-[#BA1C1C] whitespace-nowrap">
                   {classificationLabel(email.classification)}
@@ -373,8 +384,16 @@ export function WorkflowPage({
                     PO: {email.poNumber}
                   </span>
                 )}
+                {/* AC5/AC8 — the same status + TAT color indicators shown in the worklist grid, so they're
+                    visible in both the list view and this request detail view. */}
+                {email.cccRequestStatus && (
+                  <EmailTableStatusValuePill value={email.cccRequestStatus} tooltip={CCC_STATUS_CSR_EXPECTATION[email.cccRequestStatus]} />
+                )}
+                {email.hoursRemaining !== undefined && (
+                  <EmailTableTatPill hours={email.hoursRemaining} label={email.slaTimeRemaining} />
+                )}
               </div>
-              <p className="text-[12.5px] text-[#6b7280] mt-2.5 truncate ml-[30px]">
+              <p className="text-[12.5px] text-[#6b7280] mt-2.5 truncate">
                 {senderName.includes(" ") && <>{senderName} <span className="text-[#d1d1d1]">•</span> </>}
                 {email.sender} <span className="text-[#d1d1d1]">•</span> Received {email.received}
               </p>

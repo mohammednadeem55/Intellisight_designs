@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { AlertTriangle, ArrowDown, ArrowUp, Check, CheckCircle2, ChevronDown, ChevronsUpDown, Clock, DollarSign, GripVertical, Inbox, Maximize2, Minimize2, Package, Pencil, Plus, RefreshCw, Search, Trash2, User, Users, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { EMAIL_TABLE_NAVY } from "../../components/common/EmailTable";
+import { ALL_ORDERS } from "./holdManagementData";
 
 const HOLD_CARD_WIDTH = 280;
 const TIMELINE_OPTIONS = ["24h", "48h", "72h", "1 Week", "2 Weeks"];
@@ -80,7 +81,7 @@ function HoldCardCarousel({
   /** Changes whenever sort/timeline change — scrolls back to the start and re-measures on change. */
   resetKey: string;
   onViewAll: () => void;
-  onCardClick: () => void;
+  onCardClick: (card: HoldCardData) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrollState, setScrollState] = useState({ progress: 0, visibleFraction: 1 });
@@ -196,7 +197,7 @@ function HoldCardCarousel({
           {cards.map((card, ci) => (
             <div
               key={ci}
-              onClick={onCardClick}
+              onClick={() => onCardClick(card)}
               className={`flex flex-col gap-2.5 p-3.5 rounded-[10px] cursor-pointer transition-all bg-white shrink-0 border hover:border-[#30578D] hover:shadow-[0_6px_16px_rgba(15,23,42,0.08)] hover:-translate-y-px ${
                 card.critical ? "border-[#C83737]/40" : "border-[#E2E6E9]"
               }`}
@@ -372,18 +373,21 @@ function HoldGroupModal({ group, onClose, onSave, onDelete }: {
   );
 }
 
-export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateDefaultMapping, onNavigateFeedbackCenter, onNavigateReview, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
-  onViewAllOrders?: (view?: string) => void;
+  onViewAllOrders?: (view?: string, cardName?: string) => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
+  onNavigateOrderDetails?: (orderId: string) => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateDefaultMapping?: () => void;
+  onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -477,6 +481,19 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
       toast.success("Synced");
     }, 900);
   };
+  // Global "go to order" search — quick-jump straight to Order Details rather than filtering anything on
+  // this page, so it's kept separate from the KPI/carousel content below. Validated against ALL_ORDERS
+  // before navigating since Order Details silently falls back to a default order on an unknown id.
+  const [orderIdQuery, setOrderIdQuery] = useState("");
+  const goToOrder = () => {
+    const id = orderIdQuery.trim();
+    if (!id) return;
+    const match = ALL_ORDERS.find((o) => o.id === id);
+    if (!match) { toast.warning(`No order found with ID "${id}"`); return; }
+    onNavigateOrderDetails?.(match.id);
+    setOrderIdQuery("");
+  };
+
   const [todos, setTodos] = useState([
     { id: 1, label: "Review SLA Breached Holds", priority: "#C83737", done: false },
     { id: 2, label: "Process Orders Batch", priority: "#E67919", done: false },
@@ -610,12 +627,14 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateDefaultMapping={onNavigateDefaultMapping}
+            onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
 
-        <main className="flex-1 min-h-0 overflow-y-auto w-full max-w-[1600px] mx-auto px-5 py-5 flex flex-col gap-4">
+        <main className="flex-1 min-h-0 overflow-y-auto w-full max-w-[1600px] mx-auto px-5 pt-3 pb-5 flex flex-col gap-4">
 
           {/* ── Page header ── */}
           <div className="flex items-center justify-between flex-wrap gap-3">
@@ -623,7 +642,7 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
               <h1 className="text-[18px] font-semibold text-[#262626] leading-tight">Holds Overview</h1>
               <p className="text-[12px] text-[#97999B] mt-0.5">Monday, 6 July 2026</p>
             </div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <span className="flex items-center gap-1.5 text-[12px] text-[#4D4D4D]">
                 <span className="size-[7px] rounded-full bg-[#468657]" />
                 Last synced {lastSynced}
@@ -667,6 +686,17 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
                     ))}
                   </div>
                 )}
+              </div>
+              <div className="w-px h-5 bg-[#E2E6E9]" />
+              <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#97999B] pointer-events-none" />
+                <input
+                  value={orderIdQuery}
+                  onChange={(e) => setOrderIdQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") goToOrder(); }}
+                  placeholder="Go to Order #..."
+                  className="w-[190px] h-[36px] pl-8 pr-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[12.5px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors"
+                />
               </div>
             </div>
           </div>
@@ -870,7 +900,7 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
                     cards={displayCards}
                     resetKey={`${activeView}-${activeSort}-${sortDirection}-${timelineTab}`}
                     onViewAll={() => onViewAllOrders ? onViewAllOrders(activeView === "Credit" ? "credit" : undefined) : toast.info(`Viewing all ${displayCards.length} holds for ${panel.title}`)}
-                    onCardClick={() => onViewAllOrders ? onViewAllOrders(activeView === "Credit" ? "credit" : undefined) : toast.info("Opening order listing")}
+                    onCardClick={(card) => onViewAllOrders ? onViewAllOrders(activeView === "Credit" ? "credit" : undefined, card.code) : toast.info(`Opening order listing for ${card.code}`)}
                   />
                 );
               })}

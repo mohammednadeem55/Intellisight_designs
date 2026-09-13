@@ -60,6 +60,7 @@ export const EMAIL_TABLE_COLUMN_CATEGORIES: { label: string; columns: { key: str
       { key: "opportunityNumber", label: "Opportunity Number" },
       { key: "accountManager", label: "Account Manager" },
       { key: "accountName", label: "Account Name" },
+      { key: "csrOwner", label: "CSR Owner" },
     ],
   },
   {
@@ -76,15 +77,18 @@ export const EMAIL_TABLE_COLUMN_CATEGORIES: { label: string; columns: { key: str
   {
     label: "Order Info",
     columns: [
-      { key: "poNumber", label: "PO #" },
+      { key: "poNumber", label: "PO Number" },
       { key: "quoteNumber", label: "Quote # + Version / Revision" },
       { key: "orderNumber", label: "Order #" },
-      { key: "operatingUnit", label: "Operating Unit" },
+      { key: "operatingUnit", label: "Operating Unit (OU)" },
+      { key: "poAmount", label: "PO Amount" },
+      { key: "poAmountWithCurrency", label: "PO Amount (including currency)" },
     ],
   },
   {
     label: "Current Workflow Status",
     columns: [
+      { key: "stage", label: "Stage" },
       { key: "status", label: "Current Status" },
       { key: "statusNotes", label: "Status Notes" },
       { key: "currentStatusDate", label: "Current Status Date" },
@@ -115,6 +119,12 @@ export const EMAIL_TABLE_COLUMN_CATEGORIES: { label: string; columns: { key: str
       { key: "oaValidationRecords", label: "OA Validation Records" },
     ],
   },
+  {
+    label: "SOA",
+    columns: [
+      { key: "soaEmailDraftNotification", label: "SOA Email Draft Notification" },
+    ],
+  },
 ];
 
 export const EMAIL_TABLE_ADDITIONAL_COLUMN_LABELS: Record<string, string> = Object.fromEntries(
@@ -122,9 +132,13 @@ export const EMAIL_TABLE_ADDITIONAL_COLUMN_LABELS: Record<string, string> = Obje
 );
 
 const EMAIL_TABLE_ADDITIONAL_ACCESSORS: Record<string, (r: Email) => string | undefined> = {
+  // Not a toggleable "additional column" itself — added so sorting by the sticky column still works
+  // generically (via getEmailTableColumnValue) when it's showing CCC Request # instead of From/Subject.
+  cccId: (r) => r.cccId,
   opportunityNumber: (r) => r.opportunityNumber,
   accountManager: (r) => r.accountManager,
   accountName: (r) => r.accountName,
+  csrOwner: (r) => r.csrOwner,
   cccRequestType: (r) => r.cccRequestType,
   cccRequestSubtype: (r) => r.cccRequestSubtype,
   cccRequestStatus: (r) => r.cccRequestStatus,
@@ -135,6 +149,9 @@ const EMAIL_TABLE_ADDITIONAL_ACCESSORS: Record<string, (r: Email) => string | un
   quoteNumber: (r) => r.quoteNumber,
   orderNumber: (r) => r.orderNumber,
   operatingUnit: (r) => r.operatingUnit,
+  poAmount: (r) => r.poAmount,
+  poAmountWithCurrency: (r) => (r.poAmount ? `${r.poAmount} ${r.currency ?? ""}`.trim() : undefined),
+  stage: (r) => r.stage,
   status: (r) => r.status,
   statusNotes: (r) => r.statusNotes,
   currentStatusDate: (r) => r.currentStatusDate,
@@ -148,6 +165,7 @@ const EMAIL_TABLE_ADDITIONAL_ACCESSORS: Record<string, (r: Email) => string | un
   oaStatus: (r) => r.oaStatus,
   oaSummary: (r) => r.oaSummary,
   oaValidationRecords: (r) => r.oaValidationRecords,
+  soaEmailDraftNotification: (r) => r.soaEmailDraftNotification,
 };
 
 export function EmailTableAvatar({ email }: { email: Email }) {
@@ -156,6 +174,69 @@ export function EmailTableAvatar({ email }: { email: Email }) {
     <div className={`size-[26px] rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold text-white ${isAi ? "bg-[#666666]" : ""}`} style={isAi ? undefined : { backgroundColor: EMAIL_TABLE_NAVY }}>
       {email.assignedInitials ?? "?"}
     </div>
+  );
+}
+
+// Color per known value for the status-like CSR columns (Stage, Status, SOA Email Draft Notification) —
+// rendered as a pill instead of plain text, same visual language as EmailTableReviewPill. Unknown values
+// (any future mock data addition) fall back to a neutral grey pill rather than being left unstyled.
+const EMAIL_TABLE_STATUS_PILL_COLORS: Record<string, { fg: string; bg: string }> = {
+  // AC5 — Portal Status Visualization: the 5 CCC request statuses, colored per the BPA-provided legend.
+  "Action Required": { fg: "#C83737", bg: "#FAEBEB" },
+  "Awaiting response": { fg: "#E67919", bg: "#FDF3E7" },
+  "In Automation": { fg: "#30578D", bg: "#EAF1FB" },
+  "Completed / Ready": { fg: "#468657", bg: "#EFF6F1" },
+  "Read only": { fg: "#666666", bg: "#F1F2F4" },
+  Intake: { fg: "#30578D", bg: "#EAF1FB" },
+  Validation: { fg: "#E67919", bg: "#FDF3E7" },
+  Fulfillment: { fg: "#387D85", bg: "#E7F3F3" },
+  Closed: { fg: "#468657", bg: "#EFF6F1" },
+  Sent: { fg: "#468657", bg: "#EFF6F1" },
+  "Draft Ready": { fg: "#E67919", bg: "#FDF3E7" },
+  "Not Sent": { fg: "#C83737", bg: "#FAEBEB" },
+};
+
+// AC5: "Users can understand the meaning of each color via a legend or tooltip" — surfaced here as a
+// hover tooltip on the Status pill rather than a separate legend panel, using the BPA-provided wording.
+export const CCC_STATUS_CSR_EXPECTATION: Record<string, string> = {
+  "Action Required": "Immediate action",
+  "Awaiting response": "Monitor only",
+  "In Automation": "No action",
+  "Completed / Ready": "No follow-up",
+  "Read only": "No action",
+};
+
+export function EmailTableStatusValuePill({ value, tooltip }: { value?: string; tooltip?: string }) {
+  if (!value || value === "—") return <span className="text-[12.5px] text-[#97999B]">—</span>;
+  const c = EMAIL_TABLE_STATUS_PILL_COLORS[value] ?? { fg: "#4D4D4D", bg: "#F1F2F4" };
+  const pill = (
+    <span className="inline-flex items-center px-2.5 py-1 rounded-[8px] text-[11px] font-semibold whitespace-nowrap" style={{ color: c.fg, backgroundColor: c.bg }}>
+      {value}
+    </span>
+  );
+  return tooltip ? <EmailTableTooltip label={tooltip}>{pill}</EmailTableTooltip> : pill;
+}
+
+// AC8 — TAT Color Coding: bands the "Time Remaining / SLA" column by hours remaining rather than by the
+// display string, per the BPA-provided thresholds — Green (On Track) ≥ 9h, Yellow (Monitor) 4h–<9h,
+// Orange (At Risk) >0h–<4h, Red (Overdue) ≤ 0h.
+export function tatBand(hours: number): { label: string; fg: string; bg: string } {
+  if (hours <= 0) return { label: "Overdue", fg: "#C83737", bg: "#FAEBEB" };
+  if (hours < 4) return { label: "At Risk", fg: "#E67919", bg: "#FDF3E7" };
+  if (hours < 9) return { label: "Monitor", fg: "#92600B", bg: "#FDF3E7" };
+  return { label: "On Track", fg: "#468657", bg: "#EFF6F1" };
+}
+
+export function EmailTableTatPill({ hours, label }: { hours?: number; label?: string }) {
+  if (hours === undefined || !label) return <span className="text-[12.5px] text-[#97999B]">—</span>;
+  const band = tatBand(hours);
+  return (
+    <EmailTableTooltip label={band.label}>
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11px] font-semibold whitespace-nowrap" style={{ color: band.fg, backgroundColor: band.bg }}>
+        <span className="size-[7px] rounded-full shrink-0" style={{ backgroundColor: band.fg }} />
+        {label}
+      </span>
+    </EmailTableTooltip>
   );
 }
 
@@ -634,6 +715,14 @@ function renderEmailTableColumnCell(
       );
     case "reviewStatus":
       return <EmailTableReviewPill status={row.reviewStatus} />;
+    case "stage":
+      return <EmailTableStatusValuePill value={row.stage} />;
+    case "cccRequestStatus":
+      return <EmailTableStatusValuePill value={row.cccRequestStatus} tooltip={row.cccRequestStatus ? CCC_STATUS_CSR_EXPECTATION[row.cccRequestStatus] : undefined} />;
+    case "soaEmailDraftNotification":
+      return <EmailTableStatusValuePill value={row.soaEmailDraftNotification} />;
+    case "slaTimeRemaining":
+      return <EmailTableTatPill hours={row.hoursRemaining} label={row.slaTimeRemaining} />;
     case "reviewedBy": {
       const entries = reviews[row.id] ?? [];
       const latest = latestReview(entries);
@@ -661,52 +750,59 @@ function renderEmailTableColumnCell(
 }
 
 function EmailTableStatusIcon({ status }: { status?: string }) {
-  const map: Record<string, { label: string; color: string; Icon: typeof CircleAlert }> = {
-    Flagged: { label: "Incomplete", color: "#dc2626", Icon: CircleAlert },
-    "Under Review": { label: "On Hold", color: "#E67919", Icon: CirclePause },
-    Cleared: { label: "Created", color: "#468657", Icon: CircleCheck },
+  const map: Record<string, { label: string; fg: string; bg: string; Icon: typeof CircleAlert }> = {
+    Flagged: { label: "Incomplete", fg: "#C83737", bg: "#FAEBEB", Icon: CircleAlert },
+    "Under Review": { label: "On Hold", fg: "#E67919", bg: "#FDF3E7", Icon: CirclePause },
+    Cleared: { label: "Created", fg: "#468657", bg: "#EFF6F1", Icon: CircleCheck },
   };
   const entry = status ? map[status] : undefined;
   if (!entry) return null;
   return (
-    <EmailTableTooltip label={entry.label}>
-      <entry.Icon size={13} style={{ color: entry.color }} className="shrink-0" />
-    </EmailTableTooltip>
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[8px] text-[10.5px] font-semibold whitespace-nowrap shrink-0"
+      style={{ color: entry.fg, backgroundColor: entry.bg }}
+    >
+      <entry.Icon size={11} />
+      {entry.label}
+    </span>
   );
 }
 
 // Shared by parent email rows and their nested CCC rows — bold id + copy-to-clipboard, sender line with
 // attachment/status icons, and the subject/request-type text underneath.
-function EmailTableSubjectCell({ entity, density }: { entity: Email; density: "small" | "medium" | "large" }) {
+function EmailTableSubjectCell({ entity, density, primaryField = "id" }: { entity: Email; density: "small" | "medium" | "large"; primaryField?: "id" | "cccId" }) {
+  const primaryValue = primaryField === "cccId" ? (entity.cccId ?? entity.id) : entity.id;
   return (
     <>
       <div className="flex items-center gap-1.5 min-w-0 leading-tight">
-        <p className="text-[13px] font-semibold truncate" style={{ color: EMAIL_TABLE_NAVY }}>{entity.id}</p>
+        <p className="text-[13px] font-semibold truncate" style={{ color: EMAIL_TABLE_NAVY }}>{primaryValue}</p>
         <EmailTableTooltip label="Copy ID">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigator.clipboard.writeText(entity.id);
-              toast.success(`Copied ${entity.id}`);
+              navigator.clipboard.writeText(primaryValue);
+              toast.success(`Copied ${primaryValue}`);
             }}
             className="shrink-0 text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors"
           >
             <Copy size={11} />
           </button>
         </EmailTableTooltip>
-        {(entity.attachments?.length ?? 0) > 0 && (
+        {primaryField !== "cccId" && (entity.attachments?.length ?? 0) > 0 && (
           <EmailTableTooltip label="Has attachments">
             <Paperclip size={11} className="text-[#30578D] shrink-0" />
           </EmailTableTooltip>
         )}
         <EmailTableStatusIcon status={entity.status} />
       </div>
-      {density !== "small" && (
+      {/* CCC Request # mode (CSR view) shows just the id line above — sender/subject are email-specific
+          details that don't apply once this column is about the CCC request itself. */}
+      {primaryField !== "cccId" && density !== "small" && (
         <div className="flex items-center gap-1.5 min-w-0 leading-tight mt-0.5">
           <p className="text-[12.5px] text-[#4D4D4D] truncate">{entity.sender}</p>
         </div>
       )}
-      {density === "large" && (
+      {primaryField !== "cccId" && density === "large" && (
         <p className="text-[12px] text-[#97999B] truncate leading-tight mt-0.5">{entity.subject}</p>
       )}
     </>
@@ -1130,6 +1226,9 @@ export function EmailTable({
   sortKey,
   sortDirection,
   onSort,
+  subjectColumnLabel = "From/Subject",
+  subjectPrimaryField = "id",
+  subjectSortKey = "sender",
 }: {
   rows: Email[];
   expandedIds: Set<string>;
@@ -1147,6 +1246,12 @@ export function EmailTable({
   /** Column currently sorted by, if any — null means unsorted (rows render in their given order). */
   sortKey?: string | null;
   sortDirection?: "asc" | "desc";
+  /** Header label for the sticky first column — defaults to "From/Subject"; a CSR-style view can relabel it (e.g. "CCC Request #"). */
+  subjectColumnLabel?: string;
+  /** Which field the sticky first column's bold primary line shows — the email id (default) or the CCC request id. */
+  subjectPrimaryField?: "id" | "cccId";
+  /** Sort key used when the sticky first column's header is clicked — defaults to "sender" to match the default label. */
+  subjectSortKey?: string;
   /** Clicking a sortable column header calls this with its key; the caller owns the actual sort logic
       since it needs to run before pagination slices the rows. */
   onSort?: (key: string) => void;
@@ -1171,11 +1276,11 @@ export function EmailTable({
             <th className="group sticky top-0 left-[40px] z-30 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.15)]">
               <div className="flex items-center gap-1.5">
                 {onSort ? (
-                  <button onClick={() => onSort("sender")} className="flex items-center gap-1 cursor-pointer">
-                    <span className={`text-[12px] font-semibold ${sortKey === "sender" ? "text-[#262626]" : "text-[#4D4D4D]"}`}>
-                      From/Subject
+                  <button onClick={() => onSort(subjectSortKey)} className="flex items-center gap-1 cursor-pointer">
+                    <span className={`text-[12px] font-semibold ${sortKey === subjectSortKey ? "text-[#262626]" : "text-[#4D4D4D]"}`}>
+                      {subjectColumnLabel}
                     </span>
-                    {sortKey === "sender" ? (
+                    {sortKey === subjectSortKey ? (
                       (() => {
                         const SortIcon = sortDirection === "desc" ? ArrowDown : ArrowUp;
                         return <SortIcon size={12} style={{ color: EMAIL_TABLE_NAVY }} />;
@@ -1185,7 +1290,7 @@ export function EmailTable({
                     )}
                   </button>
                 ) : (
-                  <span className="text-[12px] font-semibold text-[#4D4D4D]">From/Subject</span>
+                  <span className="text-[12px] font-semibold text-[#4D4D4D]">{subjectColumnLabel}</span>
                 )}
                 <EmailTableColumnFilterButton
                   colKey="sender"
@@ -1256,7 +1361,7 @@ export function EmailTable({
                   )}
                 </td>
                 <td className={`sticky left-[40px] z-10 bg-white group-hover:bg-[#EEF2F7] px-4 ${subjectPadY} max-w-[260px] border-b border-[#DEDEDE] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.15)] transition-colors`}>
-                  <EmailTableSubjectCell entity={row} density={rowDensity} />
+                  <EmailTableSubjectCell entity={row} density={rowDensity} primaryField={subjectPrimaryField} />
                 </td>
                 {additionalColumns.map((key) => (
                   <td key={key} className={`px-4 ${subjectPadY} border-b border-[#DEDEDE]`}>{renderEmailTableColumnCell(key, row, reviews, () => setReviewsModalRow(row))}</td>
@@ -1285,7 +1390,7 @@ export function EmailTable({
                   </div>
                 </td>
                 <td className={`sticky left-[40px] z-10 bg-[#F7F7F7] group-hover:bg-[#E2E6E9] px-4 ${childSubjectPadY} pl-8 max-w-[260px] border-b border-[#DEDEDE] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.15)] transition-colors`}>
-                  <EmailTableSubjectCell entity={ccc} density={rowDensity} />
+                  <EmailTableSubjectCell entity={ccc} density={rowDensity} primaryField={subjectPrimaryField} />
                 </td>
                 {additionalColumns.map((key) => (
                   <td key={key} className={`px-4 ${childSubjectPadY} border-b border-[#DEDEDE]`}>{renderEmailTableColumnCell(key, ccc, reviews, () => setReviewsModalRow(ccc))}</td>

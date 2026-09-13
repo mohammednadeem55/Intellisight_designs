@@ -22,8 +22,10 @@ export function AppHeader({
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
+  onNavigateDefaultMapping,
   onNavigateReview,
   onNavigateEmailWorkflow,
+  onNavigateFeedbackCenter,
 }: {
   activeNav: string;
   onViewAllNotifications: () => void;
@@ -37,8 +39,10 @@ export function AppHeader({
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateDefaultMapping?: () => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
+  onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
 }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -72,7 +76,6 @@ export function AppHeader({
   ];
 
   const navItems: NavItem[] = [
-    { label: "Home", match: (n) => n === "Home", onClick: onNavigateHome },
     { label: "Command Center", match: (n) => n.startsWith("Command Center"), onClick: onNavigateNewOverview },
     {
       label: "Hold Mgmt",
@@ -83,7 +86,23 @@ export function AppHeader({
         { label: "Communication", onClick: onNavigateCommunication },
       ],
     },
-    { label: "Email Template", match: (n) => n === "Email Template", onClick: onNavigateEmailTemplate },
+    {
+      label: "Email",
+      match: (n) => n === "Email Template",
+      children: [
+        { label: "Email Templates", onClick: onNavigateEmailTemplate },
+        { label: "Default Mapping", onClick: onNavigateDefaultMapping },
+      ],
+    },
+    {
+      label: "Feedback Center",
+      match: (n) => n === "Feedback Center",
+      children: [
+        { label: "Trade Order", onClick: () => onNavigateFeedbackCenter?.("trade-order") },
+        { label: "Service Agreement", onClick: () => onNavigateFeedbackCenter?.("service-agreement") },
+        { label: "SOM", onClick: () => onNavigateFeedbackCenter?.("som") },
+      ],
+    },
     { label: "Review", match: (n) => n === "Review", onClick: onNavigateReview },
     { label: "Old Pages", match: (n) => n === "Old Pages", children: oldPages },
   ];
@@ -107,11 +126,14 @@ export function AppHeader({
           {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
 
-        {/* Logo */}
-        <div className="flex items-center gap-2 shrink-0 pr-2 sm:pr-4">
+        {/* Logo — doubles as the Home link now that Home isn't its own nav item */}
+        <button
+          onClick={onNavigateHome}
+          className="flex items-center gap-2 shrink-0 pr-2 sm:pr-4 cursor-pointer"
+        >
           <img src={intellisightLogo} alt="IntelliSight" className="w-[34px] h-[20px] object-contain" />
           <span className="text-[16px] font-bold whitespace-nowrap bg-gradient-to-r from-[#E90029] via-[#823E81] to-[#30578D] bg-clip-text text-transparent">IntelliSight</span>
-        </div>
+        </button>
 
         {/* Divider */}
         <div className="hidden lg:block w-px h-[24px] bg-[#EEF0F3] shrink-0 mr-3" />

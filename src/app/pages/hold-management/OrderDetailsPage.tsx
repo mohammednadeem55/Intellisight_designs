@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
   ArrowDown,
-  ArrowLeft,
   ArrowUp,
   Ban,
   Building2,
@@ -31,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
+import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import { EMAIL_TABLE_NAVY, EMPTY_SET, EmailTableColumnFilterButton, TruncateTooltip } from "../../components/common/EmailTable";
 import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch, useExclusiveOpen, useStagedMultiSelect } from "../../components/common/TableToolbar";
 import { TableFilterPanel, TableFilterTrigger, type TableColumnDef } from "../../components/common/TableFilterPanel";
@@ -655,11 +655,14 @@ function ApplyHoldModal({ rows, orderId, onClose, onConfirm }: {
   );
 }
 
-export function OrderDetailsPage({ orderId, view, onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateDefaultMapping, onNavigateFeedbackCenter, onNavigateReview, onNavigateEmailWorkflow }: {
   orderId: string;
   /** "credit" when this order was reached via the Overview page's Credit view — shows the credit-only Line
       Listing table (with per-line Apply Hold) alongside the usual Hold Listings. */
   view?: string;
+  /** Which page this order was actually reached from — drives the breadcrumb's middle segment (or omits it
+      entirely for a direct jump, e.g. the Overview page's "Go to Order #" search). */
+  entrySource?: "listing" | "released";
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -671,6 +674,8 @@ export function OrderDetailsPage({ orderId, view, onLogout, onViewAllNotificatio
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: (fromOrderId?: string) => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateDefaultMapping?: () => void;
+  onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -1466,25 +1471,31 @@ export function OrderDetailsPage({ orderId, view, onLogout, onViewAllNotificatio
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateDefaultMapping={onNavigateDefaultMapping}
+            onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
 
         <main className="flex-1 min-h-0 overflow-y-auto">
-          <div className="w-full max-w-[1600px] mx-auto px-5 py-5 flex flex-col gap-4">
+          <div className="w-full max-w-[1600px] mx-auto px-5 pt-3 pb-5 flex flex-col gap-4">
 
             {/* Page header */}
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-start gap-2.5">
-                <button
-                  onClick={onNavigateOrderListing}
-                  title="Back to Order Listing"
-                  className="text-[#6b7280] hover:text-[#111827] cursor-pointer transition-colors shrink-0 mt-0.5"
-                >
-                  <ArrowLeft size={20} />
-                </button>
                 <div>
+                  <Breadcrumbs
+                    items={[
+                      { label: "Hold Mgmt", onClick: onNavigateOverview },
+                      ...(entrySource === "listing"
+                        ? [{ label: "Order Listing", onClick: onNavigateOrderListing }]
+                        : entrySource === "released"
+                          ? [{ label: "Released Orders", onClick: onNavigateReleasedOrders }]
+                          : []),
+                      { label: `Order #${orderId}` },
+                    ]}
+                  />
                   <div className="flex items-center gap-2 flex-wrap">
                     <h1 className="text-[18px] font-semibold text-[#262626] leading-tight">Order #{orderId}</h1>
                     <StatusBadge status={order.status} />
