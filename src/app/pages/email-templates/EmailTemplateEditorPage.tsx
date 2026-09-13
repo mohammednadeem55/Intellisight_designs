@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { toast } from "sonner";
 import {
@@ -19,8 +19,10 @@ import {
   Link as LinkIcon,
   List,
   ListOrdered,
+  Copy,
   Palette,
   Pencil,
+  Plus,
   Redo2,
   Search,
   Strikethrough,
@@ -31,7 +33,10 @@ import {
 } from "lucide-react";
 import { EmailTableTooltip } from "../../components/common/EmailTable";
 import { AppHeader } from "../../components/common/AppHeader";
+import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import { Button } from "../../components/common/Button";
+import { INITIAL_TEMPLATES, type EmailTemplate } from "./EmailTemplatePage";
+import { loadEmailTemplates, saveEmailTemplates } from "./emailTemplateStorage";
 
 const CATEGORIES = ["Uncategorized", "Trade Order", "Work Order", "Post Order Booking", "FCNV"];
 const LANGUAGES = ["No Language", "English", "French", "Italian", "Japanese"];
@@ -74,7 +79,8 @@ function renderMergePreview(text: string, data: Record<string, string>): string 
 
 // Editable raw-JSON textarea for the Sample Data panel — plain monospace editing rather than a
 // syntax-highlighted read-only view, since the whole point is that the user can change these values (and
-// add new keys, which then also become insertable merge tags) directly.
+// add new keys, which then also become insertable merge tags) directly. Kept as a fallback for pasting
+// bulk data; the friendlier key/value row editor below is the default.
 function SampleDataEditor({ value, onChange, error }: { value: string; onChange: (v: string) => void; error: string | null }) {
   return (
     <div className="flex flex-col">
@@ -85,6 +91,156 @@ function SampleDataEditor({ value, onChange, error }: { value: string; onChange:
         className="w-full h-[240px] px-4 py-3 text-[12px] font-mono leading-[1.6] text-[#374151] outline-none resize-none bg-white"
       />
       {error && <p className="px-4 pb-2.5 text-[11px] text-[#B91C1C]">{error} — showing the last valid data until this is fixed.</p>}
+    </div>
+  );
+}
+
+// Row-based editor for the Sample Data panel — one Field/Value pair per row, so adding or renaming a merge
+// tag's sample value doesn't require knowing JSON syntax. Operates directly on the `data` record (keyed by
+// array index, not by the record key, so a key mid-rename doesn't reshuffle rows or lose focus).
+function SampleDataFieldsEditor({ data, onChange }: { data: Record<string, string>; onChange: (next: Record<string, string>) => void }) {
+  const entries = Object.entries(data);
+  const [query, setQuery] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const keyInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const prevCountRef = useRef(entries.length);
+  const justAddedRef = useRef(false);
+
+  // A field appended past the visible scroll area is otherwise invisible until the user manually scrolls —
+  // jump the list to the bottom and focus the new row's key input so it's immediately visible and ready to
+  // name. Only fires on an actual row *count* increase (Add Field), not on every keystroke.
+  useEffect(() => {
+    if (entries.length > prevCountRef.current && justAddedRef.current) {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+      keyInputRefs.current[entries.length - 1]?.focus();
+      justAddedRef.current = false;
+    }
+    prevCountRef.current = entries.length;
+  }, [entries.length]);
+
+  const renameKey = (index: number, newKey: string) => {
+    const next = entries.slice();
+    next[index] = [newKey, next[index][1]];
+    onChange(Object.fromEntries(next));
+  };
+  const updateValue = (index: number, newValue: string) => {
+    const next = entries.slice();
+    next[index] = [next[index][0], newValue];
+    onChange(Object.fromEntries(next));
+  };
+  const removeAt = (index: number) => {
+    onChange(Object.fromEntries(entries.filter((_, i) => i !== index)));
+  };
+  const addField = () => {
+    let n = 1;
+    while (`field_${n}` in data) n++;
+    justAddedRef.current = true;
+    setQuery("");
+    onChange({ ...data, [`field_${n}`]: "" });
+  };
+  const copyToken = (key: string) => {
+    navigator.clipboard.writeText(`{{${key}}}`);
+    toast.success(`{{${key}}} copied`);
+  };
+
+  const q = query.trim().toLowerCase();
+  const visibleIndices = entries
+    .map((_, i) => i)
+    .filter((i) => !q || entries[i][0].toLowerCase().includes(q) || entries[i][1].toLowerCase().includes(q));
+
+  const addFieldButton = (
+    <button
+      onClick={addField}
+      className="w-full flex items-center justify-center gap-1.5 h-[34px] rounded-[6px] border border-dashed border-[#D9D9D6] text-[12px] font-semibold text-[#30578D] hover:border-[#30578D] hover:bg-[#EAF1FB]/40 cursor-pointer transition-colors"
+    >
+      <Plus size={13} />
+      Add Field
+    </button>
+  );
+
+  if (entries.length === 0) {
+    return (
+      <div className="flex flex-col items-center text-center px-4 py-8 gap-2.5">
+        <div className="size-[36px] rounded-full bg-[#F1F2F4] flex items-center justify-center">
+          <Braces size={16} className="text-[#9ca3af]" />
+        </div>
+        <div>
+          <p className="text-[12.5px] font-semibold text-[#374151]">No sample fields yet</p>
+          <p className="text-[11.5px] text-[#9ca3af] mt-0.5">Add a field to preview its {"{{merge_tag}}"} above.</p>
+        </div>
+        <div className="w-full max-w-[220px] mt-1">{addFieldButton}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col">
+      <div className="flex items-center justify-between gap-2 px-4 pt-2.5 pb-2">
+        <span className="text-[11px] text-[#9ca3af]">{entries.length} field{entries.length === 1 ? "" : "s"}</span>
+      </div>
+      {entries.length > 8 && (
+        <div className="px-4 pb-2">
+          <div className="relative">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9ca3af] pointer-events-none" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search fields"
+              className="w-full h-[30px] pl-7 pr-2.5 rounded-[6px] border border-[#e5e7eb] bg-white text-[12px] text-[#111827] placeholder:text-[#9ca3af] outline-none focus:border-[#30578D] transition-colors"
+            />
+          </div>
+        </div>
+      )}
+      <div ref={scrollRef} className="max-h-[260px] overflow-y-auto px-4">
+        {visibleIndices.length === 0 ? (
+          <p className="text-[12px] text-[#9ca3af] text-center py-4">No fields match "{query}"</p>
+        ) : (
+          <div className="divide-y divide-[#f3f4f6]">
+            {visibleIndices.map((i) => {
+              const [key, value] = entries[i];
+              return (
+                <div key={i} className="group flex items-center gap-2 py-2">
+                  <div className="w-[44%] min-w-0 flex items-center rounded-[6px] border border-[#e5e7eb] bg-[#f7f8fa] focus-within:border-[#30578D] focus-within:bg-white transition-colors overflow-hidden">
+                    <span className="pl-2 text-[11px] font-mono text-[#B4B8C0] shrink-0">{"{{"}</span>
+                    <input
+                      ref={(el) => { keyInputRefs.current[i] = el; }}
+                      value={key}
+                      onChange={(e) => renameKey(i, e.target.value)}
+                      placeholder="field_name"
+                      spellCheck={false}
+                      className="min-w-0 flex-1 h-[32px] px-0.5 text-[11.5px] font-mono text-[#30578D] font-medium placeholder:text-[#9ca3af] placeholder:font-normal outline-none bg-transparent"
+                    />
+                    <span className="pr-2 text-[11px] font-mono text-[#B4B8C0] shrink-0">{"}}"}</span>
+                  </div>
+                  <input
+                    value={value}
+                    onChange={(e) => updateValue(i, e.target.value)}
+                    placeholder="Sample value"
+                    className="flex-1 min-w-0 h-[32px] px-2.5 rounded-[6px] border border-[#e5e7eb] bg-white text-[12px] text-[#111827] placeholder:text-[#9ca3af] outline-none focus:border-[#30578D] transition-colors"
+                  />
+                  <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => copyToken(key)}
+                      title="Copy {{token}}"
+                      className="flex items-center justify-center size-[26px] rounded-[6px] text-[#9ca3af] hover:bg-[#F1F2F4] hover:text-[#4D4D4D] cursor-pointer transition-colors"
+                    >
+                      <Copy size={12} />
+                    </button>
+                    <button
+                      onClick={() => removeAt(i)}
+                      title="Remove field"
+                      className="flex items-center justify-center size-[26px] rounded-[6px] text-[#9ca3af] hover:bg-[#FDECEA] hover:text-[#BA1C1C] cursor-pointer transition-colors"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div className="px-4 pt-2 pb-3">{addFieldButton}</div>
     </div>
   );
 }
@@ -230,6 +386,8 @@ export function EmailTemplateEditorPage({
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
+  onNavigateDefaultMapping,
+  onNavigateFeedbackCenter,
   onNavigateReview,
   onNavigateEmailWorkflow,
 }: {
@@ -245,13 +403,15 @@ export function EmailTemplateEditorPage({
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateDefaultMapping?: () => void;
+  onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
   // Editing an existing template arrives here with its row data via router state (from EmailTemplatePage's
   // row click / Edit button); creating a new one has no state, so every field just starts blank.
   const location = useLocation();
-  const editing = location.state as { name?: string; subject?: string; category?: string; language?: string } | null;
+  const editing = location.state as EmailTemplate | null;
 
   const [name, setName] = useState(editing?.name ?? "");
   const [editingName, setEditingName] = useState(false);
@@ -264,11 +424,12 @@ export function EmailTemplateEditorPage({
   const [activeTab, setActiveTab] = useState<"rich" | "html" | "preview">("rich");
   const [format, setFormat] = useState({ bold: false, italic: false, underline: false, strikethrough: false, align: "left" as "left" | "center" | "right", fontFamily: FONT_OPTIONS[0].value });
 
-  // Sample data — editable JSON, seeded from SAMPLE_DATA. `sampleData` only updates when the textarea's
-  // content parses as a valid JSON object, so a mid-edit typo doesn't break the Preview tab or the merge
-  // tag list; `sampleDataText` always reflects exactly what's typed, errors included.
-  const [sampleDataText, setSampleDataText] = useState(() => JSON.stringify(SAMPLE_DATA, null, 2));
-  const [sampleData, setSampleData] = useState<Record<string, string>>(SAMPLE_DATA);
+  // Sample data — editable JSON, seeded from the template being edited (if it has its own saved sample
+  // data) or SAMPLE_DATA otherwise. `sampleData` only updates when the textarea's content parses as a valid
+  // JSON object, so a mid-edit typo doesn't break the Preview tab or the merge tag list; `sampleDataText`
+  // always reflects exactly what's typed, errors included.
+  const [sampleDataText, setSampleDataText] = useState(() => JSON.stringify(editing?.sampleData ?? SAMPLE_DATA, null, 2));
+  const [sampleData, setSampleData] = useState<Record<string, string>>(editing?.sampleData ?? SAMPLE_DATA);
   const [sampleDataError, setSampleDataError] = useState<string | null>(null);
   const handleSampleDataChange = (text: string) => {
     setSampleDataText(text);
@@ -283,6 +444,14 @@ export function EmailTemplateEditorPage({
     } catch {
       setSampleDataError("Invalid JSON");
     }
+  };
+  // Row editor is the default (no JSON syntax required); JSON stays available for bulk-pasting data.
+  // Switching to JSON re-serializes whatever's currently in `sampleData` so it always shows the latest state.
+  const [sampleDataMode, setSampleDataMode] = useState<"fields" | "json">("fields");
+  const handleSampleDataFieldsChange = (next: Record<string, string>) => {
+    setSampleData(next);
+    setSampleDataText(JSON.stringify(next, null, 2));
+    setSampleDataError(null);
   };
 
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -324,6 +493,21 @@ export function EmailTemplateEditorPage({
 
   const displayName = name.trim() || "Untitled Template";
   const handleSave = () => {
+    const template: EmailTemplate = {
+      id: editing?.id ?? `${Date.now()}`,
+      name: displayName,
+      category: category ?? "Uncategorized",
+      language: language ?? "No Language",
+      subject,
+      createdBy: editing?.createdBy ?? "you@keysight.com",
+      updatedAt: new Date().toISOString(),
+      sampleData,
+    };
+    const existing = loadEmailTemplates(INITIAL_TEMPLATES);
+    const next = existing.some((t) => t.id === template.id)
+      ? existing.map((t) => (t.id === template.id ? template : t))
+      : [...existing, template];
+    saveEmailTemplates(next);
     toast.success(`Template "${displayName}" saved`);
     onBack();
   };
@@ -345,12 +529,22 @@ export function EmailTemplateEditorPage({
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateDefaultMapping={onNavigateDefaultMapping}
+            onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
 
-        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 py-5 gap-4 overflow-hidden">
+        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 pt-3 pb-5 gap-4 overflow-hidden">
+          <Breadcrumbs
+            items={[
+              { label: "Email", onClick: onNavigateEmailTemplate },
+              { label: "Email Templates", onClick: onBack },
+              { label: editing ? displayName : "New Template" },
+            ]}
+          />
+
           {/* Page header — back, inline-editable name (shows "Untitled Template" until one is given) */}
           <div className="flex items-center gap-3 min-w-0 shrink-0">
             <button onClick={onBack} className="text-[#4b5563] hover:text-[#111827] cursor-pointer transition-colors shrink-0">
@@ -495,14 +689,35 @@ export function EmailTemplateEditorPage({
                 </div>
               </div>
 
-              {/* Sample Data (JSON) — the data the Preview tab substitutes into {{merge_tags}} above.
-                  Scoped to this left column only, not the Merge Tags sidebar. */}
+              {/* Sample Data — the data the Preview tab substitutes into {{merge_tags}} above. Scoped to
+                  this left column only, not the Merge Tags sidebar. Fields is the default (no JSON syntax
+                  needed); JSON stays available for pasting bulk data in one go. */}
               {activeTab === "preview" && (
                 <div className="shrink-0 bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden">
-                  <div className="px-4 py-2.5 border-b border-[#E2E6E9]">
-                    <span className="text-[11px] font-bold text-[#666666] uppercase tracking-wide">Sample Data (JSON)</span>
+                  <div className="flex items-start justify-between gap-2 px-4 py-3 border-b border-[#E2E6E9]">
+                    <div>
+                      <span className="text-[13px] font-bold text-[#111827]">Sample Data</span>
+                      <p className="text-[11px] text-[#9ca3af] mt-0.5">Values used to preview {"{{merge_tags}}"} in the body above.</p>
+                    </div>
+                    <div className="flex items-center gap-1 p-0.5 rounded-[6px] bg-[#F1F2F4] shrink-0">
+                      {(["fields", "json"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => setSampleDataMode(mode)}
+                          className={`px-2 py-1 rounded-[5px] text-[10.5px] font-semibold uppercase tracking-wide cursor-pointer transition-colors ${
+                            sampleDataMode === mode ? "bg-white text-[#262626] shadow-[0_1px_2px_rgba(15,23,42,0.08)]" : "text-[#97999B] hover:text-[#4D4D4D]"
+                          }`}
+                        >
+                          {mode === "fields" ? "Fields" : "JSON"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <SampleDataEditor value={sampleDataText} onChange={handleSampleDataChange} error={sampleDataError} />
+                  {sampleDataMode === "fields" ? (
+                    <SampleDataFieldsEditor data={sampleData} onChange={handleSampleDataFieldsChange} />
+                  ) : (
+                    <SampleDataEditor value={sampleDataText} onChange={handleSampleDataChange} error={sampleDataError} />
+                  )}
                 </div>
               )}
             </div>

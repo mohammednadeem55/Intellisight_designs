@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowDown,
-  ArrowLeft,
   ArrowUp,
   CheckCircle2,
   ChevronsUpDown,
@@ -15,6 +14,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
+import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import { EMAIL_TABLE_NAVY, EMPTY_SET, EmailTableColumnFilterButton, TruncateTooltip } from "../../components/common/EmailTable";
 import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch, useExclusiveOpen, useStagedMultiSelect } from "../../components/common/TableToolbar";
 import { TableFilterPanel, TableFilterTrigger } from "../../components/common/TableFilterPanel";
@@ -55,7 +55,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateDefaultMapping, onNavigateFeedbackCenter, onNavigateReview, onNavigateEmailWorkflow, sourceCardName }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -68,8 +68,12 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
   onNavigateCommunication?: () => void;
   onNavigateOrderDetails?: (orderId: string) => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateDefaultMapping?: () => void;
+  onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
+  /** The specific hold card clicked on Overview to get here (if any) — shown in the breadcrumb as extra context. */
+  sourceCardName?: string;
 }) {
   const kpis = [
     { label: "OPEN HOLDS", value: "05", accent: EMAIL_TABLE_NAVY, icon: Inbox },
@@ -222,23 +226,24 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateDefaultMapping={onNavigateDefaultMapping}
+            onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
 
-        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 py-5 gap-4 overflow-hidden">
+        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 pt-3 pb-5 gap-4 overflow-hidden">
           {/* Page header */}
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-start gap-2.5">
-              <button
-                onClick={onNavigateOverview}
-                title="Back to Overview"
-                className="text-[#6b7280] hover:text-[#111827] cursor-pointer transition-colors shrink-0 mt-0.5"
-              >
-                <ArrowLeft size={20} />
-              </button>
               <div>
+                <Breadcrumbs
+                  items={[
+                    { label: sourceCardName ? `Hold Mgmt (${sourceCardName})` : "Hold Mgmt", onClick: onNavigateOverview },
+                    { label: "Order Listing" },
+                  ]}
+                />
                 <h1 className="text-[18px] font-semibold text-[#262626] leading-tight">Order Listing</h1>
                 <p className="text-[12px] text-[#97999B] mt-0.5">All orders currently on hold across every category</p>
               </div>

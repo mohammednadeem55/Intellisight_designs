@@ -27,7 +27,7 @@ import {
 import { AppHeader } from "../../components/common/AppHeader";
 import { WaveLoader } from "../../components/common/Loader";
 import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
-import { type Email, CLASSIFICATIONS } from "./emailData";
+import { type Email, CLASSIFICATIONS, BUSINESS_GROUPS } from "./emailData";
 import { useWorklistEmails } from "./useWorklistEmails";
 import {
   EMAIL_TABLE_NAVY,
@@ -38,6 +38,7 @@ import {
   EmailTableAvatar,
   EmailTableAssignModal,
   EmailTable,
+  tatBand,
 } from "../../components/common/EmailTable";
 import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch } from "../../components/common/TableToolbar";
 import { TableFilterPanel, TableFilterTrigger } from "../../components/common/TableFilterPanel";
@@ -65,13 +66,76 @@ const NEW_OVERVIEW_INTERVALS = ["24h", "48h", "72h", "1 Week", "2 Weeks", "Custo
 // their order among themselves is controlled by the "Sort Columns" tab.
 const NEW_OVERVIEW_DEFAULT_TOGGLEABLE_COLUMNS = ["classification", "confidence", "age", "assignedTo", "businessGroup", "reviewStatus", "reviewedBy"];
 
+const NEW_OVERVIEW_CURRENT_USER = { name: "Jagdish K.", initials: "JK" };
+
+// CSR "Summary View" (AC11) — the full 16-field catalog CSRs can choose from (CCC Request # is the 1st
+// field but isn't part of this toggleable list since it's the always-on sticky column, swapped in
+// separately below). The worklist supports at most 10 displayed columns at a time — 1 sticky + up to 9
+// of these — so NEW_OVERVIEW_CSR_DEFAULT_COLUMNS below is capped to exactly the next 9 fields in the
+// spec's list, and toggleAdditionalCol() enforces the cap when adding more.
+const NEW_OVERVIEW_CSR_COLUMNS = [
+  "accountName",
+  "cccRequestType",
+  "stage",
+  "cccRequestStatus",
+  "statusNotes",
+  "slaTimeRemaining",
+  "poAmount",
+  "poNumber",
+  "accountManager",
+  "csrOwner",
+  "orderNumber",
+  "operatingUnit",
+  "awaitingReason",
+  "poAmountWithCurrency",
+  "soaEmailDraftNotification",
+];
+const NEW_OVERVIEW_CSR_MAX_ADDITIONAL_COLUMNS = 9;
+const NEW_OVERVIEW_CSR_DEFAULT_COLUMNS = NEW_OVERVIEW_CSR_COLUMNS.slice(0, NEW_OVERVIEW_CSR_MAX_ADDITIONAL_COLUMNS);
+// One Column Mgmt category restricted to just the 16-field Summary View catalog, shown instead of the
+// full generic EMAIL_TABLE_COLUMN_CATEGORIES list while in CSR view.
+const NEW_OVERVIEW_CSR_COLUMN_CATEGORY: { label: string; columns: { key: string; label: string }[] } = {
+  label: "Summary View Fields",
+  columns: NEW_OVERVIEW_CSR_COLUMNS.map((key) => ({ key, label: EMAIL_TABLE_ADDITIONAL_COLUMN_LABELS[key] })),
+};
+
+// AC11 — each CSR's column selection is personal and must persist across sessions.
+const NEW_OVERVIEW_CSR_COLUMNS_STORAGE_KEY = `intellisight.csrSummaryViewColumns.${NEW_OVERVIEW_CURRENT_USER.name}`;
+function loadSavedCsrColumns(): string[] | null {
+  try {
+    const raw = localStorage.getItem(NEW_OVERVIEW_CSR_COLUMNS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.every((k) => typeof k === "string") ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+function saveCsrColumns(columns: string[]) {
+  try {
+    localStorage.setItem(NEW_OVERVIEW_CSR_COLUMNS_STORAGE_KEY, JSON.stringify(columns));
+  } catch {
+    // localStorage unavailable — selection just won't persist across sessions
+  }
+}
+
 const NEW_OVERVIEW_FILTER_SECTIONS: { key: string; label: string; getValue: (r: Email) => string }[] = [
   { key: "sensitivity", label: "Sensitivity", getValue: (r) => r.sensitivity ?? "GENERAL" },
   { key: "languageDetected", label: "Language Detected", getValue: (r) => r.languageDetected ?? "en" },
   { key: "source", label: "Source", getValue: (r) => r.source ?? "INTERNAL" },
 ];
 
-const NEW_OVERVIEW_CURRENT_USER = { name: "Jagdish K.", initials: "JK" };
+// AC7 — Manager View & Filters: CSR / Request Type / past-due-ish urgency, so a manager (or a CSR) can
+// filter the CSR Summary View down the way the spec calls out. Only surfaced in CSR view — these fields
+// aren't part of the FCNV column set. Business Group is filtered via its own toolbar dropdown instead
+// (next to Classification), not through this panel.
+const NEW_OVERVIEW_CSR_FILTER_SECTIONS: { key: string; label: string; getValue: (r: Email) => string }[] = [
+  { key: "csrOwner", label: "CSR Owner", getValue: (r) => r.csrOwner ?? "—" },
+  { key: "cccRequestType", label: "Request Type", getValue: (r) => r.cccRequestType ?? "—" },
+  { key: "tatStatus", label: "Time Status", getValue: (r) => (r.hoursRemaining !== undefined ? tatBand(r.hoursRemaining).label : "—") },
+];
+
+const NEW_OVERVIEW_VIEW_OPTIONS = ["FCNV", "CSR"];
 
 // Custom email view — sidebar list (with the same simple one-level CCC nesting) + a detail panel matching the
 // reference: avatar, sender/timestamp, Assigned To pill, subject, body, attachments, and an "earlier in this
@@ -233,19 +297,21 @@ function NewOverviewListView({ rows, selectedId, selected, onSelect, expandedIds
   );
 }
 
-export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateWorkflow, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateWorkflow, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateDefaultMapping, onNavigateFeedbackCenter, onNavigateReview, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
   onNavigateCommandCenterOverview?: () => void;
   onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
-  onNavigateWorkflow: (emailId: string) => void;
+  onNavigateWorkflow: (emailId: string, scope?: "mine" | "all") => void;
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateDefaultMapping?: () => void;
+  onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -344,6 +410,11 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
   const [classificationOpen, setClassificationOpen] = useState(false);
   const [appliedClassifications, setAppliedClassifications] = useState<string[]>([]);
   const [pendingClassifications, setPendingClassifications] = useState<string[]>([]);
+  // Business Group — promoted out of the generic filter panel into its own toolbar dropdown, right next
+  // to Classification, following the exact same staged multi-select + Apply/Reset pattern.
+  const [businessGroupOpen, setBusinessGroupOpen] = useState(false);
+  const [appliedBusinessGroups, setAppliedBusinessGroups] = useState<string[]>([]);
+  const [pendingBusinessGroups, setPendingBusinessGroups] = useState<string[]>([]);
   const [toolbarIntervalOpen, setToolbarIntervalOpen] = useState(false);
   const [appliedToolbarInterval, setAppliedToolbarInterval] = useState<string | null>(null);
   const [pendingToolbarInterval, setPendingToolbarInterval] = useState<string | null>(null);
@@ -353,12 +424,15 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
   const [pendingCustomEnd, setPendingCustomEnd] = useState("");
 
   const classificationDirty = pendingClassifications.slice().sort().join("|") !== appliedClassifications.slice().sort().join("|");
+  const businessGroupDirty = pendingBusinessGroups.slice().sort().join("|") !== appliedBusinessGroups.slice().sort().join("|");
   const intervalDirty =
     pendingToolbarInterval !== appliedToolbarInterval ||
     (pendingToolbarInterval === "Custom" && (pendingCustomStart !== appliedCustomStart || pendingCustomEnd !== appliedCustomEnd));
-  const filtersAreDirty = classificationDirty || intervalDirty;
+  const filtersAreDirty = classificationDirty || businessGroupDirty || intervalDirty;
   const allClassificationsSelected = pendingClassifications.length === CLASSIFICATIONS.length;
   const toggleAllClassifications = () => setPendingClassifications(allClassificationsSelected ? [] : [...CLASSIFICATIONS]);
+  const allBusinessGroupsSelected = pendingBusinessGroups.length === BUSINESS_GROUPS.length;
+  const toggleAllBusinessGroups = () => setPendingBusinessGroups(allBusinessGroupsSelected ? [] : [...BUSINESS_GROUPS]);
 
   const formatShortDate = (d: string) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "");
   const intervalLabel =
@@ -368,15 +442,18 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
 
   const applyToolbarFilters = () => {
     setAppliedClassifications(pendingClassifications);
+    setAppliedBusinessGroups(pendingBusinessGroups);
     setAppliedToolbarInterval(pendingToolbarInterval);
     setAppliedCustomStart(pendingCustomStart);
     setAppliedCustomEnd(pendingCustomEnd);
     setClassificationOpen(false);
+    setBusinessGroupOpen(false);
     setToolbarIntervalOpen(false);
     setPage(1);
   };
   const resetToolbarFilters = () => {
     setPendingClassifications(appliedClassifications);
+    setPendingBusinessGroups(appliedBusinessGroups);
     setPendingToolbarInterval(appliedToolbarInterval);
     setPendingCustomStart(appliedCustomStart);
     setPendingCustomEnd(appliedCustomEnd);
@@ -386,20 +463,29 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
   // backdrop div) so the click itself still reaches whatever it landed on — e.g. the Apply button, which
   // sits outside the dropdown panel. A backdrop would swallow that first click to just close the dropdown,
   // requiring a second click to actually apply.
+  // FCNV/CSR view toggle — same dropdown pattern as HoldManagementOverview's CSR/Credit switch, placed next
+  // to the Expand/Collapse KPIs button. Not wired to filter anything yet, just the toggle itself.
+  const [activeView, setActiveView] = useState(NEW_OVERVIEW_VIEW_OPTIONS[0]);
+  const [viewOpen, setViewOpen] = useState(false);
+
   const mailboxRef = useRef<HTMLDivElement>(null);
   const classificationRef = useRef<HTMLDivElement>(null);
+  const businessGroupRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!mailboxOpen && !classificationOpen && !toolbarIntervalOpen) return;
+    if (!mailboxOpen && !classificationOpen && !businessGroupOpen && !toolbarIntervalOpen && !viewOpen) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       if (mailboxOpen && !mailboxRef.current?.contains(target)) setMailboxOpen(false);
       if (classificationOpen && !classificationRef.current?.contains(target)) setClassificationOpen(false);
+      if (businessGroupOpen && !businessGroupRef.current?.contains(target)) setBusinessGroupOpen(false);
       if (toolbarIntervalOpen && !intervalRef.current?.contains(target)) setToolbarIntervalOpen(false);
+      if (viewOpen && !viewRef.current?.contains(target)) setViewOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [mailboxOpen, classificationOpen, toolbarIntervalOpen]);
+  }, [mailboxOpen, classificationOpen, businessGroupOpen, toolbarIntervalOpen, viewOpen]);
 
   // Filter panel — a slide-in accordion, now the shared TableFilterPanel component (owns its own
   // pending/expanded/search state; this page just holds the committed `checkedFilters`).
@@ -415,16 +501,43 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
   const [expandedColCategory, setExpandedColCategory] = useState<string | null>(EMAIL_TABLE_COLUMN_CATEGORIES[0].label);
   const [colOrder, setColOrder] = useState<string[]>(NEW_OVERVIEW_DEFAULT_TOGGLEABLE_COLUMNS);
   const [tempColOrder, setTempColOrder] = useState<string[]>(colOrder);
+
+  // Switching the FCNV/CSR view swaps in that view's own column preset — still just a starting point, since
+  // the Column Mgmt panel can further customize/reorder it same as always. CSR view restores the CSR's own
+  // saved Summary View selection (AC11) if one exists, falling back to the first-9-fields default.
+  useEffect(() => {
+    const preset = activeView === "CSR" ? (loadSavedCsrColumns() ?? NEW_OVERVIEW_CSR_DEFAULT_COLUMNS) : NEW_OVERVIEW_DEFAULT_TOGGLEABLE_COLUMNS;
+    setColOrder(preset);
+    setTempColOrder(preset);
+    setExpandedColCategory(activeView === "CSR" ? NEW_OVERVIEW_CSR_COLUMN_CATEGORY.label : EMAIL_TABLE_COLUMN_CATEGORIES[0].label);
+    // AC8 — TAT Color Coding: CSR view defaults to most-urgent-first (Red/Overdue, then Orange, Yellow, Green last).
+    if (activeView === "CSR") {
+      setSortKey("slaTimeRemaining");
+      setSortDirection("asc");
+    }
+  }, [activeView]);
   const [dragColIdx, setDragColIdx] = useState<number | null>(null);
   const [dragOverColIdx, setDragOverColIdx] = useState<number | null>(null);
   const toggleAdditionalCol = (key: string) => {
-    setTempColOrder((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+    setTempColOrder((prev) => {
+      if (prev.includes(key)) return prev.filter((k) => k !== key);
+      // AC11 — Summary View caps out at 10 displayed columns (1 sticky + up to 9 toggleable).
+      if (activeView === "CSR" && prev.length >= NEW_OVERVIEW_CSR_MAX_ADDITIONAL_COLUMNS) {
+        toast.error(`Summary View supports up to ${NEW_OVERVIEW_CSR_MAX_ADDITIONAL_COLUMNS + 1} columns — remove one before adding another.`);
+        return prev;
+      }
+      return [...prev, key];
+    });
   };
 
   const isInternal = (e: Email) => e.sender.endsWith("@intellisight.io");
   const allRows = worklistData ?? [];
 
-  const filterSectionOptions = NEW_OVERVIEW_FILTER_SECTIONS.map((sec) => ({
+  // AC7 — CSR view adds Business Group / CSR Owner / Request Type / Time Status to the filter panel
+  // alongside the FCNV sections, since those fields only exist in the CSR Summary View column set.
+  const activeFilterSections = activeView === "CSR" ? [...NEW_OVERVIEW_FILTER_SECTIONS, ...NEW_OVERVIEW_CSR_FILTER_SECTIONS] : NEW_OVERVIEW_FILTER_SECTIONS;
+
+  const filterSectionOptions = activeFilterSections.map((sec) => ({
     ...sec,
     options: allRows.reduce((acc, r) => {
       const val = sec.getValue(r);
@@ -466,7 +579,8 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
     if (emailScope === "mine" && r.assignedTo !== NEW_OVERVIEW_CURRENT_USER.name) return false;
     if (searchQuery.trim() && !`${r.subject} ${r.sender} ${r.classification ?? ""}`.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
     if (appliedClassifications.length > 0 && !appliedClassifications.includes(r.classification ?? "")) return false;
-    const matchPanel = NEW_OVERVIEW_FILTER_SECTIONS.every((sec) => {
+    if (appliedBusinessGroups.length > 0 && !appliedBusinessGroups.includes(r.businessGroup ?? "")) return false;
+    const matchPanel = activeFilterSections.every((sec) => {
       const sel = checkedFilters[sec.key];
       if (!sel || sel.size === 0) return true;
       return sel.has(sec.getValue(r));
@@ -485,7 +599,9 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
     // of comparing the strings, which would put "9%" after "85%".
     const cmp = sortKey === "confidence"
       ? (a.confidencePct ?? 0) - (b.confidencePct ?? 0)
-      : getEmailTableColumnValue(sortKey, a, reviews).localeCompare(getEmailTableColumnValue(sortKey, b, reviews));
+      : sortKey === "slaTimeRemaining"
+        ? (a.hoursRemaining ?? Infinity) - (b.hoursRemaining ?? Infinity)
+        : getEmailTableColumnValue(sortKey, a, reviews).localeCompare(getEmailTableColumnValue(sortKey, b, reviews));
     return sortDirection === "asc" ? cmp : -cmp;
   });
 
@@ -527,6 +643,8 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
               onNavigateReleasedOrders={onNavigateReleasedOrders}
               onNavigateCommunication={onNavigateCommunication}
               onNavigateEmailTemplate={onNavigateEmailTemplate}
+              onNavigateDefaultMapping={onNavigateDefaultMapping}
+              onNavigateFeedbackCenter={onNavigateFeedbackCenter}
               onNavigateReview={onNavigateReview}
               onNavigateEmailWorkflow={onNavigateEmailWorkflow}
             />
@@ -570,6 +688,8 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateDefaultMapping={onNavigateDefaultMapping}
+            onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
@@ -674,6 +794,31 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
               >
                 {kpisExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
               </button>
+              <div className="relative" ref={viewRef}>
+                <button
+                  onClick={() => setViewOpen((v) => !v)}
+                  className={`flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-medium transition-colors cursor-pointer ${
+                    viewOpen ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7]"
+                  }`}
+                >
+                  {activeView}
+                  <ChevronDown size={13} className={`transition-transform duration-200 ${viewOpen ? "rotate-180" : ""}`} />
+                </button>
+                {viewOpen && (
+                  <div className="absolute top-full right-0 mt-1 bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-40 py-1 w-[120px]">
+                    {NEW_OVERVIEW_VIEW_OPTIONS.map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => { setActiveView(opt); setViewOpen(false); }}
+                        className="w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                        style={opt === activeView ? { color: EMAIL_TABLE_NAVY, fontWeight: 600 } : { color: "#4D4D4D" }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -740,6 +885,22 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                   containerRef={classificationRef}
                   appliedCount={appliedClassifications.length}
                   dirty={classificationDirty}
+                  width={220}
+                />
+
+                {/* Business Group — multi-select, staged behind Apply, same pattern as Classification */}
+                <TableToolbarMultiSelect
+                  label="Business Group"
+                  options={BUSINESS_GROUPS}
+                  pending={pendingBusinessGroups}
+                  onToggle={(g) => setPendingBusinessGroups((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]))}
+                  onToggleAll={toggleAllBusinessGroups}
+                  onClear={() => setPendingBusinessGroups([])}
+                  open={businessGroupOpen}
+                  onOpenChange={setBusinessGroupOpen}
+                  containerRef={businessGroupRef}
+                  appliedCount={appliedBusinessGroups.length}
+                  dirty={businessGroupDirty}
                   width={220}
                 />
 
@@ -862,7 +1023,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                   rows={pageRows}
                   expandedIds={expandedIds}
                   onToggleExpand={toggleExpanded}
-                  onOpenRow={(id) => onNavigateWorkflow(id)}
+                  onOpenRow={(id) => onNavigateWorkflow(id, emailScope)}
                   additionalColumns={colOrder}
                   columnFilters={columnFilters}
                   columnFilterOptions={columnFilterOptions}
@@ -876,6 +1037,9 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                   sortKey={sortKey}
                   sortDirection={sortDirection}
                   onSort={toggleSort}
+                  subjectColumnLabel={activeView === "CSR" ? "CCC Request #" : "From/Subject"}
+                  subjectPrimaryField={activeView === "CSR" ? "cccId" : "id"}
+                  subjectSortKey={activeView === "CSR" ? "cccId" : "sender"}
                 />
               ) : (
                 <NewOverviewListView
@@ -885,7 +1049,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                   selected={selected}
                   expandedIds={expandedIds}
                   onToggleExpand={toggleExpanded}
-                  onOpenWorkflow={onNavigateWorkflow}
+                  onOpenWorkflow={(id) => onNavigateWorkflow(id, emailScope)}
                 />
               )}
             </div>
@@ -893,7 +1057,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
             <TableFilterPanel
               open={filterOpen}
               onOpenChange={setFilterOpen}
-              columns={NEW_OVERVIEW_FILTER_SECTIONS.map((sec) => ({ key: sec.key, label: sec.label }))}
+              columns={activeFilterSections.map((sec) => ({ key: sec.key, label: sec.label }))}
               columnFilters={checkedFilters}
               getOptions={(key) => Object.entries(filterSectionOptions.find((sec) => sec.key === key)?.options ?? {}).sort((a, b) => b[1] - a[1])}
               onApply={(next) => { setCheckedFilters(next); setPage(1); }}
@@ -920,7 +1084,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                 })}
               </div>
               <div className="flex-1 overflow-y-auto">
-                {activeColTab === "additional" && EMAIL_TABLE_COLUMN_CATEGORIES.map((cat) => {
+                {activeColTab === "additional" && (activeView === "CSR" ? [NEW_OVERVIEW_CSR_COLUMN_CATEGORY] : EMAIL_TABLE_COLUMN_CATEGORIES).map((cat) => {
                   const isOpen = expandedColCategory === cat.label;
                   const checkedCount = cat.columns.filter((c) => tempColOrder.includes(c.key)).length;
                   const hasSelections = checkedCount > 0;
@@ -1009,6 +1173,8 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                   onClick={() => {
                     setColOrder([...tempColOrder]);
                     setColMgmtOpen(false);
+                    // AC11 — persist the CSR's personalized Summary View selection across sessions.
+                    if (activeView === "CSR") saveCsrColumns(tempColOrder);
                     toast.success("Column settings saved");
                   }}
                   className="px-3.5 py-1.5 rounded-[8px] text-white text-[12.5px] font-medium cursor-pointer hover:opacity-90 transition-opacity"

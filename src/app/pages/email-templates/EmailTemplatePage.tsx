@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, ChevronsUpDown, Copy, Plus, SquarePen, Trash2, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
+import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import { EMAIL_TABLE_NAVY, EMPTY_SET, EmailTableColumnFilterButton, EmailTableTooltip, TruncateTooltip } from "../../components/common/EmailTable";
 import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch, useExclusiveOpen } from "../../components/common/TableToolbar";
 import { TablePagination, type RowDensity } from "../../components/common/TablePagination";
+import { loadEmailTemplates, saveEmailTemplates } from "./emailTemplateStorage";
 
-type EmailTemplate = {
+export type EmailTemplate = {
   id: string;
   name: string;
   category: string;
@@ -14,6 +16,10 @@ type EmailTemplate = {
   subject: string;
   createdBy: string;
   updatedAt: string; // ISO
+  // The Preview tab's merge-tag values, edited in the template editor — carried on the template itself so
+  // reopening it for edit later restores what was actually being previewed, instead of resetting to generic
+  // defaults every time.
+  sampleData?: Record<string, string>;
 };
 
 type ColumnKey = "name" | "category" | "language" | "subject" | "createdBy" | "updatedAt";
@@ -35,10 +41,12 @@ const CATEGORY_PILL: Record<string, { bg: string; fg: string }> = {
   FCNV: { bg: "#16B1511A", fg: "#0C883C" },
 };
 
-const CATEGORIES = ["Uncategorized", "Trade Order", "Work Order", "Post Order Booking", "FCNV"];
-const LANGUAGES = ["No Language", "English", "French", "Italian", "Japanese"];
+export const CATEGORIES = ["Uncategorized", "Trade Order", "Work Order", "Post Order Booking", "FCNV"];
+export const LANGUAGES = ["No Language", "English", "French", "Italian", "Japanese"];
 
-const INITIAL_TEMPLATES: EmailTemplate[] = [
+// Exported so the Default Mapping page (a sibling under the same "Email Template" nav dropdown) can offer
+// the same real template names in its "Default Template" picker, instead of drifting from this list.
+export const INITIAL_TEMPLATES: EmailTemplate[] = [
   { id: "1", name: "test_sourish", category: "Work Order", language: "No Language", subject: "text", createdBy: "sourish.sarkar1@keysight.com", updatedAt: "2026-08-24T22:48:00" },
   { id: "2", name: "test_ss", category: "Trade Order", language: "No Language", subject: "test", createdBy: "sourish.sarkar1@keysight.com", updatedAt: "2026-08-23T10:43:00" },
   { id: "3", name: "SOA_TEST101", category: "Uncategorized", language: "English", subject: "intellisight", createdBy: "gaurish.sharma@keysight.com", updatedAt: "2026-08-21T12:01:00" },
@@ -83,6 +91,8 @@ export function EmailTemplatePage({
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
+  onNavigateDefaultMapping,
+  onNavigateFeedbackCenter,
   onNavigateReview,
   onNavigateEmailWorkflow,
   onNavigateCreateEmailTemplate,
@@ -99,6 +109,8 @@ export function EmailTemplatePage({
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateDefaultMapping?: () => void;
+  onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
   onNavigateCreateEmailTemplate?: () => void;
@@ -109,7 +121,13 @@ export function EmailTemplatePage({
   const updateSearch = (v: string) => { setSearchQuery(v); setPage(1); };
 
   // Row data — stateful (not the static INITIAL_TEMPLATES) so Duplicate/Delete can actually add/remove rows.
-  const [templates, setTemplates] = useState<EmailTemplate[]>(INITIAL_TEMPLATES);
+  const [templates, setTemplates] = useState<EmailTemplate[]>(() => loadEmailTemplates(INITIAL_TEMPLATES));
+
+  // Persist every change (create/edit via the editor, Duplicate, Delete) so the list — and each template's
+  // sample data — survives navigating away and back, or a page reload.
+  useEffect(() => {
+    saveEmailTemplates(templates);
+  }, [templates]);
 
   // Duplicate — inserts a real copy right after the original, named the same way the reference data does
   // it ("X (Copy)", "X (Copy 2)", ...) rather than just re-using "(Copy)" if one already exists.
@@ -248,14 +266,17 @@ export function EmailTemplatePage({
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateDefaultMapping={onNavigateDefaultMapping}
+            onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
 
-        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 py-5 gap-4 overflow-hidden">
+        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 pt-3 pb-5 gap-4 overflow-hidden">
           {/* Page header */}
           <div>
+            <Breadcrumbs items={[{ label: "Email" }, { label: "Email Templates" }]} />
             <h1 className="text-[18px] font-semibold text-[#262626] leading-tight">Email Templates</h1>
             <p className="text-[12px] text-[#97999B] mt-0.5">Manage email templates for automated responses</p>
           </div>

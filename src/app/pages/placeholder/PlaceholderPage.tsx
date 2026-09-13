@@ -15,6 +15,8 @@ export function PlaceholderPage({
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
+  onNavigateDefaultMapping,
+  onNavigateFeedbackCenter,
   onNavigateReview,
   onNavigateEmailWorkflow,
 }: {
@@ -32,6 +34,8 @@ export function PlaceholderPage({
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateDefaultMapping?: () => void;
+  onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -50,6 +54,8 @@ export function PlaceholderPage({
         onNavigateReleasedOrders={onNavigateReleasedOrders}
         onNavigateCommunication={onNavigateCommunication}
         onNavigateEmailTemplate={onNavigateEmailTemplate}
+        onNavigateDefaultMapping={onNavigateDefaultMapping}
+        onNavigateFeedbackCenter={onNavigateFeedbackCenter}
         onNavigateReview={onNavigateReview}
         onNavigateEmailWorkflow={onNavigateEmailWorkflow}
       />

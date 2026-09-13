@@ -11,7 +11,7 @@ import {
 import { type Email, ALL_EMAILS, ALL_EMAILS_WITH_CCC } from "./emailData";
 import { EmailStatusBadge, EmailViewBody } from "./emailViewShared";
 
-export function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateReview, onNavigateEmailWorkflow }: {
+export function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateDefaultMapping, onNavigateFeedbackCenter, onNavigateReview, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -24,6 +24,8 @@ export function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, on
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateDefaultMapping?: () => void;
+  onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -261,6 +263,8 @@ export function CommandCenterOverviewPage({ onLogout, onViewAllNotifications, on
           onNavigateReleasedOrders={onNavigateReleasedOrders}
           onNavigateCommunication={onNavigateCommunication}
           onNavigateEmailTemplate={onNavigateEmailTemplate}
+          onNavigateDefaultMapping={onNavigateDefaultMapping}
+          onNavigateFeedbackCenter={onNavigateFeedbackCenter}
           onNavigateReview={onNavigateReview}
           onNavigateEmailWorkflow={onNavigateEmailWorkflow}
         />

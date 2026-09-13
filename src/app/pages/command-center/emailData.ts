@@ -30,6 +30,10 @@ export type Email = {
   awaitingReason?: string;
   cccRequestReceivedDate?: string;
   slaTimeRemaining?: string;
+  /** Raw hours remaining behind `slaTimeRemaining`'s display string — negative once overdue. Drives the
+      AC8 TAT color banding (Green/Yellow/Orange/Red) and the "most urgent first" default sort, since sorting
+      the display string lexicographically wouldn't group by actual urgency. */
+  hoursRemaining?: number;
   poNumber?: string;
   quoteNumber?: string;
   orderNumber?: string;
@@ -38,6 +42,8 @@ export type Email = {
   currentMonthBookableAmount?: string;
   currency?: string;
   statusNotes?: string;
+  stage?: string;
+  soaEmailDraftNotification?: string;
   currentStatusDate?: string;
   currentAutomationStatus?: string;
   currentAutomationResult?: string;
@@ -81,15 +87,31 @@ const ACCOUNT_MANAGERS = ["J. Patel (FE-2201)", "K. Summers (FE-1187)", "D. Alva
 const ACCOUNT_NAMES = ["GlobalTech Industries", "Acme Industries", "Nexus Corp", "Sterling & Co", "MetaSite Inc"];
 const CCC_REQUEST_TYPES = ["New Order", "Amendment", "Renewal", "Cancellation"];
 const CCC_REQUEST_SUBTYPES = ["Standard", "Expedite", "Credit Hold Release", "Price Correction"];
-const CCC_REQUEST_STATUSES = ["Open", "In Progress", "Pending Info", "Completed"];
+// AC5 — Portal Status Visualization: the 5 CCC request statuses BPAs specified, each with its own color
+// and a "CSR Expectation" (surfaced as a tooltip on the pill) telling the CSR what, if anything, to do.
+const CCC_REQUEST_STATUSES = ["Action Required", "Awaiting response", "In Automation", "Completed / Ready", "Read only"];
 const AWAITING_REASONS = ["Awaiting Customer Response", "Awaiting Finance Approval", "Awaiting Legal Review", "—"];
-const SLA_REMAINING = ["2d 4h remaining", "6h remaining", "Overdue by 1d", "4d remaining"];
+
+// AC8 — TAT Color Coding: hours remaining drives the Green/Yellow/Orange/Red banding and the default
+// "most urgent first" sort. Spread across a wide, deterministic (seeded) range so every band actually shows
+// up in the mock data instead of clustering in just one; the display string is derived from the same number
+// so it never disagrees with the color it's shown next to.
+const HOURS_REMAINING_POOL = [-6, -1, 0.5, 2, 3, 5, 7, 8, 10, 15, 24, 40];
+function formatTimeRemaining(hours: number): string {
+  if (hours <= 0) return `Overdue by ${Math.abs(hours)}h`;
+  if (hours < 24) return `${hours}h remaining`;
+  const days = Math.floor(hours / 24);
+  const rem = hours % 24;
+  return rem > 0 ? `${days}d ${rem}h remaining` : `${days}d remaining`;
+}
 const OPERATING_UNITS = ["US OU", "EMEA OU", "APAC OU", "LATAM OU"];
 const CURRENCIES = ["USD", "EUR", "GBP", "INR"];
 const AUTOMATION_STATUSES = ["Completed", "Running", "Failed", "Not Started"];
 const AUTOMATION_RESULTS = ["Success", "Success", "Error – Retry", "N/A"];
 const PREVIOUS_STATUSES = ["Flagged", "Under Review", "Cleared"];
 const PREVIOUS_STAGES = ["Intake", "Validation", "Fulfillment", "Closed"];
+const STAGES = ["Intake", "Validation", "Fulfillment", "Closed"];
+const SOA_DRAFT_STATUSES = ["Sent", "Draft Ready", "Not Sent"];
 const OA_STATUSES = ["Validated", "Pending", "Failed"];
 const STATUS_NOTES = [
   "Reviewed by CSR, pending downstream sync.",
@@ -163,12 +185,16 @@ function deriveRequestFields(i: number) {
 
 // Fields that evolve message to message within a thread — each reply gets its own seed so status/automation progress.
 function deriveStatusFields(email: Email, seed: number) {
+  const hoursRemaining = HOURS_REMAINING_POOL[seed % HOURS_REMAINING_POOL.length];
   return {
     cccRequestStatus: CCC_REQUEST_STATUSES[seed % CCC_REQUEST_STATUSES.length],
     awaitingReason: AWAITING_REASONS[seed % AWAITING_REASONS.length],
     cccRequestReceivedDate: email.received,
-    slaTimeRemaining: SLA_REMAINING[seed % SLA_REMAINING.length],
+    slaTimeRemaining: formatTimeRemaining(hoursRemaining),
+    hoursRemaining,
     statusNotes: STATUS_NOTES[seed % STATUS_NOTES.length],
+    stage: STAGES[(seed + 2) % STAGES.length],
+    soaEmailDraftNotification: SOA_DRAFT_STATUSES[seed % SOA_DRAFT_STATUSES.length],
     currentStatusDate: email.received,
     currentAutomationStatus: AUTOMATION_STATUSES[seed % AUTOMATION_STATUSES.length],
     currentAutomationResult: AUTOMATION_RESULTS[seed % AUTOMATION_RESULTS.length],
