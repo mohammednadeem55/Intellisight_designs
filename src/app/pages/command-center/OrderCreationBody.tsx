@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { Archive, Calendar, Check, ChevronDown, Copy, Download, FileImage, FileSpreadsheet, FileText, Link, Mail, MapPin, Phone, User, X, type LucideIcon } from "lucide-react";
-import { TextField } from "../../components/common/TextField";
+import { Archive, Calendar, Copy, Download, FileImage, FileSpreadsheet, FileText, Link, Mail, MapPin, Phone, User, X } from "lucide-react";
 import { EmailTableTooltip, TruncateTooltip } from "../../components/common/EmailTable";
 import { WaveLoader } from "../../components/common/Loader";
 import { Button } from "../../components/common/Button";
@@ -16,25 +15,6 @@ function docMeta(name: string): { icon: typeof FileText; bg: string; fg: string 
   if (["png", "jpg", "jpeg", "gif", "svg"].includes(ext)) return { icon: FileImage, bg: "#EAF1FB", fg: "#30578D" };
   if (["zip", "rar", "7z"].includes(ext)) return { icon: Archive, bg: "#FDF3E7", fg: "#92600B" };
   return { icon: FileText, bg: "#f3f4f6", fg: "#6b7280" };
-}
-
-// Same collapsible-section chrome as CCC Creation's and AI Order Validation's field groups — chevron,
-// title, optional "X/Y matched" badge, divider only while open — so every stage's cards read identically.
-function Section({ title, badge, children }: { title: string; badge?: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div className="bg-white rounded-[8px] border border-[#ebebeb]">
-      <button
-        onClick={() => setOpen(v => !v)}
-        className={`w-full flex items-center gap-2 px-5 py-4 cursor-pointer ${open ? "border-b border-[#f3f4f6]" : ""}`}
-      >
-        <ChevronDown size={15} className={`text-[#6b7280] transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
-        <h3 className="text-[14px] font-bold text-[#111827]">{title}</h3>
-        {badge && <span className="text-[11px] font-medium text-[#9ca3af] bg-[#f3f4f6] px-2 py-0.5 rounded-[8px]">{badge}</span>}
-      </button>
-      {open && <div className="px-5 py-5">{children}</div>}
-    </div>
-  );
 }
 
 // Viewable-in-place instructions, not a file to download — same overlay/card chrome as the app's other
@@ -58,71 +38,10 @@ function ShippingInstructionsModal({ instructions, onClose }: { instructions: st
   );
 }
 
-export type OrderCreationAuditEntry = { action: string; icon?: LucideIcon; detail?: string };
-
-export function OrderCreationBody({ emailId, onAudit }: { emailId: string; onAudit?: (entry: OrderCreationAuditEntry) => void }) {
+export function OrderCreationBody({ emailId }: { emailId: string }) {
   const { data: creation, loading, error, reload } = useOrderCreation(emailId);
-  const [quoteNumber, setQuoteNumber] = useState("");
-  const [quoteVersion, setQuoteVersion] = useState("");
-  const [shipToCity, setShipToCity] = useState("");
-  const [accountName, setAccountName] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<{ name: string; size: string } | null>(null);
-
-  // Last-committed value per field, so blurring a field that wasn't actually edited (e.g. tabbing through)
-  // doesn't log a no-op "changed" entry — only a real before → after diff does.
-  const [baseline, setBaseline] = useState<Record<string, string>>({});
-  // Fields the user has actually typed a real change into — drives each field's "Manually Filled" pill.
-  const [manuallyEdited, setManuallyEdited] = useState<Set<string>>(new Set());
-  // Snapshot of each field's value as it first arrived (pre-edit), captured once and never mutated again —
-  // separate from `baseline` (which advances with every commit) so a revert has something fixed to go back to.
-  const [originalValues, setOriginalValues] = useState<Record<string, string>>({});
-  const fieldSetters: Record<string, (v: string) => void> = {
-    quoteNumber: setQuoteNumber, quoteVersion: setQuoteVersion, shipToCity: setShipToCity,
-    accountName: setAccountName, contactName: setContactName, email: setEmail, phone: setPhone,
-  };
-
-  useEffect(() => {
-    if (!creation) return;
-    const qf = creation.quoteFields;
-    setQuoteNumber(qf.quoteNumber);
-    setQuoteVersion(qf.quoteVersion);
-    setShipToCity(qf.shipToCity);
-    setAccountName(qf.accountName);
-    setContactName(qf.contactName);
-    setEmail(qf.email);
-    setPhone(qf.phone);
-    const seeded = {
-      quoteNumber: qf.quoteNumber,
-      quoteVersion: qf.quoteVersion,
-      shipToCity: qf.shipToCity,
-      accountName: qf.accountName,
-      contactName: qf.contactName,
-      email: qf.email,
-      phone: qf.phone,
-    };
-    setBaseline(seeded);
-    setOriginalValues(seeded);
-    setManuallyEdited(new Set());
-  }, [creation]);
-
-  const commitField = (label: string, key: string, value: string) => {
-    if (value === baseline[key]) return;
-    onAudit?.({ action: "Field Updated", icon: Check, detail: `${label}: ${baseline[key] || "—"} → ${value}` });
-    setBaseline(prev => ({ ...prev, [key]: value }));
-    setManuallyEdited(prev => new Set(prev).add(key));
-  };
-
-  const revertField = (label: string, key: string) => {
-    const previous = originalValues[key] ?? "";
-    fieldSetters[key]?.(previous);
-    setBaseline(prev => ({ ...prev, [key]: previous }));
-    setManuallyEdited(prev => { const next = new Set(prev); next.delete(key); return next; });
-    onAudit?.({ action: "Field Reverted", detail: `${label}: ${baseline[key] || "—"} → ${previous || "—"}` });
-  };
 
   const copyToClipboard = (label: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -149,31 +68,7 @@ export function OrderCreationBody({ emailId, onAudit }: { emailId: string; onAud
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
-      {/* Left: quote / order creation details */}
-      <div className="flex flex-col gap-4">
-        <Section title="Quote" badge="6/7 matched">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-            <TextField
-              label="Quote Number"
-              required
-              variant={manuallyEdited.has("quoteNumber") ? "matched" : "missing"}
-              manuallyFilled={manuallyEdited.has("quoteNumber")}
-              value={quoteNumber}
-              onChange={setQuoteNumber}
-              onBlur={() => commitField("Quote Number", "quoteNumber", quoteNumber)}
-              placeholder="Required - enter value"
-            />
-            <TextField label="Ship To City" required variant="matched" manuallyFilled={manuallyEdited.has("shipToCity")} revertible={manuallyEdited.has("shipToCity")} onRevert={() => revertField("Ship To City", "shipToCity")} value={shipToCity} onChange={setShipToCity} onBlur={() => commitField("Ship To City", "shipToCity", shipToCity)} />
-            <TextField label="Quote Version" required variant="matched" manuallyFilled={manuallyEdited.has("quoteVersion")} revertible={manuallyEdited.has("quoteVersion")} onRevert={() => revertField("Quote Version", "quoteVersion")} value={quoteVersion} onChange={setQuoteVersion} onBlur={() => commitField("Quote Version", "quoteVersion", quoteVersion)} />
-            <TextField label="Account Name" variant="matched" manuallyFilled={manuallyEdited.has("accountName")} revertible={manuallyEdited.has("accountName")} onRevert={() => revertField("Account Name", "accountName")} value={accountName} onChange={setAccountName} onBlur={() => commitField("Account Name", "accountName", accountName)} />
-            <TextField label="Contact Name" variant="matched" manuallyFilled={manuallyEdited.has("contactName")} revertible={manuallyEdited.has("contactName")} onRevert={() => revertField("Contact Name", "contactName")} value={contactName} onChange={setContactName} onBlur={() => commitField("Contact Name", "contactName", contactName)} />
-            <TextField label="Email" variant="matched" manuallyFilled={manuallyEdited.has("email")} revertible={manuallyEdited.has("email")} onRevert={() => revertField("Email", "email")} value={email} onChange={setEmail} onBlur={() => commitField("Email", "email", email)} />
-            <TextField label="Phone" variant="matched" manuallyFilled={manuallyEdited.has("phone")} revertible={manuallyEdited.has("phone")} onRevert={() => revertField("Phone", "phone")} value={phone} onChange={setPhone} onBlur={() => commitField("Phone", "phone", phone)} />
-          </div>
-        </Section>
-      </div>
-
-      {/* Right: order summary + ship-to + documents */}
+      {/* Left: order summary — the Quote section that used to live here moved to its own Quote Update step */}
       <div className="flex flex-col gap-4">
         <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
           <h3 className="text-[14px] font-bold text-[#111827]">Order Summary</h3>
@@ -254,6 +149,24 @@ export function OrderCreationBody({ emailId, onAudit }: { emailId: string; onAud
               <p className="text-[12.5px] font-semibold text-[#30578D] group-hover:underline">View shipping instructions</p>
             </div>
           </button>
+        </div>
+      </div>
+
+      {/* Right: Oracle booking status + ship-to + documents */}
+      <div className="flex flex-col gap-4">
+        <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
+          <h3 className="text-[14px] font-bold text-[#111827]">Order Creation</h3>
+          <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">Book directly in Oracle EBS • {c.oracleStatus}</p>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="rounded-[8px] bg-[#f7f8fa] px-3.5 py-3 min-w-0">
+              <p className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-wide mb-1">Sales Order Number</p>
+              <p className="text-[13px] font-semibold text-[#111827] truncate">{c.salesOrderNumber}</p>
+            </div>
+            <div className="rounded-[8px] bg-[#f7f8fa] px-3.5 py-3 min-w-0">
+              <p className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-wide mb-1">Oracle Status</p>
+              <p className="text-[13px] font-semibold text-[#111827] truncate">{c.oracleStatus}</p>
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">

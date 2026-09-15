@@ -8,7 +8,19 @@ export type OrderCreationData = {
   orderSummary: { requestDate: string; salesOrderOwner: string; billTo: OrderCreationContact; shipTo: OrderCreationContact };
   shippingInstructions: string;
   documents: { name: string; size: string }[];
+  // Oracle EBS booking is a separate, manual step from this page — these reflect its last-known state,
+  // not something edited here.
+  salesOrderNumber: string;
+  oracleStatus: string;
   quoteFields: {
+    poNumber: string;
+    edeliveryEmail: string;
+    billToAccount: string;
+    billToAddress: string;
+    shipToAccount: string;
+    shipToAddress: string;
+    endUseAccount: string;
+    endUseAddress: string;
     quoteNumber: string;
     quoteVersion: string;
     shipToCity: string;
@@ -40,11 +52,21 @@ Pickup Window: 09:00–17:00 JST, Mon–Fri
 
 Special handling: Fragile — calibration equipment. Do not stack. Keep upright at all times.`,
   documents: [{ name: "Order_Summary.pdf", size: "1.4 MB" }],
+  salesOrderNumber: "SO-0048213",
+  oracleStatus: "Pending Sync",
   quoteFields: {
+    poNumber: "4100126306",
+    edeliveryEmail: "",
+    billToAccount: "Abbott Laboratories",
+    billToAddress: "100 Abbott Park Road, Abbott Park, IL 60064, United States",
+    shipToAccount: "MACOM Technology Solutions Inc.",
+    shipToAddress: "100 Chelmsford Street, Lowell, MA 01851, United States",
+    endUseAccount: "",
+    endUseAddress: "",
     quoteNumber: "",
     quoteVersion: "1",
     shipToCity: "東京都昭島市",
-    accountName: "東洋計測器株式会社",
+    accountName: "Abbott Laboratories",
     contactName: "野中 良美",
     email: "y-nonaka@keisokuki-land.co.jp",
     phone: "03-3255-9920",
