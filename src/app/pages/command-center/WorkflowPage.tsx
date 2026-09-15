@@ -10,6 +10,7 @@ import { AuditTrailModal, useAuditLog } from "../../components/common/AuditTrail
 import { AiOrderValidationBody } from "./AiOrderValidationBody";
 import { CccCreationBody, type CccExtractionStatus } from "./CccCreationBody";
 import { OrderCreationBody } from "./OrderCreationBody";
+import { QuoteUpdateBody } from "./QuoteUpdateBody";
 import { SoaBody } from "./SoaBody";
 import { EmailThreadCard, senderDisplayName } from "./emailThread";
 import { type Email, EMPTY_EMAIL, CLASSIFICATIONS } from "./emailData";
@@ -19,6 +20,7 @@ const WORKFLOW_STAGES: { key: string; label: string }[] = [
   { key: "classify", label: "Email & Classify" },
   { key: "ccc", label: "CCC Creation" },
   { key: "validation", label: "AI Order Validation" },
+  { key: "quote", label: "Quote Update" },
   { key: "order", label: "Order Creation" },
   { key: "soa", label: "SOA" },
 ];
@@ -208,10 +210,11 @@ export function WorkflowPage({
     toast.success(`${email.id} email sent`);
   };
 
-  // Order Creation — Quote Update can be clicked any number of times, but Proceed only becomes available
-  // once Create Order has actually run; before that, Create Order is the only primary action in its place.
-  // Updating the quote again after the order was created invalidates it — order data may now be stale
-  // against the new quote — so it flips back to requiring Create Order before Proceed reappears.
+  // Quote Update (stage 3) and Order Creation (stage 4) are separate steps, but share this one piece of
+  // state: Order Creation's Proceed only becomes available once Create Order has actually run — before
+  // that, Create Order is the only primary action in its place. Jumping back to Quote Update and updating
+  // the quote again invalidates any order already created (its data may now be stale against the new
+  // quote), so it flips back to requiring Create Order before Proceed reappears at the Order Creation step.
   const [orderCreated, setOrderCreated] = useState(false);
   const handleQuoteUpdate = () => {
     setOrderCreated(false);
@@ -600,13 +603,17 @@ export function WorkflowPage({
         )}
 
         {currentStageIndex === 3 && (
-          <OrderCreationBody
+          <QuoteUpdateBody
             emailId={email.id}
             onAudit={(entry) => auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, ...entry })}
           />
         )}
 
         {currentStageIndex === 4 && (
+          <OrderCreationBody emailId={email.id} />
+        )}
+
+        {currentStageIndex === 5 && (
           <SoaBody
             email={email}
             onAudit={(entry) => auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, ...entry })}
@@ -824,11 +831,8 @@ export function WorkflowPage({
               <Button variant="secondary" onClick={() => withPageLoader("Saving...", () => toast.success(`${email.id} saved`))}>Save & Update</Button>
               {currentStageIndex === 1 && cccOutcome !== "success" ? (
                 <Button variant="primary" onClick={() => withPageLoader("Creating CCC request...", handleCreateCcc)}>Create CCC Req.</Button>
-              ) : currentStageIndex === 3 && !orderCreated ? (
-                <>
-                  <Button variant="outline" accent="#E90029" onClick={() => withPageLoader("Updating quote...", handleQuoteUpdate)}>Quote Update</Button>
-                  <Button variant="primary" onClick={() => withPageLoader("Creating order...", handleCreateOrder)}>Create Order</Button>
-                </>
+              ) : currentStageIndex === 4 && !orderCreated ? (
+                <Button variant="primary" onClick={() => withPageLoader("Creating order...", handleCreateOrder)}>Create Order</Button>
               ) : (
                 <>
                   {currentStageIndex === 2 && (
@@ -837,7 +841,7 @@ export function WorkflowPage({
                   {currentStageIndex === 3 && (
                     <Button variant="outline" accent="#E90029" onClick={() => withPageLoader("Updating quote...", handleQuoteUpdate)}>Quote Update</Button>
                   )}
-                  {currentStageIndex === 4 && (
+                  {currentStageIndex === 5 && (
                     <Button variant="outline" accent="#E90029" onClick={() => withPageLoader("Sending email...", handleSendEmail)}>Send Email</Button>
                   )}
                   <Button variant="primary" onClick={() => withPageLoader("Proceeding...", handleProceed)}>
