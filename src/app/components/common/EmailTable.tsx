@@ -768,9 +768,38 @@ function EmailTableStatusIcon({ status }: { status?: string }) {
   );
 }
 
+// AC6 — Attachments – View Without Download: a clickable badge that opens straight into the
+// AttachmentPreviewModal for the whole row — no separate picker first. When there's more than one
+// attachment, the modal itself shows the count and lets you switch between them.
+function EmailTableAttachmentButton({
+  attachments,
+  onOpen,
+}: {
+  attachments: { name: string; size: string }[];
+  onOpen: (all: { name: string; size: string }[]) => void;
+}) {
+  if (attachments.length === 0) return null;
+
+  return (
+    <EmailTableTooltip label={`View attachment${attachments.length > 1 ? "s" : ""} (${attachments.length})`}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpen(attachments);
+        }}
+        className="shrink-0 inline-flex items-center gap-1 px-1.5 py-[1px] rounded-[6px] text-[10.5px] font-semibold cursor-pointer transition-colors hover:opacity-80"
+        style={{ color: "#30578D", backgroundColor: "#EAF1FB" }}
+      >
+        <Paperclip size={10} />
+        {attachments.length}
+      </button>
+    </EmailTableTooltip>
+  );
+}
+
 // Shared by parent email rows and their nested CCC rows — bold id + copy-to-clipboard, sender line with
 // attachment/status icons, and the subject/request-type text underneath.
-function EmailTableSubjectCell({ entity, density, primaryField = "id" }: { entity: Email; density: "small" | "medium" | "large"; primaryField?: "id" | "cccId" }) {
+function EmailTableSubjectCell({ entity, density, primaryField = "id", onOpenAttachment }: { entity: Email; density: "small" | "medium" | "large"; primaryField?: "id" | "cccId"; onOpenAttachment?: (all: { name: string; size: string }[]) => void }) {
   const primaryValue = primaryField === "cccId" ? (entity.cccId ?? entity.id) : entity.id;
   return (
     <>
@@ -788,10 +817,14 @@ function EmailTableSubjectCell({ entity, density, primaryField = "id" }: { entit
             <Copy size={11} />
           </button>
         </EmailTableTooltip>
-        {primaryField !== "cccId" && (entity.attachments?.length ?? 0) > 0 && (
-          <EmailTableTooltip label="Has attachments">
-            <Paperclip size={11} className="text-[#30578D] shrink-0" />
-          </EmailTableTooltip>
+        {(entity.attachments?.length ?? 0) > 0 && (
+          onOpenAttachment ? (
+            <EmailTableAttachmentButton attachments={entity.attachments!} onOpen={onOpenAttachment} />
+          ) : (
+            <EmailTableTooltip label="Has attachments">
+              <Paperclip size={11} className="text-[#30578D] shrink-0" />
+            </EmailTableTooltip>
+          )
         )}
         <EmailTableStatusIcon status={entity.status} />
       </div>
@@ -1229,6 +1262,7 @@ export function EmailTable({
   subjectColumnLabel = "From/Subject",
   subjectPrimaryField = "id",
   subjectSortKey = "sender",
+  onOpenAttachment,
 }: {
   rows: Email[];
   expandedIds: Set<string>;
@@ -1252,6 +1286,8 @@ export function EmailTable({
   subjectPrimaryField?: "id" | "cccId";
   /** Sort key used when the sticky first column's header is clicked — defaults to "sender" to match the default label. */
   subjectSortKey?: string;
+  /** AC6 — opens an attachment in the shared preview modal; omit to fall back to the old passive icon. */
+  onOpenAttachment?: (all: { name: string; size: string }[]) => void;
   /** Clicking a sortable column header calls this with its key; the caller owns the actual sort logic
       since it needs to run before pagination slices the rows. */
   onSort?: (key: string) => void;
@@ -1361,7 +1397,7 @@ export function EmailTable({
                   )}
                 </td>
                 <td className={`sticky left-[40px] z-10 bg-white group-hover:bg-[#EEF2F7] px-4 ${subjectPadY} max-w-[260px] border-b border-[#DEDEDE] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.15)] transition-colors`}>
-                  <EmailTableSubjectCell entity={row} density={rowDensity} primaryField={subjectPrimaryField} />
+                  <EmailTableSubjectCell entity={row} density={rowDensity} primaryField={subjectPrimaryField} onOpenAttachment={onOpenAttachment} />
                 </td>
                 {additionalColumns.map((key) => (
                   <td key={key} className={`px-4 ${subjectPadY} border-b border-[#DEDEDE]`}>{renderEmailTableColumnCell(key, row, reviews, () => setReviewsModalRow(row))}</td>
@@ -1390,7 +1426,7 @@ export function EmailTable({
                   </div>
                 </td>
                 <td className={`sticky left-[40px] z-10 bg-[#F7F7F7] group-hover:bg-[#E2E6E9] px-4 ${childSubjectPadY} pl-8 max-w-[260px] border-b border-[#DEDEDE] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.15)] transition-colors`}>
-                  <EmailTableSubjectCell entity={ccc} density={rowDensity} primaryField={subjectPrimaryField} />
+                  <EmailTableSubjectCell entity={ccc} density={rowDensity} primaryField={subjectPrimaryField} onOpenAttachment={onOpenAttachment} />
                 </td>
                 {additionalColumns.map((key) => (
                   <td key={key} className={`px-4 ${childSubjectPadY} border-b border-[#DEDEDE]`}>{renderEmailTableColumnCell(key, ccc, reviews, () => setReviewsModalRow(ccc))}</td>

@@ -324,6 +324,9 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
     if (!selectedId && worklistData && worklistData.length > 0) setSelectedId(worklistData[0].id);
   }, [worklistData, selectedId]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  // AC6 — Attachments – View Without Download: opened from the grid's clickable badge, in either view.
+  // Holds the whole row's attachment list — the modal itself shows the count and switches between them.
+  const [previewAttachments, setPreviewAttachments] = useState<{ name: string; size: string }[] | null>(null);
   const [page, setPage] = useState(1);
   // `searchQuery` is the committed value that actually drives filtering (stands in for what would be a
   // server-side query in the real app) — TableToolbarSearch owns the draft/open/debounce state and only
@@ -1040,6 +1043,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                   subjectColumnLabel={activeView === "CSR" ? "CCC Request #" : "From/Subject"}
                   subjectPrimaryField={activeView === "CSR" ? "cccId" : "id"}
                   subjectSortKey={activeView === "CSR" ? "cccId" : "sender"}
+                  onOpenAttachment={setPreviewAttachments}
                 />
               ) : (
                 <NewOverviewListView
@@ -1204,6 +1208,11 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
           </div>
         </main>
       </div>
+      <AttachmentPreviewModal
+        attachment={previewAttachments?.[0] ?? null}
+        attachments={previewAttachments ?? undefined}
+        onClose={() => setPreviewAttachments(null)}
+      />
     </div>
   );
 }
