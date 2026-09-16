@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowDown, ArrowUp, Check, CheckCircle2, ChevronDown, ChevronsUpDown, Clock, DollarSign, GripVertical, Inbox, Maximize2, Minimize2, Package, Pencil, Plus, RefreshCw, Search, Trash2, User, Users, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, CheckCircle2, ChevronDown, ChevronsUpDown, Clock, DollarSign, Inbox, Maximize2, Minimize2, Package, Pencil, Plus, RefreshCw, Search, Star, Trash2, User, Users, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { EMAIL_TABLE_NAVY } from "../../components/common/EmailTable";
 import { ALL_ORDERS } from "./holdManagementData";
+import { loadFavoriteOrderIds, saveFavoriteOrderIds } from "./favoritesStorage";
 
 const HOLD_CARD_WIDTH = 280;
 const TIMELINE_OPTIONS = ["24h", "48h", "72h", "1 Week", "2 Weeks"];
 const TIMELINE_HOURS: Record<string, number> = { "24h": 24, "48h": 48, "72h": 72, "1 Week": 168, "2 Weeks": 336 };
 const SORT_OPTIONS = ["Aging", "SSD Proximity", "Value", "Order Volume"];
 const VIEW_OPTIONS = ["CSR", "Credit"];
-// Grey → orange → red — clicking a to-do's priority dot cycles through these, low to high urgency.
-const TODO_PRIORITIES = ["#D9D9D6", "#E67919", "#C83737"];
+const FAVORITE_STATUS_COLOR: Record<string, string> = { "On Track": "#468657", "At Risk": "#E67919", Breached: "#C83737" };
 
 // "My Holds" vs. a named group of teammates whose holds should be viewed together — saved per-browser so a
 // group set up today is still there on the next login. Real per-user hold assignment isn't in the mock data
@@ -494,41 +494,17 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
     setOrderIdQuery("");
   };
 
-  const [todos, setTodos] = useState([
-    { id: 1, label: "Review SLA Breached Holds", priority: "#C83737", done: false },
-    { id: 2, label: "Process Orders Batch", priority: "#E67919", done: false },
-    { id: 3, label: "Update Invoicing Rules", priority: "#D9D9D6", done: false },
-    { id: 4, label: "Escalate At-Risk Holds", priority: "#C83737", done: false },
-    { id: 5, label: "Weekly Hold Report", priority: "#D9D9D6", done: false },
-  ]);
-
-  // To-Do — add (inline input), remove (hover X), reorder (drag handle), and cycle priority (click the dot).
-  const [addingTodo, setAddingTodo] = useState(false);
-  const [newTodoText, setNewTodoText] = useState("");
-  const addTodo = () => {
-    const text = newTodoText.trim();
-    if (!text) { setAddingTodo(false); return; }
-    setTodos((prev) => [...prev, { id: Date.now(), label: text, priority: TODO_PRIORITIES[0], done: false }]);
-    setNewTodoText("");
-    setAddingTodo(false);
-  };
-  const removeTodo = (id: number) => setTodos((prev) => prev.filter((t) => t.id !== id));
-  const cycleTodoPriority = (id: number) => {
-    setTodos((prev) =>
-      prev.map((t) => {
-        if (t.id !== id) return t;
-        const next = TODO_PRIORITIES[(TODO_PRIORITIES.indexOf(t.priority) + 1) % TODO_PRIORITIES.length];
-        return { ...t, priority: next };
-      })
-    );
-  };
-  const [dragTodoIdx, setDragTodoIdx] = useState<number | null>(null);
-  const [dragOverTodoIdx, setDragOverTodoIdx] = useState<number | null>(null);
-  const reorderTodo = (from: number, to: number) => {
-    setTodos((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
+  // Favorites — replaces the old To-Do card in this sidebar slot. Loaded once on mount; this page is its
+  // own route (see App.tsx), so it naturally re-reads favorites fresh whenever navigated back to, without
+  // needing a live cross-page sync.
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => loadFavoriteOrderIds());
+  const favoriteOrders = favoriteIds
+    .map((id) => ALL_ORDERS.find((o) => o.id === id))
+    .filter((o): o is (typeof ALL_ORDERS)[number] => Boolean(o));
+  const toggleFavorite = (id: string) => {
+    setFavoriteIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      saveFavoriteOrderIds(next);
       return next;
     });
   };
@@ -941,103 +917,48 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
                 </div>
               </div>
 
-              {/* To-Do */}
+              {/* Favorites — orders starred from Order Listing or Order Details */}
               <div className="bg-white rounded-[8px] border border-[#ebebeb] py-4 overflow-hidden">
-                <div className="flex items-center justify-between px-5">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-[14px] font-bold text-[#111827]">To-Do</h3>
-                    <span className="bg-[#f3f4f6] px-2 py-[2px] rounded-full text-[#6b7280] text-[10px] font-bold">{todos.filter(t => !t.done).length}</span>
-                  </div>
-                  <button
-                    onClick={() => setAddingTodo(true)}
-                    title="Add a task"
-                    className="bg-[#f3f4f6] size-[22px] rounded-[8px] flex items-center justify-center hover:bg-[#e5e7eb] cursor-pointer transition-colors"
-                  >
-                    <Plus size={12} className="text-[#6b7280]" strokeWidth={2.5} />
-                  </button>
+                <div className="flex items-center gap-2 px-5">
+                  <h3 className="text-[14px] font-bold text-[#111827]">Favorites</h3>
+                  <span className="bg-[#f3f4f6] px-2 py-[2px] rounded-full text-[#6b7280] text-[10px] font-bold">{favoriteOrders.length}</span>
                 </div>
                 <div className="mt-3 flex flex-col divide-y divide-[#f3f4f6]">
-                  {addingTodo && (
-                    <div className="px-5 py-3 bg-[#F7F7F7]">
-                      <input
-                        autoFocus
-                        value={newTodoText}
-                        onChange={(e) => setNewTodoText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") addTodo();
-                          if (e.key === "Escape") { setAddingTodo(false); setNewTodoText(""); }
-                        }}
-                        placeholder="Type a task…"
-                        className="w-full h-[32px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[12px] font-medium text-[#111827] placeholder:text-[#9ca3af] placeholder:font-normal outline-none focus:border-[#30578D] transition-colors"
-                      />
-                      <div className="flex items-center justify-end gap-2 mt-2.5">
-                        <button
-                          onClick={() => { setAddingTodo(false); setNewTodoText(""); }}
-                          className="px-3 h-[26px] rounded-[6px] text-[11px] font-semibold text-[#6b7280] hover:bg-[#e5e7eb] cursor-pointer transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={addTodo}
-                          disabled={!newTodoText.trim()}
-                          className="px-3 h-[26px] rounded-[6px] text-[11px] font-semibold text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-                          style={{ backgroundColor: EMAIL_TABLE_NAVY }}
-                        >
-                          Add Task
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {todos.map((task, idx) => (
-                    <div
-                      key={task.id}
-                      draggable
-                      onDragStart={() => setDragTodoIdx(idx)}
-                      onDragOver={(e) => { e.preventDefault(); setDragOverTodoIdx(idx); }}
-                      onDrop={() => {
-                        if (dragTodoIdx === null || dragTodoIdx === idx) return;
-                        reorderTodo(dragTodoIdx, idx);
-                        setDragTodoIdx(null);
-                        setDragOverTodoIdx(null);
-                      }}
-                      onDragEnd={() => { setDragTodoIdx(null); setDragOverTodoIdx(null); }}
-                      className={`group relative flex items-center gap-2 px-5 py-[12px] transition-colors hover:bg-[#F7F7F7] ${
-                        dragOverTodoIdx === idx && dragTodoIdx !== idx ? "bg-[#30578D]/[0.05] border-t-2 border-t-[#30578D]" : ""
-                      }`}
-                    >
-                      {/* Positioned in the card's own left padding gutter (not inline) so it never pushes the
-                          checkbox out of alignment with the "To-Do" title above. */}
-                      <GripVertical
-                        size={12}
-                        className="absolute left-[5px] top-1/2 -translate-y-1/2 text-[#d1d5db] cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
-                      />
-                      <button
-                        onClick={() => setTodos(prev => prev.map(t => t.id === task.id ? { ...t, done: !t.done } : t))}
-                        className={`size-[16px] rounded-[8px] border-[1.5px] shrink-0 flex items-center justify-center cursor-pointer transition-all ${
-                          task.done ? "bg-[#30578D] border-[#30578D]" : "border-[#d1d5db] bg-white hover:border-[#30578D]"
-                        }`}
-                      >
-                        {task.done && (
-                          <svg fill="none" viewBox="0 0 10 8" className="size-[9px]">
-                            <path d="M1 4L4 7L9 1" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
-                          </svg>
-                        )}
-                      </button>
-                      <p className={`flex-1 min-w-0 text-[12px] font-semibold leading-tight truncate ${task.done ? "line-through text-[#9ca3af]" : "text-[#111827]"}`}>{task.label}</p>
-                      <button onClick={() => cycleTodoPriority(task.id)} title="Click to change priority" className="size-[6px] rounded-full shrink-0 cursor-pointer" style={{ backgroundColor: task.priority }} />
-                      <div className="w-[12px] h-[12px] shrink-0 flex items-center justify-center">
-                        <button
-                          onClick={() => removeTodo(task.id)}
-                          title="Remove"
-                          className="text-[#d1d5db] hover:text-[#C83737] cursor-pointer transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {todos.length === 0 && !addingTodo && (
-                    <p className="text-[11px] text-[#9ca3af] text-center py-4">No tasks yet</p>
+                  {favoriteOrders.length === 0 ? (
+                    <p className="text-[11px] text-[#9ca3af] text-center py-6 px-5 leading-relaxed">No favorites yet — star an order from Order Listing or Order Details to pin it here.</p>
+                  ) : (
+                    favoriteOrders.map((order) => {
+                      const statusColor = FAVORITE_STATUS_COLOR[order.status] ?? "#6b7280";
+                      return (
+                        <div key={order.id} className="group flex items-center gap-2.5 px-5 py-2.5 hover:bg-[#F7F7F7] transition-colors">
+                          <button
+                            onClick={() => (onNavigateOrderDetails ? onNavigateOrderDetails(order.id) : toast.info(`Viewing ${order.id}`))}
+                            className="flex-1 min-w-0 flex items-center gap-2.5 text-left cursor-pointer"
+                          >
+                            <span className="flex items-center justify-center size-[28px] rounded-[8px] shrink-0" style={{ backgroundColor: `${statusColor}1A` }}>
+                              <Star size={13} style={{ color: statusColor }} />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[#111827] text-[12px] font-semibold truncate group-hover:text-[#30578D] transition-colors">{order.id}</p>
+                              <p className="text-[#6b7280] text-[11px] font-medium truncate mt-px">{order.customer}</p>
+                            </div>
+                          </button>
+                          <span
+                            className="text-[10px] font-semibold px-[6px] py-[2px] rounded-[6px] shrink-0 whitespace-nowrap"
+                            style={{ color: statusColor, backgroundColor: `${statusColor}1A` }}
+                          >
+                            {order.status}
+                          </span>
+                          <button
+                            onClick={() => toggleFavorite(order.id)}
+                            title="Remove from favorites"
+                            className="shrink-0 text-[#d1d5db] hover:text-[#C83737] cursor-pointer transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </div>

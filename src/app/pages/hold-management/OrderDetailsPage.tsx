@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
@@ -12,8 +12,10 @@ import {
   ChevronDown,
   ChevronsUpDown,
   Clock,
+  Copy,
   Database,
   DollarSign,
+  Download,
   History,
   Layers,
   List,
@@ -25,6 +27,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Star,
   TriangleAlert,
   UserCog,
   X,
@@ -47,6 +50,8 @@ import {
   type FollowUpEscalationEntry,
   type LineListingRow,
 } from "./holdManagementData";
+import { loadFavoriteOrderIds, saveFavoriteOrderIds } from "./favoritesStorage";
+import { exportRowsToExcel } from "../../components/common/exportExcel";
 
 type FollowUpLogEntry = FollowUpEscalationEntry;
 
@@ -124,8 +129,148 @@ const RELEASE_REASONS = [
   { code: "CUSTOMER RELEASED", label: "Customer hold released" },
   { code: "RPL CLEARED", label: "Restricted party cleared" },
   { code: "SRQ CONFIRMED", label: "Purchase order confirmed" },
+  { code: "PO RECEIVED", label: "Signed purchase order received" },
+  { code: "PO AMENDED", label: "Purchase order amended to match order" },
+  { code: "DEPOSIT RECEIVED", label: "Customer deposit received" },
+  { code: "PAYMENT CONFIRMED", label: "Full payment confirmed" },
+  { code: "PARTIAL PAYMENT", label: "Partial payment accepted" },
+  { code: "WIRE CONFIRMED", label: "Wire transfer confirmed by finance" },
+  { code: "CARD AUTHORIZED", label: "Credit card payment authorized" },
+  { code: "TAX EXEMPT VERIFIED", label: "Tax exemption certificate verified" },
+  { code: "TAX ID RECEIVED", label: "Missing tax ID received" },
+  { code: "VAT CONFIRMED", label: "VAT registration confirmed" },
+  { code: "INVOICE ADDR CONFIRMED", label: "Invoice address confirmed with customer" },
+  { code: "SHIP ADDR CONFIRMED", label: "Ship-to address confirmed with customer" },
+  { code: "END USER CONFIRMED", label: "End user identity confirmed" },
+  { code: "EXPORT LICENSE APPROVED", label: "Export license approved" },
+  { code: "ECCN CLEARED", label: "Export classification (ECCN) cleared" },
+  { code: "DENIED PARTY CLEARED", label: "Denied party screening cleared" },
+  { code: "SANCTIONS CLEARED", label: "Sanctions/embargo screening cleared" },
+  { code: "COMPLIANCE APPROVED", label: "Trade compliance approval received" },
+  { code: "LEGAL APPROVED", label: "Legal review completed" },
+  { code: "CONTRACT SIGNED", label: "Contract/agreement signed" },
+  { code: "MSA CONFIRMED", label: "Master service agreement on file confirmed" },
+  { code: "NDA SIGNED", label: "NDA executed" },
+  { code: "PRICING APPROVED", label: "Non-standard pricing approved" },
+  { code: "DISCOUNT APPROVED", label: "Discount exception approved" },
+  { code: "MARGIN APPROVED", label: "Below-floor margin approved" },
+  { code: "QUOTE MATCHED", label: "Order matches approved quote" },
+  { code: "CONFIG VALIDATED", label: "Product configuration validated" },
+  { code: "SERIAL ALLOCATED", label: "Serial numbers allocated" },
+  { code: "INVENTORY CONFIRMED", label: "Inventory availability confirmed" },
+  { code: "FORECAST CONFIRMED", label: "Demand forecast confirmed" },
+  { code: "MOQ WAIVED", label: "Minimum order quantity waived" },
+  { code: "LEAD TIME ACCEPTED", label: "Extended lead time accepted by customer" },
+  { code: "SHIP DATE CONFIRMED", label: "Requested ship date confirmed" },
+  { code: "CARRIER ASSIGNED", label: "Freight carrier assigned" },
+  { code: "INCOTERMS CONFIRMED", label: "Incoterms confirmed with customer" },
+  { code: "CUSTOMS DOCS READY", label: "Customs documentation prepared" },
+  { code: "IMPORT LICENSE RECEIVED", label: "Customer import license received" },
+  { code: "CERT OF ORIGIN READY", label: "Certificate of origin prepared" },
+  { code: "INSURANCE CONFIRMED", label: "Shipping insurance confirmed" },
+  { code: "QUALITY HOLD CLEARED", label: "Quality inspection hold cleared" },
+  { code: "ENG APPROVAL RECEIVED", label: "Engineering change approval received" },
+  { code: "CALIBRATION COMPLETE", label: "Calibration/test complete" },
+  { code: "DUP ORDER RESOLVED", label: "Duplicate order flag resolved" },
+  { code: "SYSTEM ERROR CLEARED", label: "System/EDI error corrected" },
+  { code: "MANAGER OVERRIDE", label: "Manager override applied" },
 ];
 type ReleaseFormState = Record<number, { reason: string; comment: string }>;
+
+// Search-as-you-type reason picker — the input itself is the trigger, not a button that opens a separate
+// panel with a search box inside it, matching the same pattern used for the Bill To/Ship To Account fields
+// on the Quote Update step. Unlike that field, though, this one doesn't gate the dropdown behind typing at
+// all — focusing it browses the full 50+-item list right away (scrollable), and typing 3+ letters narrows
+// it down. A hold's release reason isn't something a CSR always arrives already knowing the code for, so
+// browsing has to stay possible, not just searching.
+function ReasonSearchField({ value, onSelect }: { value: string; onSelect: (code: string) => void }) {
+  const selected = RELEASE_REASONS.find((r) => r.code === value);
+  const displayText = (r: (typeof RELEASE_REASONS)[number]) => `${r.code} - ${r.label}`;
+  const [query, setQuery] = useState(selected ? displayText(selected) : "");
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Keeps the field in sync if the selection changes from outside (e.g. a revert action elsewhere).
+  useEffect(() => {
+    setQuery(selected ? displayText(selected) : "");
+  }, [value]);
+
+  // Closes on scroll/resize — this is a `position: fixed` portal positioned once when it opens, so it has
+  // no way to track the field if the page (or an ancestor) scrolls underneath it. Scrolling *within* the
+  // results panel itself also fires a scroll event, though — excluded via the containment check below,
+  // otherwise scrolling the 50+-item list to see more reasons closed it immediately.
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => {
+      if (e.target instanceof Node && panelRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+
+  const q = query.trim().toLowerCase();
+  const results = q.length < 3 ? RELEASE_REASONS : RELEASE_REASONS.filter((r) => r.code.toLowerCase().includes(q) || r.label.toLowerCase().includes(q));
+
+  const positionAndOpen = () => {
+    const r = boxRef.current?.getBoundingClientRect();
+    if (r) setRect({ top: r.bottom + 2, left: r.left, width: Math.max(r.width, 280) });
+    setOpen(true);
+  };
+
+  return (
+    <div ref={boxRef} className="relative">
+      <input
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); positionAndOpen(); }}
+        onFocus={() => { setQuery(""); positionAndOpen(); }}
+        onBlur={() => { setQuery(selected ? displayText(selected) : ""); setOpen(false); }}
+        placeholder="Type 3+ letters to search, or browse below"
+        className={`w-full h-[34px] px-2.5 ${value ? "pr-8" : ""} rounded-[8px] border border-[#E2E6E9] bg-white text-[12.5px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors`}
+      />
+      {value && (
+        <button
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => { onSelect(""); setQuery(""); setOpen(false); }}
+          title="Clear reason"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors"
+        >
+          <X size={13} />
+        </button>
+      )}
+      {open && rect && createPortal(
+        <div
+          ref={panelRef}
+          className="fixed bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-[9999] py-1 max-h-[240px] overflow-y-auto"
+          style={{ top: rect.top, left: rect.left, width: rect.width }}
+        >
+          {results.length === 0 ? (
+            <p className="px-3 py-2.5 text-[12px] text-[#97999B] text-center">No matching reasons</p>
+          ) : (
+            results.map((r) => (
+              <button
+                key={r.code}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { onSelect(r.code); setQuery(displayText(r)); setOpen(false); }}
+                className="w-full text-left px-3 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+              >
+                <span className={r.code === value ? "font-bold text-[#30578D]" : "font-semibold text-[#262626]"}>{r.code}</span>
+                <span className="text-[#666666]"> - {r.label}</span>
+              </button>
+            ))
+          )}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
 
 // One row per hold being released — works the same whether it's a single row (per-row Release button) or
 // several at once (bulk "Release Selected"), since the table just renders whatever `rows` it's given.
@@ -136,24 +281,8 @@ function ReleaseHoldModal({ rows, orderId, onClose, onConfirm }: {
   onConfirm: () => void;
 }) {
   const [form, setForm] = useState<ReleaseFormState>({});
-  const [openReasonFor, setOpenReasonFor] = useState<number | null>(null);
-  const [reasonMenuRect, setReasonMenuRect] = useState<{ top: number; left: number; width: number } | null>(null);
-  const reasonButtonRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const setReason = (id: number, reason: string) => setForm((prev) => ({ ...prev, [id]: { reason, comment: prev[id]?.comment ?? "" } }));
   const setComment = (id: number, comment: string) => setForm((prev) => ({ ...prev, [id]: { reason: prev[id]?.reason ?? "", comment } }));
-
-  // Menu renders via a portal at a fixed position derived from the trigger button, so it isn't clipped by
-  // the table card's rounded border or the modal body's own scroll container — the same reason the ERD
-  // date input opens a real calendar rather than a menu confined to the table cell.
-  const toggleReasonMenu = (id: number) => {
-    if (openReasonFor === id) { setOpenReasonFor(null); return; }
-    const btn = reasonButtonRefs.current[id];
-    if (btn) {
-      const r = btn.getBoundingClientRect();
-      setReasonMenuRect({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 260) });
-    }
-    setOpenReasonFor(id);
-  };
 
   const confirm = () => {
     const missing = rows.some((r) => !form[r.id]?.reason);
@@ -181,7 +310,7 @@ function ReleaseHoldModal({ rows, orderId, onClose, onConfirm }: {
                   <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#666666] uppercase tracking-wide border-b border-[#E2E6E9]">Sales Order</th>
                   <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#666666] uppercase tracking-wide border-b border-[#E2E6E9]">Hold Type</th>
                   <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#666666] uppercase tracking-wide border-b border-[#E2E6E9]">Level/Line</th>
-                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#666666] uppercase tracking-wide border-b border-[#E2E6E9]">Reason</th>
+                  <th className="w-[320px] text-left px-4 py-2.5 text-[11px] font-semibold text-[#666666] uppercase tracking-wide border-b border-[#E2E6E9]">Reason</th>
                   <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#666666] uppercase tracking-wide border-b border-[#E2E6E9]">Comment</th>
                 </tr>
               </thead>
@@ -192,41 +321,7 @@ function ReleaseHoldModal({ rows, orderId, onClose, onConfirm }: {
                     <td className="px-4 py-3 text-[12.5px] font-semibold text-[#30578D] whitespace-nowrap">{row.name}</td>
                     <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] whitespace-nowrap">{row.level}</td>
                     <td className="px-4 py-3">
-                      <button
-                        ref={(el) => { reasonButtonRefs.current[row.id] = el; }}
-                        onClick={() => toggleReasonMenu(row.id)}
-                        className="w-full flex items-center justify-between gap-2 h-[34px] px-2.5 rounded-[8px] border border-[#E2E6E9] bg-white text-[12.5px] text-left cursor-pointer hover:bg-[#F7F7F7] transition-colors"
-                      >
-                        <span className={`truncate ${form[row.id]?.reason ? "text-[#262626]" : "text-[#97999B]"}`}>
-                          {form[row.id]?.reason
-                            ? `${form[row.id].reason} - ${RELEASE_REASONS.find((r) => r.code === form[row.id].reason)?.label ?? ""}`
-                            : "Enter Release Reason"}
-                        </span>
-                        <ChevronDown size={13} className={`text-[#97999B] shrink-0 transition-transform duration-200 ${openReasonFor === row.id ? "rotate-180" : ""}`} />
-                      </button>
-                      {openReasonFor === row.id && reasonMenuRect && createPortal(
-                        <>
-                          <div className="fixed inset-0 z-[9998]" onClick={() => setOpenReasonFor(null)} />
-                          <div
-                            className="fixed bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-[9999] py-1 max-h-[260px] overflow-y-auto"
-                            style={{ top: reasonMenuRect.top, left: reasonMenuRect.left, width: reasonMenuRect.width }}
-                          >
-                            {RELEASE_REASONS.map((reason) => (
-                              <button
-                                key={reason.code}
-                                onClick={() => { setReason(row.id, reason.code); setOpenReasonFor(null); }}
-                                className={`w-full text-left px-3 py-2 text-[12.5px] cursor-pointer transition-colors ${
-                                  reason.code === form[row.id]?.reason ? "bg-[#EAF1FB]" : "hover:bg-[#F7F7F7]"
-                                }`}
-                              >
-                                <span className={reason.code === form[row.id]?.reason ? "font-bold text-[#30578D]" : "font-semibold text-[#262626]"}>{reason.code}</span>
-                                <span className="text-[#666666]"> - {reason.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </>,
-                        document.body
-                      )}
+                      <ReasonSearchField value={form[row.id]?.reason ?? ""} onSelect={(code) => setReason(row.id, code)} />
                     </td>
                     <td className="px-4 py-3">
                       <input
@@ -410,6 +505,175 @@ function FollowUpEscalateModal({ row, onClose, onNavigateCommunication, onSent }
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Stand-ins for concepts this page doesn't otherwise model yet: who's logged in (no shared "current user"
+// exists here) and the order's primary hold reason (HOLD_ROWS is a flat shared list, not filtered per
+// order). Matches the page's existing pattern of a static descriptive subtitle under the order header.
+const CURRENT_USER_NAME = "Jagdish Kumar";
+const ORDER_HOLD_REASON = "Customer Tax Issue";
+
+function formatDisplayDate(iso: string): string {
+  if (!iso) return "Not set";
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return "Not set";
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = d.toLocaleDateString("en-US", { month: "short" });
+  return `${day}-${month}-${d.getFullYear()}`;
+}
+
+// Picking a Follow-up date no longer opens a separate modal — it drops the same context (HIS flag,
+// current date, who's logged in, the new FUD, hold reason) straight into the Notes composer at the bottom
+// of the page as pre-filled, still-editable text, so the CSR can add anything else before choosing
+// Save Note locally / Save Note to Oracle.
+function buildFollowUpNoteText(fud: string, isHighImpact: boolean, holdReason: string): string {
+  const lines = [
+    isHighImpact ? "HIS: Yes (High Impacting Shipment)" : null,
+    `FUD: ${formatDisplayDate(fud)}`,
+    `Hold Reason: ${holdReason}`,
+    "Status: Awaiting customer response",
+  ];
+  return lines.filter(Boolean).join("\n");
+}
+
+// Oracle's own "Additional Notes" records for the order — distinct from the CSR-authored Notes/Follow-up
+// tabs above; these are read-only, keyed by sequence number, and each carries the fixed Oracle field set
+// (category/title/description/content) rather than free text.
+const ORACLE_NOTE_SEQUENCES = [
+  {
+    sequence: 10,
+    category: "Order Status URL",
+    title: "",
+    description: "OS URL on Ack Header US",
+    content:
+      "You can check the status of your order anytime by selecting the following link: http://www.keysight.com/find/orderstatus.\nPlease contact us if you notice any discrepancies in the details of this order acknowledgement.",
+  },
+  {
+    sequence: 98,
+    category: "Dashboard",
+    title: "",
+    description: "Dashboard link on Ack Header US",
+    content:
+      "Track your order in real time through the Keysight Order Dashboard: http://www.keysight.com/find/dashboard.\nContact your CSR if you need access enabled for your account.",
+  },
+];
+
+// Sequence picker + the four Oracle fields + full note content, with copy support on the content since
+// that's the piece a CSR is most likely to need to paste elsewhere (e.g. into a reply to the customer).
+function AdditionalOracleNotesModal({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+  const [selectedSeq, setSelectedSeq] = useState(ORACLE_NOTE_SEQUENCES[0].sequence);
+  const [seqOpen, setSeqOpen] = useState(false);
+  const [seqRect, setSeqRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const seqBtnRef = useRef<HTMLButtonElement>(null);
+  const current = ORACLE_NOTE_SEQUENCES.find((s) => s.sequence === selectedSeq) ?? ORACLE_NOTE_SEQUENCES[0];
+
+  const toggleSeqOpen = () => {
+    if (!seqOpen) {
+      const r = seqBtnRef.current?.getBoundingClientRect();
+      if (r) setSeqRect({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
+    setSeqOpen((v) => !v);
+  };
+
+  const copyText = (label: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied`);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-[8px] shadow-xl w-full max-w-[620px] max-h-[85vh] flex flex-col">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-[#DEDEDE]">
+          <div>
+            <span className="text-[16px] font-bold text-[#262626]">Additional Notes — Order #{orderId}</span>
+            <p className="text-[11px] text-[#97999B] mt-0.5">Oracle order notes · read-only</p>
+          </div>
+          <button onClick={onClose} className="shrink-0 text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-auto px-6 py-5 flex flex-col gap-4">
+          <button
+            ref={seqBtnRef}
+            onClick={toggleSeqOpen}
+            className="w-full flex items-center justify-between gap-2 h-[38px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-left cursor-pointer hover:bg-[#F7F7F7] transition-colors"
+          >
+            <span className="text-[13px] font-semibold text-[#262626]">Sequence {current.sequence} — {current.category}</span>
+            <ChevronDown size={14} className={`text-[#97999B] transition-transform duration-200 ${seqOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3.5 rounded-[8px] bg-[#F7F7F7] border border-[#E2E6E9] px-4 py-3.5">
+            <div>
+              <p className={fieldLabelClass}>Sequence Number</p>
+              <p className="text-[13px] font-semibold text-[#262626]">{current.sequence}</p>
+            </div>
+            <div>
+              <p className={fieldLabelClass}>Category</p>
+              <p className="text-[13px] font-semibold text-[#262626]">{current.category}</p>
+            </div>
+            <div>
+              <p className={fieldLabelClass}>Title</p>
+              <p className="text-[13px] font-semibold text-[#262626]">{current.title || "—"}</p>
+            </div>
+            <div>
+              <p className={fieldLabelClass}>Description</p>
+              <p className="text-[13px] font-semibold text-[#262626]">{current.description}</p>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <p className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide">Short Text / Complete Note Content</p>
+              <button
+                onClick={() => copyText("Note content", current.content)}
+                title="Copy text"
+                className="flex items-center gap-1.5 text-[11.5px] font-semibold cursor-pointer hover:underline"
+                style={{ color: EMAIL_TABLE_NAVY }}
+              >
+                <Copy size={12} />
+                Copy
+              </button>
+            </div>
+            <div className="rounded-[8px] bg-[#F7F7F7] border border-[#E2E6E9] px-4 py-3.5 max-h-[220px] overflow-y-auto">
+              <p className="text-[13px] text-[#262626] leading-[1.7] whitespace-pre-line">{current.content}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end px-6 py-4 border-t border-[#DEDEDE]">
+          <button onClick={onClose} className="px-4 py-2 rounded-[8px] border border-[#E2E6E9] text-[13px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer">
+            Close
+          </button>
+        </div>
+      </div>
+
+      {seqOpen && seqRect && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setSeqOpen(false)} />
+          <div
+            className="fixed bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-[9999] py-1 max-h-[240px] overflow-y-auto"
+            style={{ top: seqRect.top, left: seqRect.left, width: seqRect.width }}
+          >
+            {ORACLE_NOTE_SEQUENCES.map((s) => (
+              <button
+                key={s.sequence}
+                onClick={() => { setSelectedSeq(s.sequence); setSeqOpen(false); }}
+                className={`w-full text-left px-3 py-2 text-[13px] cursor-pointer transition-colors ${
+                  s.sequence === selectedSeq ? "font-semibold bg-[#EAF1FB]" : "text-[#262626] hover:bg-[#F7F7F7]"
+                }`}
+                style={s.sequence === selectedSeq ? { color: EMAIL_TABLE_NAVY } : undefined}
+              >
+                Sequence {s.sequence} — {s.category}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   );
 }
@@ -682,7 +946,19 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
   const order = ALL_ORDERS.find((o) => o.id === orderId) ?? ALL_ORDERS[0];
   const holdGroup = HOLD_GROUP_BY_TYPE[order.holdType] ?? DEFAULT_HOLD_GROUP;
 
+  // Starred state, re-read per orderId so navigating between orders (via search, breadcrumb, etc.) shows
+  // the right star without a stale value carried over from whichever order was open before.
+  const [isFavorite, setIsFavorite] = useState(() => loadFavoriteOrderIds().includes(orderId));
+  useEffect(() => setIsFavorite(loadFavoriteOrderIds().includes(orderId)), [orderId]);
+  const toggleFavorite = () => {
+    const ids = loadFavoriteOrderIds();
+    const next = ids.includes(orderId) ? ids.filter((id) => id !== orderId) : [...ids, orderId];
+    saveFavoriteOrderIds(next);
+    setIsFavorite(next.includes(orderId));
+  };
+
   const [activeTab, setActiveTab] = useState<"notes" | "followup">("notes");
+  const [notes, setNotes] = useState(AUDIT_NOTES);
   const [noteText, setNoteText] = useState("");
   const [noteSearchDraft, setNoteSearchDraft] = useState("");
   const [noteSearch, setNoteSearch] = useState("");
@@ -696,8 +972,20 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
   const [expandedAudit, setExpandedAudit] = useState<Set<number>>(new Set());
   const toggleAuditDetails = (id: number) => setExpandedAudit((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const [followUpDate, setFollowUpDate] = useState("");
+  const [followUpDate, setFollowUpDate] = useState("2026-08-21");
   const followUpInputRef = useRef<HTMLInputElement>(null);
+  // Picking a follow-up date jumps the page down to the Notes composer (pre-filled, still editable) and
+  // briefly highlights it so it's obvious why the view just moved — cleared as soon as the CSR interacts
+  // with it, with a timeout fallback in case they don't.
+  const addNoteSectionRef = useRef<HTMLDivElement>(null);
+  const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [noteHighlighted, setNoteHighlighted] = useState(false);
+  useEffect(() => {
+    if (!noteHighlighted) return;
+    const t = setTimeout(() => setNoteHighlighted(false), 3000);
+    return () => clearTimeout(t);
+  }, [noteHighlighted]);
+  const [oracleNotesOpen, setOracleNotesOpen] = useState(false);
   const [refExpanded, setRefExpanded] = useState(true);
 
   const [syncing, setSyncing] = useState(false);
@@ -933,6 +1221,17 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
   const pageRows = sortedRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
   const rowPadY = rowDensity === "small" ? "py-1.5" : rowDensity === "medium" ? "py-2.5" : "py-3.5";
 
+  // Exports every hold currently matching search/filters (not just the current page), using whichever
+  // columns — and order — are presently visible, same convention as Order Listing's export.
+  const exportHoldListings = () => {
+    const headers = visibleColumnList.map((c) => c.label);
+    const rows = sortedRows.map((row) =>
+      visibleColumnList.map((col) => (col.key === "erd" ? erdValues[row.id] ?? row.erd ?? "" : row[col.key]))
+    );
+    exportRowsToExcel(`order-${orderId}-hold-listing`, headers, rows, "Hold Listing");
+    toast.success(`Exported ${sortedRows.length} hold${sortedRows.length === 1 ? "" : "s"}`);
+  };
+
   const releasableCount = HOLD_ROWS.filter((r) => r.name !== "CIA Hold").length;
   const ownersInvolved = Array.from(new Set(HOLD_ROWS.map((r) => r.owner))).join(", ");
 
@@ -1075,6 +1374,13 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
           <div className="flex items-center gap-2.5 shrink-0">
             <TableFilterTrigger open={openPanel === "filter"} onOpenChange={(o) => setOpenPanel(o ? "filter" : null)} activeCount={activeFilterCount} />
             <TableColumnMgmtTrigger open={openPanel === "columns"} onOpenChange={(o) => setOpenPanel(o ? "columns" : null)} />
+            <button
+              onClick={exportHoldListings}
+              title="Export to Excel"
+              className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+            >
+              <Download size={15} />
+            </button>
           </div>
         </div>
       </div>
@@ -1507,6 +1813,13 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
                 </div>
               </div>
               <div className="flex items-center gap-2.5">
+                <button
+                  onClick={toggleFavorite}
+                  title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                  className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white hover:bg-[#F7F7F7] transition-colors cursor-pointer"
+                >
+                  <Star size={15} className={isFavorite ? "text-[#E67919]" : "text-[#97999B]"} fill={isFavorite ? "#E67919" : "none"} />
+                </button>
                 <div className="relative">
                   <button
                     onClick={() => {
@@ -1518,13 +1831,24 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
                     className="flex items-center gap-2 h-[36px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
                   >
                     <Calendar size={14} className="text-[#97999B]" />
-                    <span>{followUpDate ? `Follow-up: ${followUpDate}` : "Follow-up date"}</span>
+                    <span>{followUpDate ? `Follow-up: ${formatDisplayDate(followUpDate)}` : "Follow-up date"}</span>
                   </button>
                   <input
                     ref={followUpInputRef}
                     type="date"
                     value={followUpDate}
-                    onChange={(e) => { setFollowUpDate(e.target.value); if (e.target.value) toast.success("Follow-up date set"); }}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setFollowUpDate(next);
+                      if (!next) return;
+                      setActiveTab("notes");
+                      setNoteText(buildFollowUpNoteText(next, true, ORDER_HOLD_REASON));
+                      setNoteHighlighted(true);
+                      setTimeout(() => {
+                        addNoteSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        noteTextareaRef.current?.focus();
+                      }, 0);
+                    }}
                     className="absolute inset-0 opacity-0 pointer-events-none"
                     tabIndex={-1}
                   />
@@ -1637,6 +1961,13 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
                       </button>
                     );
                   })}
+                  <button
+                    onClick={() => setOracleNotesOpen(true)}
+                    className="ml-auto mb-2.5 flex items-center gap-1.5 h-[30px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[12px] font-semibold text-[#4D4D4D] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                  >
+                    <Database size={13} className="text-[#97999B]" />
+                    Additional Oracle Notes
+                  </button>
                 </div>
 
                 {activeTab === "notes" && (
@@ -1662,7 +1993,7 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
                     {/* Notes list — bounded height with its own scroll so the composer below stays put */}
                     <div className="min-h-[220px] max-h-[360px] overflow-y-auto px-5 flex flex-col gap-2.5">
                       {(() => {
-                        const filtered = AUDIT_NOTES.filter((n) => n.text.toLowerCase().includes(noteSearch.trim().toLowerCase()));
+                        const filtered = notes.filter((n) => n.text.toLowerCase().includes(noteSearch.trim().toLowerCase()));
                         if (filtered.length === 0) {
                           return <p className="text-[12.5px] text-[#97999B] text-center py-8">No notes match "{noteSearch}"</p>;
                         }
@@ -1670,20 +2001,36 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
                       })()}
                     </div>
 
-                    {/* Add Notes */}
-                    <div className="px-5 pt-4 pb-5 mt-3 border-t border-[#E2E6E9] flex flex-col gap-2.5">
+                    {/* Add Notes — target of the Follow-up date flow: jumped to, pre-filled, and the input
+                        box itself briefly beats with a pulsing blue glow (see .animate-ks-note-highlight in
+                        globals.css) — stops once the CSR types (not merely focuses — the flow itself
+                        programmatically focuses this field to jump to it, so clearing on focus made the
+                        highlight get switched on and immediately back off before it could ever paint), or
+                        after a few seconds either way. No `overflow-hidden` here (unlike other bordered boxes
+                        on this page) since that would clip the glow, which renders outside the box's edge. */}
+                    <div ref={addNoteSectionRef} className="px-5 pt-4 pb-5 mt-3 border-t border-[#E2E6E9] flex flex-col gap-2.5">
                       <label className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide">Add a note</label>
-                      <div className="border border-[#E2E6E9] rounded-[8px] overflow-hidden focus-within:border-[#30578D] transition-colors">
+                      <div className={`border border-[#E2E6E9] rounded-[8px] focus-within:border-[#30578D] transition-colors ${noteHighlighted ? "animate-ks-note-highlight" : ""}`}>
                         <textarea
+                          ref={noteTextareaRef}
                           value={noteText}
-                          onChange={(e) => setNoteText(e.target.value)}
+                          onChange={(e) => { setNoteText(e.target.value); setNoteHighlighted(false); }}
                           placeholder="Type your note here"
                           className="w-full px-4 py-3 text-[13px] text-[#262626] placeholder:text-[#97999B] outline-none resize-none border-0 bg-transparent min-h-[80px]"
                         />
                       </div>
                       <div className="flex justify-end gap-2.5">
                         <button
-                          onClick={() => { if (noteText.trim()) { toast.success("Note saved locally"); setNoteText(""); } }}
+                          onClick={() => {
+                            if (!noteText.trim()) return;
+                            setNotes((prev) => [
+                              { id: Date.now(), date: new Date().toLocaleDateString("en-GB"), ago: "Just now", agent: CURRENT_USER_NAME, source: "manual", text: noteText.trim() },
+                              ...prev,
+                            ]);
+                            toast.success("Note saved locally");
+                            setNoteText("");
+                            setNoteHighlighted(false);
+                          }}
                           disabled={!noteText.trim()}
                           className="h-[34px] px-4 rounded-[8px] border text-[12.5px] font-semibold cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           style={{ borderColor: EMAIL_TABLE_NAVY, color: EMAIL_TABLE_NAVY }}
@@ -1691,7 +2038,16 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
                           Save Note locally
                         </button>
                         <button
-                          onClick={() => { if (noteText.trim()) { toast.success("Note saved to Oracle"); setNoteText(""); } }}
+                          onClick={() => {
+                            if (!noteText.trim()) return;
+                            setNotes((prev) => [
+                              { id: Date.now(), date: new Date().toLocaleDateString("en-GB"), ago: "Just now", agent: CURRENT_USER_NAME, source: "oracle", text: noteText.trim() },
+                              ...prev,
+                            ]);
+                            toast.success("Note saved to Oracle");
+                            setNoteText("");
+                            setNoteHighlighted(false);
+                          }}
                           disabled={!noteText.trim()}
                           className="h-[34px] px-4 rounded-[8px] text-white text-[12.5px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                           style={{ backgroundColor: EMAIL_TABLE_NAVY }}
@@ -1837,6 +2193,10 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
           onNavigateCommunication={() => onNavigateCommunication?.(orderId)}
           onSent={(entry) => { setFollowUpLog((prev) => [entry, ...prev]); setActiveTab("followup"); }}
         />
+      )}
+
+      {oracleNotesOpen && (
+        <AdditionalOracleNotesModal orderId={orderId} onClose={() => setOracleNotesOpen(false)} />
       )}
 
       {applyHoldRows && (
