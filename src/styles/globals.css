@@ -16,3 +16,25 @@
   animation: ks-pulse 1.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   transform-origin: center;
 }
+
+/* Soft "beating" highlight — draws the eye to a section the page just jumped to (e.g. the Notes composer
+   after picking a Follow-up date) without looking like an alert: a gentle navy glow, feathered outward with
+   blur (a bare spread-only ring reads as a hard rectangle outline, not a glow), low enough opacity to read
+   as a subtle pulse rather than a flash, settling back to plain after a few beats. box-shadow (not a
+   background gradient) since it renders on the OUTSIDE of the box — a background would sit behind the
+   textarea's own painted background and can get silently covered by it. */
+@keyframes ks-note-highlight {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(48, 87, 141, 0);
+    border-color: #E2E6E9;
+  }
+  50% {
+    box-shadow: 0 0 10px 3px rgba(48, 87, 141, 0.22);
+    border-color: #6F93B8;
+  }
+}
+
+.animate-ks-note-highlight {
+  animation: ks-note-highlight 1s ease-in-out 3;
+}

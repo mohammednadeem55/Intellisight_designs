@@ -82,15 +82,21 @@ function AccountSearchField({
   // that gets stretched to match its taller row-sibling (Bill To Address / Ship To Address, which carry an
   // extra helper-text line), so measuring its bottom put the dropdown well below the actual visible input.
   const boxRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // The results panel is a `position: fixed` portal, positioned once at open time — it has no way to know
   // the page (or any scrollable ancestor, e.g. this stage's own `overflow-y-auto` body) has scrolled since,
   // so it would otherwise drift away from the field instead of tracking it. Closing on scroll is simpler
   // and less error-prone than live-repositioning it on every scroll tick. `capture: true` is required since
-  // scroll events don't bubble — this is the only way to hear scrolling on an arbitrary ancestor.
+  // scroll events don't bubble — this is the only way to hear scrolling on an arbitrary ancestor. Scrolling
+  // *within* the results panel itself also fires a scroll event, though — excluded via the containment
+  // check below, otherwise scrolling the list to see more results closed it immediately.
   useEffect(() => {
     if (!open) return;
-    const close = () => setOpen(false);
+    const close = (e: Event) => {
+      if (e.target instanceof Node && panelRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
     document.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
     return () => {
@@ -137,6 +143,7 @@ function AccountSearchField({
 
       {open && rect && createPortal(
         <div
+          ref={panelRef}
           className="fixed bg-white border border-[#e5e7eb] rounded-[8px] shadow-lg z-[9999] py-1 max-h-[220px] overflow-y-auto"
           style={{ top: rect.top, left: rect.left, width: rect.width }}
         >
@@ -187,12 +194,18 @@ function AddressSelectField({
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Same "close on scroll" fix as AccountSearchField — this is also a `position: fixed` portal positioned
   // once at open time, so it would otherwise drift away from the field on scroll instead of tracking it.
+  // Scrolling within the options list itself is excluded, otherwise scrolling to see more addresses closed
+  // the dropdown immediately.
   useEffect(() => {
     if (!open) return;
-    const close = () => setOpen(false);
+    const close = (e: Event) => {
+      if (e.target instanceof Node && panelRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
     document.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
     return () => {
@@ -242,6 +255,7 @@ function AddressSelectField({
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
           <div
+            ref={panelRef}
             className="fixed bg-white border border-[#e5e7eb] rounded-[8px] shadow-lg z-[9999] py-1 max-h-[220px] overflow-y-auto"
             style={{ top: rect.top, left: rect.left, width: rect.width }}
           >

@@ -8,10 +8,12 @@ import {
   ChevronsUpDown,
   Clock,
   DollarSign,
+  Download,
   Inbox,
   Maximize2,
   Minimize2,
   RefreshCw,
+  Star,
 } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
@@ -20,7 +22,9 @@ import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch, us
 import { TableFilterPanel, TableFilterTrigger } from "../../components/common/TableFilterPanel";
 import { TableColumnMgmtPanel, TableColumnMgmtTrigger } from "../../components/common/TableColumnMgmtPanel";
 import { TablePagination, type RowDensity } from "../../components/common/TablePagination";
+import { exportRowsToExcel } from "../../components/common/exportExcel";
 import { ALL_ORDERS } from "./holdManagementData";
+import { loadFavoriteOrderIds, saveFavoriteOrderIds } from "./favoritesStorage";
 
 type Order = (typeof ALL_ORDERS)[number];
 type ColumnKey = keyof Order;
@@ -82,6 +86,18 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
     { label: "TOTAL VALUE", value: "$ 10540.6M", accent: "#387D85", icon: DollarSign },
     { label: "ON TRACK", value: "05", accent: "#468657", icon: CheckCircle2 },
   ];
+
+  // Starred orders — persisted so they survive navigating away (Order Details, Overview) and reloads.
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set(loadFavoriteOrderIds()));
+  const toggleFavorite = (id: string) => {
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      saveFavoriteOrderIds(Array.from(next));
+      return next;
+    });
+  };
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // Sync status + KPI collapse — same pattern as HoldManagementOverview's page header.
   const [kpisExpanded, setKpisExpanded] = useState(true);
@@ -164,6 +180,7 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
       if (q && !o.id.toLowerCase().includes(q) && !o.customer.toLowerCase().includes(q) && !o.poId.toLowerCase().includes(q)) return false;
       if (category.applied.length > 0 && !category.applied.includes(o.holdType)) return false;
       if (holdType.applied.length > 0 && !holdType.applied.includes(o.status)) return false;
+      if (showFavoritesOnly && !favoriteIds.has(o.id)) return false;
       for (const col of COLUMNS) {
         const active = columnFilters[col.key];
         if (active && active.size > 0 && !active.has(String(o[col.key]))) return false;
@@ -175,12 +192,21 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
       return sortDirection === "asc" ? cmp : -cmp;
     });
     return filtered;
-  }, [searchQuery, category.applied, holdType.applied, columnFilters, sortKey, sortDirection]);
+  }, [searchQuery, category.applied, holdType.applied, showFavoritesOnly, favoriteIds, columnFilters, sortKey, sortDirection]);
 
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / rowsPerPage));
   const pageRows = sortedRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   const rowPadY = rowDensity === "small" ? "py-1.5" : rowDensity === "medium" ? "py-2.5" : "py-3.5";
+
+  // Exports every row currently matching search/filters (not just the current page), using whichever
+  // columns — and order — are presently visible, since that's what the user is actually looking at.
+  const exportOrders = () => {
+    const headers = visibleColumnList.map((c) => c.label);
+    const rows = sortedRows.map((row) => visibleColumnList.map((col) => (col.key === "ssd" ? `${row.ssd} ${row.ssdDelta}` : row[col.key])));
+    exportRowsToExcel("order-listing", headers, rows, "Order Listing");
+    toast.success(`Exported ${sortedRows.length} order${sortedRows.length === 1 ? "" : "s"}`);
+  };
 
   const renderCell = (key: ColumnKey, row: Order) => {
     switch (key) {
@@ -297,6 +323,18 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
             <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-[#DEDEDE] flex-wrap">
               <TableToolbarSearch value={searchQuery} onCommit={updateSearch} placeholder="Search orders..." />
 
+              {/* Quick view switch, not a field-value filter — matches the pill-toggle pattern used for
+                  My Tasks/All Tasks elsewhere rather than living inside the column filter panel. */}
+              <button
+                onClick={() => { setShowFavoritesOnly((v) => !v); setPage(1); }}
+                className={`shrink-0 flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-semibold cursor-pointer transition-colors ${
+                  showFavoritesOnly ? "border-[#E67919] bg-[#FDF3E7] text-[#E67919]" : "border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7]"
+                }`}
+              >
+                <Star size={13} fill={showFavoritesOnly ? "#E67919" : "none"} />
+                Favorites only
+              </button>
+
               <div className="flex items-center gap-2.5 ml-auto flex-wrap">
                 <TableToolbarMultiSelect
                   label="Hold Category"
@@ -335,6 +373,13 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
                 <div className="flex items-center gap-2.5 shrink-0">
                   <TableFilterTrigger open={openPanel === "filter"} onOpenChange={(o) => setOpenPanel(o ? "filter" : null)} activeCount={activeFilterCount} />
                   <TableColumnMgmtTrigger open={openPanel === "columns"} onOpenChange={(o) => setOpenPanel(o ? "columns" : null)} />
+                  <button
+                    onClick={exportOrders}
+                    title="Export to Excel"
+                    className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#666666] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                  >
+                    <Download size={15} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -345,6 +390,7 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
                 <table className="w-full min-w-[1100px] border-separate border-spacing-0">
                   <thead>
                     <tr className="bg-[#F7F7F7]">
+                      <th className="sticky top-0 z-10 bg-[#F7F7F7] w-[40px] px-2 h-[42px] border-b border-[#DEDEDE]" />
                       {visibleColumnList.map((col) => {
                         const active = sortKey === col.key;
                         const SortIcon = sortDirection === "desc" ? ArrowDown : ArrowUp;
@@ -375,22 +421,34 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
                   <tbody>
                     {pageRows.length === 0 ? (
                       <tr>
-                        <td colSpan={visibleColumnList.length} className="px-4 py-16 text-center text-[13px] text-[#97999B]">No orders match your filters</td>
+                        <td colSpan={visibleColumnList.length + 1} className="px-4 py-16 text-center text-[13px] text-[#97999B]">No orders match your filters</td>
                       </tr>
                     ) : (
-                      pageRows.map((row) => (
-                        <tr
-                          key={row.id}
-                          onClick={() => onNavigateOrderDetails?.(row.id)}
-                          className="hover:bg-[#F7F7F7] transition-colors cursor-pointer"
-                        >
-                          {visibleColumnList.map((col) => (
-                            <td key={col.key} className={`px-4 ${rowPadY} whitespace-nowrap border-b border-[#DEDEDE]`}>
-                              {renderCell(col.key, row)}
+                      pageRows.map((row) => {
+                        const isFavorite = favoriteIds.has(row.id);
+                        return (
+                          <tr
+                            key={row.id}
+                            onClick={() => onNavigateOrderDetails?.(row.id)}
+                            className="hover:bg-[#F7F7F7] transition-colors cursor-pointer"
+                          >
+                            <td className={`px-2 ${rowPadY} border-b border-[#DEDEDE]`}>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleFavorite(row.id); }}
+                                title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                                className="flex items-center justify-center size-[24px] rounded-[6px] hover:bg-[#EFEFEF] cursor-pointer transition-colors"
+                              >
+                                <Star size={15} className={isFavorite ? "text-[#E67919]" : "text-[#C9CBCD]"} fill={isFavorite ? "#E67919" : "none"} />
+                              </button>
                             </td>
-                          ))}
-                        </tr>
-                      ))
+                            {visibleColumnList.map((col) => (
+                              <td key={col.key} className={`px-4 ${rowPadY} whitespace-nowrap border-b border-[#DEDEDE]`}>
+                                {renderCell(col.key, row)}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
