@@ -75,6 +75,8 @@ function SuggestionPicker({ suggestions, onApply }: { suggestions: string[]; onA
   );
 }
 
+export type FieldSourceBadge = { label: string; fg: string; bg: string };
+
 export function TextField({
   label,
   required,
@@ -87,6 +89,7 @@ export function TextField({
   revertible,
   onRevert,
   manuallyFilled,
+  sourceBadge,
   className = "",
   ...inputProps
 }: {
@@ -105,6 +108,9 @@ export function TextField({
   onRevert?: () => void;
   /** Marks the label with a "Manually Filled" pill — this value was typed/edited/chosen by a person rather than arriving pre-populated from extraction. */
   manuallyFilled?: boolean;
+  /** Where the value originally came from (AI, system/auto, CSR, etc.) — a plain outlined pill, separate
+      from the Manually Filled/Missing/Needs Review status badges so it doesn't compete with them visually. */
+  sourceBadge?: FieldSourceBadge;
   className?: string;
 } & Omit<InputHTMLAttributes<HTMLInputElement>, "size" | "value" | "onChange">) {
   const style = VARIANT_STYLES[variant];
@@ -122,6 +128,11 @@ export function TextField({
             {required && <span className="text-[#BA1C1C]"> *</span>}
           </p>
           <div className="flex items-center gap-1.5 shrink-0">
+            {sourceBadge && (
+              <span className="text-[10px] font-bold uppercase tracking-wide rounded-[8px] px-1.5 py-[1px] border" style={{ color: sourceBadge.fg, borderColor: sourceBadge.fg, backgroundColor: sourceBadge.bg }}>
+                {sourceBadge.label}
+              </span>
+            )}
             {manuallyFilled && (
               <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide rounded-[8px] px-1.5 py-[1px]" style={{ color: "#30578D", backgroundColor: "#EAF1FB" }}>
                 <User size={9} /> Manually Filled
@@ -192,6 +203,7 @@ export function ReviewField({
   onUse,
   onExtractedChange,
   manuallyFilled,
+  sourceBadge,
 }: {
   label: string;
   extracted: string;
@@ -201,9 +213,10 @@ export function ReviewField({
   onExtractedChange?: (value: string) => void;
   /** The extracted value has been directly edited by a person, not just left as AI-extracted. */
   manuallyFilled?: boolean;
+  sourceBadge?: FieldSourceBadge;
 }) {
   if (!systemValue) {
-    return <TextField label={label} variant="needsReview" value={extracted} onChange={onExtractedChange} manuallyFilled={manuallyFilled} />;
+    return <TextField label={label} variant="needsReview" value={extracted} onChange={onExtractedChange} manuallyFilled={manuallyFilled} sourceBadge={sourceBadge} />;
   }
 
   return (
@@ -211,6 +224,11 @@ export function ReviewField({
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wide">{label}</p>
         <div className="flex items-center gap-1.5 shrink-0">
+          {sourceBadge && (
+            <span className="text-[10px] font-bold uppercase tracking-wide rounded-[8px] px-1.5 py-[1px] border" style={{ color: sourceBadge.fg, borderColor: sourceBadge.fg, backgroundColor: sourceBadge.bg }}>
+              {sourceBadge.label}
+            </span>
+          )}
           {manuallyFilled && (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide rounded-[8px] px-1.5 py-[1px]" style={{ color: "#30578D", backgroundColor: "#EAF1FB" }}>
               <User size={9} /> Manually Filled

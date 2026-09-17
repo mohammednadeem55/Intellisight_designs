@@ -52,6 +52,7 @@ import {
 } from "./holdManagementData";
 import { loadFavoriteOrderIds, saveFavoriteOrderIds } from "./favoritesStorage";
 import { exportRowsToExcel } from "../../components/common/exportExcel";
+import { DatePickerPopover } from "../../components/common/DatePickerPopover";
 
 type FollowUpLogEntry = FollowUpEscalationEntry;
 
@@ -524,6 +525,34 @@ function formatDisplayDate(iso: string): string {
   return `${day}-${month}-${d.getFullYear()}`;
 }
 
+// Own local ref/open state per row — simpler than the page tracking a `Record<rowId, ref>` registry, since
+// each cell only ever needs to know about its own button and popover.
+function ErdDateCell({ value, onChange, rowName }: { value: string; onChange: (v: string) => void; rowName: string }) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  return (
+    <div className="relative">
+      <button
+        ref={btnRef}
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 h-[32px] w-[136px] bg-white border border-[#E2E6E9] rounded-[8px] px-2.5 text-left cursor-pointer hover:border-[#D9D9D6] transition-colors"
+      >
+        <Calendar size={12} className="shrink-0 text-[#97999B]" />
+        <span className={`flex-1 min-w-0 truncate text-[12px] ${value ? "text-[#262626] font-medium" : "text-[#97999B]"}`}>
+          {value ? formatDisplayDate(value) : "Set ERD"}
+        </span>
+      </button>
+      <DatePickerPopover
+        open={open}
+        anchorRef={btnRef}
+        onOpenChange={setOpen}
+        value={value}
+        onChange={(v) => { onChange(v); if (v) toast.success(`ERD saved for "${rowName}"`); }}
+      />
+    </div>
+  );
+}
+
 // Picking a Follow-up date no longer opens a separate modal — it drops the same context (HIS flag,
 // current date, who's logged in, the new FUD, hold reason) straight into the Notes composer at the bottom
 // of the page as pre-filled, still-editable text, so the CSR can add anything else before choosing
@@ -783,9 +812,10 @@ function ApplyHoldModal({ rows, orderId, onClose, onConfirm }: {
   const [holdType, setHoldType] = useState("");
   const [holdTypeOpen, setHoldTypeOpen] = useState(false);
   const [holdUntil, setHoldUntil] = useState("");
+  const [holdUntilOpen, setHoldUntilOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [linesExpanded, setLinesExpanded] = useState(false);
-  const holdUntilRef = useRef<HTMLInputElement>(null);
+  const holdUntilRef = useRef<HTMLButtonElement>(null);
 
   const LINES_COLLAPSED_COUNT = 3;
   const visibleLineRows = linesExpanded ? rows : rows.slice(0, LINES_COLLAPSED_COUNT);
@@ -869,25 +899,14 @@ function ApplyHoldModal({ rows, orderId, onClose, onConfirm }: {
           <div>
             <label className={fieldLabelClass}>Hold Until Date</label>
             <button
-              onClick={() => {
-                const el = holdUntilRef.current;
-                if (!el) return;
-                if (typeof el.showPicker === "function") el.showPicker();
-                else el.focus();
-              }}
+              ref={holdUntilRef}
+              onClick={() => setHoldUntilOpen((v) => !v)}
               className="relative w-full flex items-center gap-2 h-[38px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-left cursor-pointer hover:bg-[#F7F7F7] transition-colors"
             >
               <Calendar size={13} className="text-[#97999B] shrink-0" />
-              <span className={`text-[13px] ${holdUntil ? "text-[#262626]" : "text-[#97999B]"}`}>{holdUntil || "Select date (optional)"}</span>
-              <input
-                ref={holdUntilRef}
-                type="date"
-                value={holdUntil}
-                onChange={(e) => setHoldUntil(e.target.value)}
-                className="absolute inset-0 opacity-0 pointer-events-none"
-                tabIndex={-1}
-              />
+              <span className={`text-[13px] ${holdUntil ? "text-[#262626]" : "text-[#97999B]"}`}>{holdUntil ? formatDisplayDate(holdUntil) : "Select date (optional)"}</span>
             </button>
+            <DatePickerPopover open={holdUntilOpen} anchorRef={holdUntilRef} onOpenChange={setHoldUntilOpen} value={holdUntil} onChange={setHoldUntil} />
           </div>
 
           <div>
@@ -973,7 +992,8 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
   const toggleAuditDetails = (id: number) => setExpandedAudit((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const [followUpDate, setFollowUpDate] = useState("2026-08-21");
-  const followUpInputRef = useRef<HTMLInputElement>(null);
+  const followUpInputRef = useRef<HTMLButtonElement>(null);
+  const [followUpDateOpen, setFollowUpDateOpen] = useState(false);
   // Picking a follow-up date jumps the page down to the Notes composer (pre-filled, still editable) and
   // briefly highlights it so it's obvious why the view just moved — cleared as soon as the CSR interacts
   // with it, with a timeout fallback in case they don't.
@@ -999,7 +1019,6 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
   };
 
   const [erdValues, setErdValues] = useState<Record<number, string>>({});
-  const erdInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const [checkedRows, setCheckedRows] = useState<Set<number>>(new Set());
   const toggleRow = (id: number) => setCheckedRows((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -1245,35 +1264,7 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
         return <span className="text-[#30578D] text-[12.5px] font-semibold hover:underline cursor-pointer">{row.category}</span>;
       case "erd": {
         const value = erdValues[row.id] ?? row.erd ?? "";
-        return (
-          <div className="relative">
-            <button
-              onClick={() => {
-                const el = erdInputRefs.current[row.id];
-                if (!el) return;
-                if (typeof el.showPicker === "function") el.showPicker();
-                else el.focus();
-              }}
-              className="flex items-center gap-1.5 h-[32px] w-[136px] bg-white border border-[#E2E6E9] rounded-[8px] px-2.5 text-left cursor-pointer hover:border-[#D9D9D6] transition-colors"
-            >
-              <Calendar size={12} className="shrink-0 text-[#97999B]" />
-              <span className={`flex-1 min-w-0 truncate text-[12px] ${value ? "text-[#262626] font-medium" : "text-[#97999B]"}`}>
-                {value || "Set ERD"}
-              </span>
-            </button>
-            <input
-              ref={(el) => { erdInputRefs.current[row.id] = el; }}
-              type="date"
-              value={value}
-              onChange={(e) => {
-                setErdValues((prev) => ({ ...prev, [row.id]: e.target.value }));
-                if (e.target.value) toast.success(`ERD saved for "${row.name}"`);
-              }}
-              className="absolute inset-0 opacity-0 pointer-events-none"
-              tabIndex={-1}
-            />
-          </div>
-        );
+        return <ErdDateCell value={value} onChange={(v) => setErdValues((prev) => ({ ...prev, [row.id]: v }))} rowName={row.name} />;
       }
       case "notes":
         return <TruncateTooltip label={row.notes} className="text-[12.5px] text-[#4D4D4D] max-w-[180px]" />;
@@ -1822,23 +1813,19 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
                 </button>
                 <div className="relative">
                   <button
-                    onClick={() => {
-                      const el = followUpInputRef.current;
-                      if (!el) return;
-                      if (typeof el.showPicker === "function") el.showPicker();
-                      else el.focus();
-                    }}
+                    ref={followUpInputRef}
+                    onClick={() => setFollowUpDateOpen((v) => !v)}
                     className="flex items-center gap-2 h-[36px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
                   >
                     <Calendar size={14} className="text-[#97999B]" />
                     <span>{followUpDate ? `Follow-up: ${formatDisplayDate(followUpDate)}` : "Follow-up date"}</span>
                   </button>
-                  <input
-                    ref={followUpInputRef}
-                    type="date"
+                  <DatePickerPopover
+                    open={followUpDateOpen}
+                    anchorRef={followUpInputRef}
+                    onOpenChange={setFollowUpDateOpen}
                     value={followUpDate}
-                    onChange={(e) => {
-                      const next = e.target.value;
+                    onChange={(next) => {
                       setFollowUpDate(next);
                       if (!next) return;
                       setActiveTab("notes");
@@ -1849,8 +1836,6 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
                         noteTextareaRef.current?.focus();
                       }, 0);
                     }}
-                    className="absolute inset-0 opacity-0 pointer-events-none"
-                    tabIndex={-1}
                   />
                 </div>
                 <button
