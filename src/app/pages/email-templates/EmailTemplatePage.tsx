@@ -11,7 +11,16 @@ import { TablePagination, type RowDensity } from "../../components/common/TableP
 import { loadEmailTemplates, saveEmailTemplates } from "./emailTemplateStorage";
 import { loadTemplateExceptions, saveTemplateExceptions } from "./exceptionStorage";
 import { CLASSIFICATIONS } from "../command-center/emailData";
-import { summarizeConditionTree, type ConditionFieldOption, type ConditionGroup } from "../../components/common/ConditionBuilder";
+import {
+  createConditionGroup,
+  createConditionRule,
+  summarizeConditionTree,
+  type ConditionFieldOption,
+  type ConditionGroup,
+  type ConditionNode,
+  type ConditionOperator,
+  type ConditionRule,
+} from "../../components/common/ConditionBuilder";
 
 export type EmailTemplate = {
   id: string;
@@ -354,7 +363,94 @@ export const EXCEPTION_FIELDS: ConditionFieldOption[] = [
   { key: "customerNumber", label: "Customer Number" },
 ];
 
-const INITIAL_EXCEPTIONS: TemplateException[] = [];
+// Small helpers so the mock data below reads as plain rules/groups instead of raw id-bearing object
+// literals — go through the real create* factories (for correct ids/kind tags) and just fill in the parts
+// a fixture actually needs to specify.
+function mockRule(field: string, operator: ConditionOperator, values: string[]): ConditionRule {
+  return { ...createConditionRule(field), operator, values };
+}
+function mockGroup(combinator: ConditionGroup["combinator"], children: ConditionNode[]): ConditionGroup {
+  return { ...createConditionGroup(combinator), children };
+}
+
+// Sample rows so the Exceptions tab isn't empty on first load — mirrors the kind of overrides in the real
+// SOA-by-email spreadsheet (OU/country/language/classification combinations routing to a specific template
+// instead of the plain category/step default), including one nested AND-inside-OR to show the builder
+// actually handles that case.
+const INITIAL_EXCEPTIONS: TemplateException[] = [
+  {
+    id: "exc-1",
+    name: "UK Sales Order Acknowledgement",
+    workflowCategory: "Trade Order",
+    step: "SOA",
+    priority: 1,
+    conditions: mockGroup("AND", [
+      mockRule("operatingUnit", "is one of", ["KRS-OU-5001"]),
+      mockRule("billToCountry", "is one of", ["UK"]),
+    ]),
+    templateIfMatch: "SOA_EMEA_GB_GB_EN",
+    templateIfNoMatch: "SOA_Template",
+  },
+  {
+    id: "exc-2",
+    name: "French & Italian Quote Terms",
+    workflowCategory: "Trade Order",
+    step: "SOA",
+    priority: 2,
+    conditions: mockGroup("AND", [
+      mockRule("classification", "is one of", ["TRADE_ORDER"]),
+      mockRule("language", "is one of", ["French", "Italian"]),
+    ]),
+    templateIfMatch: "SOA_ASO_QuoteTerms (Copy 2)",
+    templateIfNoMatch: "SOA_ASO_QuoteTerms (Copy)",
+  },
+  {
+    id: "exc-3",
+    name: "APAC High-Value OU Override",
+    workflowCategory: "Post Order Booking",
+    step: "Order Creation",
+    priority: 1,
+    conditions: mockGroup("AND", [
+      mockRule("classification", "is one of", ["WORK_ORDER", "QUOTE_REQUEST"]),
+      mockGroup("OR", [
+        mockRule("operatingUnit", "is one of", ["KRS-OU-7003", "KRS-OU-8004"]),
+        mockRule("billToCountry", "is one of", ["Japan"]),
+      ]),
+    ]),
+    templateIfMatch: "Order Status Update",
+    templateIfNoMatch: "Order Hold Follow-Up",
+  },
+  {
+    id: "exc-4",
+    name: "India/UAE Credit Hold",
+    workflowCategory: "Post Order Booking",
+    step: "AI Order Validation",
+    priority: 3,
+    conditions: mockGroup("AND", [mockRule("billToCountry", "is one of", ["India", "UAE"])]),
+    templateIfMatch: "Credit Hold Notification",
+    templateIfNoMatch: "",
+  },
+  {
+    id: "exc-5",
+    name: "FCNV Escalation — Priority Accounts",
+    workflowCategory: "FCNV",
+    step: "Email & Classify",
+    priority: 1,
+    conditions: mockGroup("AND", [mockRule("customerNumber", "contains", ["90210", "90211", "90244"])]),
+    templateIfMatch: "Order Escalation",
+    templateIfNoMatch: "Test_pranay",
+  },
+  {
+    id: "exc-6",
+    name: "No-Language Trade Order Fallback",
+    workflowCategory: "Trade Order",
+    step: "Order Creation",
+    priority: 5,
+    conditions: mockGroup("AND", [mockRule("language", "is one of", ["No Language"])]),
+    templateIfMatch: "SOA_ASO_PATerms",
+    templateIfNoMatch: "",
+  },
+];
 
 export function EmailTemplatePage({
   onViewAllNotifications,
