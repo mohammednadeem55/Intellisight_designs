@@ -33,7 +33,7 @@ const HOLD_CATEGORIES = Array.from(new Set(ALL_RELEASED.map((o) => o.holdType)))
 // Mirrors the original page's dropdown exactly: labeled "Hold Type" but filters on `title`.
 const HOLD_TYPES = Array.from(new Set(ALL_RELEASED.map((o) => o.title)));
 
-export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateDefaultMapping, onNavigateFeedbackCenter, onNavigateReview, onNavigateEmailWorkflow }: {
+export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateFeedbackCenter, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -46,9 +46,7 @@ export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigat
   onNavigateCommunication?: () => void;
   onNavigateOrderDetails?: (orderId: string) => void;
   onNavigateEmailTemplate?: () => void;
-  onNavigateDefaultMapping?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
-  onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
   const [page, setPage] = useState(1);
@@ -179,9 +177,7 @@ export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigat
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
-            onNavigateDefaultMapping={onNavigateDefaultMapping}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
-            onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>

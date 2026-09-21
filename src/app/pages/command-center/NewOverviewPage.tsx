@@ -297,7 +297,7 @@ function NewOverviewListView({ rows, selectedId, selected, onSelect, expandedIds
   );
 }
 
-export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateWorkflow, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateDefaultMapping, onNavigateFeedbackCenter, onNavigateReview, onNavigateEmailWorkflow }: {
+export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateWorkflow, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateFeedbackCenter, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -308,11 +308,9 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
-  onNavigateCommunication?: () => void;
+  onNavigateCommunication?: (source?: { emailId?: string }) => void;
   onNavigateEmailTemplate?: () => void;
-  onNavigateDefaultMapping?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
-  onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
   const { data: worklistData, loading: worklistLoading, error: worklistError, reload: reloadWorklist } = useWorklistEmails();
@@ -646,9 +644,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
               onNavigateReleasedOrders={onNavigateReleasedOrders}
               onNavigateCommunication={onNavigateCommunication}
               onNavigateEmailTemplate={onNavigateEmailTemplate}
-              onNavigateDefaultMapping={onNavigateDefaultMapping}
               onNavigateFeedbackCenter={onNavigateFeedbackCenter}
-              onNavigateReview={onNavigateReview}
               onNavigateEmailWorkflow={onNavigateEmailWorkflow}
             />
           </div>
@@ -691,9 +687,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
-            onNavigateDefaultMapping={onNavigateDefaultMapping}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
-            onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
@@ -1044,6 +1038,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                   subjectPrimaryField={activeView === "CSR" ? "cccId" : "id"}
                   subjectSortKey={activeView === "CSR" ? "cccId" : "sender"}
                   onOpenAttachment={setPreviewAttachments}
+                  onSendEmail={(email) => onNavigateCommunication?.({ emailId: email.id })}
                 />
               ) : (
                 <NewOverviewListView

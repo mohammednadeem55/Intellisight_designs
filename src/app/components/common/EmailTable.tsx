@@ -1263,6 +1263,7 @@ export function EmailTable({
   subjectPrimaryField = "id",
   subjectSortKey = "sender",
   onOpenAttachment,
+  onSendEmail,
 }: {
   rows: Email[];
   expandedIds: Set<string>;
@@ -1292,6 +1293,9 @@ export function EmailTable({
       since it needs to run before pagination slices the rows. */
   onSort?: (key: string) => void;
   onAddComment: (id: string, text: string) => void;
+  /** Overrides the row action's Send Email behavior — pass this to navigate somewhere (e.g. the
+      Communication page) instead of opening the built-in placeholder modal. Omit to keep the modal. */
+  onSendEmail?: (email: Email) => void;
 }) {
   const subjectPadY = rowDensity === "small" ? "py-1" : rowDensity === "medium" ? "py-1.5" : "py-2";
   const childSubjectPadY = rowDensity === "small" ? "py-0.5" : rowDensity === "medium" ? "py-1" : "py-1.5";
@@ -1409,7 +1413,7 @@ export function EmailTable({
                     onToggleReaction={(r) => onToggleReaction(row.id, r)}
                     onAssign={() => setAssignModalRow(row)}
                     onAudit={() => setAuditModalRow(row)}
-                    onSendEmail={() => setSendEmailModalRow(row)}
+                    onSendEmail={() => (onSendEmail ? onSendEmail(row) : setSendEmailModalRow(row))}
                     onComment={() => setCommentModalRow(row)}
                   />
                 </td>
@@ -1438,7 +1442,7 @@ export function EmailTable({
                     onToggleReaction={(r) => onToggleReaction(ccc.id, r)}
                     onAssign={() => setAssignModalRow(ccc)}
                     onAudit={() => setAuditModalRow(ccc)}
-                    onSendEmail={() => setSendEmailModalRow(ccc)}
+                    onSendEmail={() => (onSendEmail ? onSendEmail(ccc) : setSendEmailModalRow(ccc))}
                     onComment={() => setCommentModalRow(ccc)}
                   />
                 </td>

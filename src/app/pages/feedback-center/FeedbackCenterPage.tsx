@@ -132,8 +132,6 @@ export function FeedbackCenterPage({
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
-  onNavigateDefaultMapping,
-  onNavigateReview,
   onNavigateEmailWorkflow,
 }: {
   docType: DocType;
@@ -149,8 +147,6 @@ export function FeedbackCenterPage({
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
-  onNavigateDefaultMapping?: () => void;
-  onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
   const docLabel = DOC_TYPE_LABELS[docType];
@@ -275,8 +271,6 @@ export function FeedbackCenterPage({
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
-            onNavigateDefaultMapping={onNavigateDefaultMapping}
-            onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
           />

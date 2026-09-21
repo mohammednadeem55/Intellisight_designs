@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -36,6 +36,8 @@ import {
 import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import { EMAIL_TABLE_NAVY } from "../../components/common/EmailTable";
+import { ALL_EMAILS_WITH_CCC, type Email } from "../command-center/emailData";
+import { EmailThreadCard, senderDisplayName } from "../command-center/emailThread";
 
 type CommMessage = {
   id: string;
@@ -126,6 +128,12 @@ const COMM_ORDERS: CommOrderThread[] = [
     ],
   },
 ];
+
+// Which source Communication is showing — same dropdown pattern as Command Center Overview's FCNV/CSR
+// toggle. Hold Mgmt keeps the existing order follow-up/escalation threads; Cmd Center shows the email
+// worklist's own threads instead, since Communication is now a shared top-level page reachable from both.
+const COMM_VIEW_OPTIONS = ["Hold Mgmt", "Cmd Center"] as const;
+type CommView = (typeof COMM_VIEW_OPTIONS)[number];
 
 const REPLY_FROM_OPTIONS = ["tradeorders@keysight.com", "compliance@keysight.com"];
 
@@ -787,7 +795,271 @@ function ThreadAndReply({ order }: { order: CommOrderThread }) {
   );
 }
 
-export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateBack, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateDefaultMapping, onNavigateFeedbackCenter, onNavigateReview, onNavigateEmailWorkflow, fromOrderId }: {
+// The actual latest message in an email's thread — same aggregation EmailThreadCard uses internally
+// (a root row's own `.replies` is always empty; the real correspondence lives one level down, on its
+// linked CCCs) — used here only to seed the reply composer's default To/Subject, since EmailThreadCard
+// itself owns rendering the read pane.
+function latestMessageOf(email: Email): Email {
+  const earlier = [...(email.replies ?? []), ...(email.linkedCccs ?? []).flatMap(c => c.replies ?? [])];
+  return earlier.length > 0 ? earlier[earlier.length - 1] : email;
+}
+
+// Cmd Center counterpart to ThreadAndReply — same reply composer, but the reading pane reuses
+// EmailThreadCard as-is (external-sender banner, attachments, "Earlier in this thread" history) so a
+// thread reads identically to how Command Center itself shows it, instead of a second hand-rolled version.
+function CmdCenterThreadAndReply({ email }: { email: Email }) {
+  const latestMessage = latestMessageOf(email);
+
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [from, setFrom] = useState(REPLY_FROM_OPTIONS[0]);
+  const [subject, setSubject] = useState("");
+  const [cc, setCc] = useState<string[]>([]);
+  const [bcc, setBcc] = useState<string[]>([]);
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
+  const [body, setBody] = useState("");
+  const [format, setFormat] = useState({ bold: false, italic: false, underline: false, align: "left" as "left" | "center" | "right" });
+  const [attachedFiles, setAttachedFiles] = useState<{ name: string; size: string }[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [templateQuery, setTemplateQuery] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const openReply = () => {
+    setFrom(REPLY_FROM_OPTIONS[0]);
+    setSubject(`Re: ${latestMessage.subject}`);
+    setCc([]);
+    setBcc([]);
+    setShowCc(false);
+    setShowBcc(false);
+    setBody("");
+    setFormat({ bold: false, italic: false, underline: false, align: "left" });
+    setAttachedFiles([]);
+    setSelectedTemplate(null);
+    setTemplateQuery("");
+    setReplyOpen(true);
+  };
+
+  const applyTemplate = (label: string) => {
+    setSelectedTemplate(label);
+    setBody(buildTemplateBody(label, senderDisplayName(latestMessage.sender), subject));
+    toast.success(`${label} applied`);
+  };
+
+  const handleAttachEmail = () => {
+    const name = `${latestMessage.subject.slice(0, 30)}.eml`;
+    setAttachedFiles((prev) => [...prev, { name, size: "24 KB" }]);
+    toast.success("Reference email attached");
+  };
+
+  const handleUploadAttachment = () => fileInputRef.current?.click();
+  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) {
+      setAttachedFiles((prev) => [...prev, ...files.map((f) => ({ name: f.name, size: formatFileSize(f.size) }))]);
+      toast.success(`${files.length} file${files.length > 1 ? "s" : ""} attached`);
+    }
+    e.target.value = "";
+  };
+  const removeAttachment = (i: number) => {
+    setAttachedFiles((prev) => {
+      const removed = prev[i];
+      if (removed) toast.info(`${removed.name} removed`);
+      return prev.filter((_, idx) => idx !== i);
+    });
+  };
+
+  const sendReply = () => {
+    if (!body.trim()) return;
+    toast.success("Reply sent");
+    setReplyOpen(false);
+  };
+
+  return (
+    <div className="flex-1 min-w-0 bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden flex flex-col min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col gap-4">
+        {replyOpen && (
+          <div className="bg-white rounded-[8px] border border-[#E2E6E9] flex flex-col md:flex-row min-w-0">
+          <div className="flex-1 min-w-0 flex flex-col">
+            <div className="flex items-center justify-between gap-3 flex-wrap px-6 py-4 border-b border-[#F1F2F4]">
+              <h2 className="text-[13px] font-bold uppercase tracking-wide text-[#262626]">Draft Reply</h2>
+              {selectedTemplate && (
+                <span className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-[8px] bg-[#EAF1FB] text-[11px] font-semibold text-[#30578D] whitespace-nowrap">
+                  Applied: {selectedTemplate}
+                  <button
+                    onClick={() => { setSelectedTemplate(null); setBody(""); toast.info("Template removed"); }}
+                    title="Remove applied template"
+                    className="text-[#30578D]/70 hover:text-[#30578D] cursor-pointer transition-colors"
+                  >
+                    <X size={13} />
+                  </button>
+                </span>
+              )}
+            </div>
+
+            <div className="divide-y divide-[#F1F2F4] border-b border-[#F1F2F4]">
+              <ComposerSelectRow label="From" value={from} options={REPLY_FROM_OPTIONS} onChange={setFrom} />
+              <RecipientRow
+                label="To"
+                value={latestMessage.sender}
+                onRemove={() => toast.info("Reply requires at least one recipient")}
+                trailing={
+                  <>
+                    {!showCc && (
+                      <button onClick={() => setShowCc(true)} className="text-[12px] font-semibold text-[#30578D] hover:underline cursor-pointer">
+                        Cc
+                      </button>
+                    )}
+                    {!showBcc && (
+                      <button onClick={() => setShowBcc(true)} className="text-[12px] font-semibold text-[#30578D] hover:underline cursor-pointer">
+                        Bcc
+                      </button>
+                    )}
+                  </>
+                }
+              />
+              <ComposerFieldRow label="Subject" value={subject} onChange={setSubject} />
+              {showCc && (
+                <RecipientPillField
+                  label="Cc"
+                  values={cc}
+                  onChange={setCc}
+                  placeholder="Enter Cc email addresses…"
+                  trailing={
+                    <button onClick={() => { setShowCc(false); setCc([]); }} className="text-[#97999B] hover:text-[#262626] cursor-pointer">
+                      <X size={14} />
+                    </button>
+                  }
+                />
+              )}
+              {showBcc && (
+                <RecipientPillField
+                  label="Bcc"
+                  values={bcc}
+                  onChange={setBcc}
+                  placeholder="Enter Bcc email addresses…"
+                  trailing={
+                    <button onClick={() => { setShowBcc(false); setBcc([]); }} className="text-[#97999B] hover:text-[#262626] cursor-pointer">
+                      <X size={14} />
+                    </button>
+                  }
+                />
+              )}
+            </div>
+
+            <div className="flex items-center gap-0.5 flex-wrap px-6 py-2 bg-[#F7F7F7] border-b border-[#F1F2F4]">
+              <ToolbarButton icon={Bold} label="Bold" active={format.bold} onClick={() => setFormat((f) => ({ ...f, bold: !f.bold }))} />
+              <ToolbarButton icon={Italic} label="Italic" active={format.italic} onClick={() => setFormat((f) => ({ ...f, italic: !f.italic }))} />
+              <ToolbarButton icon={Underline} label="Underline" active={format.underline} onClick={() => setFormat((f) => ({ ...f, underline: !f.underline }))} />
+              <span className="w-px h-5 bg-[#E2E6E9] mx-1" />
+              <ToolbarButton icon={AlignLeft} label="Align left" active={format.align === "left"} onClick={() => setFormat((f) => ({ ...f, align: "left" }))} />
+              <ToolbarButton icon={AlignCenter} label="Align center" active={format.align === "center"} onClick={() => setFormat((f) => ({ ...f, align: "center" }))} />
+              <ToolbarButton icon={AlignRight} label="Align right" active={format.align === "right"} onClick={() => setFormat((f) => ({ ...f, align: "right" }))} />
+              <span className="w-px h-5 bg-[#E2E6E9] mx-1" />
+              <ToolbarButton icon={List} label="Bulleted list" />
+              <ToolbarButton icon={ListOrdered} label="Numbered list" />
+              <span className="w-px h-5 bg-[#E2E6E9] mx-1" />
+              <ToolbarButton icon={LinkIcon} label="Insert link" />
+              <ToolbarButton icon={Quote} label="Quote" />
+              <span className="w-px h-5 bg-[#E2E6E9] mx-1" />
+              <ToolbarButton icon={Heading1} label="Heading 1" />
+              <ToolbarButton icon={Heading2} label="Heading 2" />
+              <span className="w-px h-5 bg-[#E2E6E9] mx-1" />
+              <ToolbarButton icon={Eraser} label="Clear formatting" onClick={() => setFormat({ bold: false, italic: false, underline: false, align: "left" })} />
+              <span className="w-px h-5 bg-[#E2E6E9] mx-1" />
+              <ToolbarButton icon={Mail} label="Attach Email" onClick={handleAttachEmail} />
+              <ToolbarButton icon={Paperclip} label="Upload Attachment" onClick={handleUploadAttachment} />
+            </div>
+            <input ref={fileInputRef} type="file" multiple onChange={handleFilesSelected} className="hidden" />
+
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Write your reply…"
+              className={`w-full min-h-[220px] px-6 py-4 text-[13px] text-[#4D4D4D] leading-[1.7] outline-none resize-y ${
+                format.align === "center" ? "text-center" : format.align === "right" ? "text-right" : "text-left"
+              } ${format.bold ? "font-bold" : ""} ${format.italic ? "italic" : ""} ${format.underline ? "underline" : ""}`}
+            />
+
+            <div className="px-6 py-4 border-t border-[#F1F2F4]">
+              {attachedFiles.length === 0 ? (
+                <p className="text-[12.5px] text-[#97999B]">No files attached yet.</p>
+              ) : (
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  {attachedFiles.map((doc, i) => {
+                    const meta = docMeta(doc.name);
+                    return (
+                      <div key={i} className="group flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-[8px] border border-[#E2E6E9] hover:border-[#D9D9D6] transition-colors">
+                        <div className="flex items-center gap-2">
+                          <div className="size-[26px] rounded-[6px] flex items-center justify-center shrink-0" style={{ backgroundColor: meta.bg }}>
+                            <meta.icon size={13} style={{ color: meta.fg }} />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-[12px] font-medium text-[#262626] leading-tight">{doc.name}</p>
+                            <p className="text-[10.5px] text-[#97999B] leading-tight">{doc.size}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => toast.info(`Downloading ${doc.name}`)} title="Download attachment" className="text-[#97999B] hover:text-[#262626] cursor-pointer transition-colors shrink-0 ml-1">
+                          <Download size={13} />
+                        </button>
+                        <button onClick={() => removeAttachment(i)} title="Remove attachment" className="text-[#97999B] hover:text-[#C83737] cursor-pointer transition-colors shrink-0">
+                          <X size={13} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[#F1F2F4]">
+              <button
+                onClick={() => setReplyOpen(false)}
+                className="flex items-center gap-1.5 px-4 h-[34px] rounded-[8px] border border-[#E2E6E9] text-[#666666] text-[12.5px] font-semibold cursor-pointer hover:bg-[#F7F7F7] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={sendReply}
+                disabled={!body.trim()}
+                className="flex items-center gap-1.5 px-4 h-[34px] rounded-[8px] text-white text-[12.5px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+              >
+                Send Reply
+              </button>
+            </div>
+          </div>
+
+          <div className="w-full md:w-[320px] shrink-0 border-t md:border-t-0 md:border-l border-[#E2E6E9] flex flex-col">
+            <EmailTemplatesPanel
+              query={templateQuery}
+              onQueryChange={setTemplateQuery}
+              selectedTemplate={selectedTemplate}
+              onApply={applyTemplate}
+            />
+          </div>
+          </div>
+        )}
+
+        <EmailThreadCard email={email} />
+      </div>
+
+      {!replyOpen && (
+        <div className="shrink-0 border-t border-[#E2E6E9] px-5 py-3 flex justify-end">
+          <button
+            onClick={openReply}
+            className="flex items-center gap-1.5 px-4 h-[34px] rounded-[8px] text-white text-[12.5px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+          >
+            <ReplyIcon size={14} />
+            Reply
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateBack, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateFeedbackCenter, onNavigateEmailWorkflow, fromOrderId, fromEmailId }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -800,13 +1072,15 @@ export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigate
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
-  onNavigateDefaultMapping?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
-  onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
   /** Set when Communication was opened from a specific Order Details page — the breadcrumb then shows the
-      full path back through Order Listing/that order instead of just "Hold Mgmt". */
+      full path back through Order Listing/that order instead of just "Hold Mgmt", and the view defaults to
+      Hold Mgmt. */
   fromOrderId?: string;
+  /** Set when Communication was opened from a Command Center listing row's Send Email action — the view
+      defaults to Cmd Center with that email pre-selected. */
+  fromEmailId?: string;
 }) {
   const [orderSearch, setOrderSearch] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(COMM_ORDERS[0]?.orderId ?? null);
@@ -823,12 +1097,38 @@ export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigate
     setSelectedOrderId(orderId);
   };
 
+  // Cmd Center side — same shape as the order list/selection above, just sourced from the email worklist.
+  const [emailSearch, setEmailSearch] = useState("");
+  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(fromEmailId ?? ALL_EMAILS_WITH_CCC[0]?.id ?? null);
+  const [emailsScrolled, setEmailsScrolled] = useState(false);
+
+  const filteredEmails = ALL_EMAILS_WITH_CCC.filter((e) => {
+    const q = emailSearch.trim().toLowerCase();
+    if (!q) return true;
+    return e.id.toLowerCase().includes(q) || e.subject.toLowerCase().includes(q) || e.sender.toLowerCase().includes(q);
+  });
+  const selectedEmail = ALL_EMAILS_WITH_CCC.find((e) => e.id === selectedEmailId) ?? null;
+
+  // Same dropdown pattern as Command Center Overview's FCNV/CSR toggle — local state, closes on outside
+  // click. Defaults to whichever side Communication was opened from; Hold Mgmt when opened bare from the nav.
+  const [viewMode, setViewMode] = useState<CommView>(fromEmailId ? "Cmd Center" : "Hold Mgmt");
+  const [viewOpen, setViewOpen] = useState(false);
+  const viewRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!viewOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (!viewRef.current?.contains(e.target as Node)) setViewOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [viewOpen]);
+
   return (
     <div className="bg-[#f5f6fa] flex size-full h-screen overflow-hidden" style={{ fontFamily: "Inter, sans-serif" }}>
       <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
         <div className="shrink-0 shadow-[0_2px_6px_rgba(15,23,42,0.06)] relative z-50">
           <AppHeader
-            activeNav="Hold Management"
+            activeNav="Communication"
             onViewAllNotifications={onViewAllNotifications}
             onLogout={onLogout}
             onNavigateHome={onNavigateHome}
@@ -840,36 +1140,68 @@ export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigate
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
-            onNavigateDefaultMapping={onNavigateDefaultMapping}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
-            onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
 
         <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 pt-3 pb-5 gap-4 overflow-hidden">
           {/* Page header */}
-          <div className="flex items-start gap-2.5">
+          <div className="flex items-start justify-between gap-2.5">
             <div>
               <Breadcrumbs
                 items={
-                  fromOrderId
-                    ? [
-                        { label: "Hold Mgmt", onClick: onNavigateOverview },
-                        { label: "Order Listing", onClick: onNavigateOrderListing },
-                        { label: `Order #${fromOrderId}`, onClick: onNavigateBack },
-                        { label: "Communication" },
-                      ]
-                    : [{ label: "Hold Mgmt", onClick: onNavigateOverview }, { label: "Communication" }]
+                  viewMode === "Hold Mgmt"
+                    ? fromOrderId
+                      ? [
+                          { label: "Hold Mgmt", onClick: onNavigateOverview },
+                          { label: "Order Listing", onClick: onNavigateOrderListing },
+                          { label: `Order #${fromOrderId}`, onClick: onNavigateBack },
+                          { label: "Communication" },
+                        ]
+                      : [{ label: "Hold Mgmt", onClick: onNavigateOverview }, { label: "Communication" }]
+                    : [{ label: "Command Center", onClick: onNavigateNewOverview }, { label: "Communication" }]
                 }
               />
               <h1 className="text-[18px] font-semibold text-[#262626] leading-tight">Communication</h1>
-              <p className="text-[12px] text-[#97999B] mt-0.5">Follow-ups and escalations, by order</p>
+              <p className="text-[12px] text-[#97999B] mt-0.5">
+                {viewMode === "Hold Mgmt" ? "Follow-ups and escalations, by order" : "Email threads, by request"}
+              </p>
+            </div>
+
+            {/* Cmd Center / Hold Mgmt view toggle — same dropdown pattern as Command Center Overview's
+                FCNV/CSR switch, since Communication now serves both sources from one page. */}
+            <div className="relative shrink-0" ref={viewRef}>
+              <button
+                onClick={() => setViewOpen((v) => !v)}
+                className={`flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-medium transition-colors cursor-pointer ${
+                  viewOpen ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7]"
+                }`}
+              >
+                {viewMode}
+                <ChevronDown size={13} className={`transition-transform duration-200 ${viewOpen ? "rotate-180" : ""}`} />
+              </button>
+              {viewOpen && (
+                <div className="absolute top-full right-0 mt-1 bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-40 py-1 w-[140px]">
+                  {COMM_VIEW_OPTIONS.map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => { setViewMode(opt); setViewOpen(false); }}
+                      className="w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                      style={opt === viewMode ? { color: EMAIL_TABLE_NAVY, fontWeight: 600 } : { color: "#4D4D4D" }}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Content: order list panel + follow-up/escalation thread panel */}
+          {/* Content: order/email list panel + thread panel — which source depends on the view toggle above. */}
           <div className="flex-1 min-h-0 flex gap-4">
+            {viewMode === "Hold Mgmt" ? (
+              <>
             {/* Left panel: order list */}
             <div className="w-[380px] shrink-0 bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden flex flex-col min-h-0">
               <div className="px-5 pt-4 pb-3 shrink-0">
@@ -954,6 +1286,85 @@ export function CommunicationPage({ onLogout, onViewAllNotifications, onNavigate
               <div className="flex-1 min-w-0 bg-white rounded-[8px] border border-[#E2E6E9] flex items-center justify-center">
                 <p className="text-[12px] text-[#97999B]">Select an order to view its communications</p>
               </div>
+            )}
+              </>
+            ) : (
+              <>
+            {/* Left panel: email list */}
+            <div className="w-[380px] shrink-0 bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden flex flex-col min-h-0">
+              <div className="px-5 pt-4 pb-3 shrink-0">
+                <h3 className="text-[14px] font-bold text-[#262626]">Emails</h3>
+                <p className="text-[12px] text-[#97999B] mt-0.5 mb-3">Select an email to view its thread.</p>
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#97999B] pointer-events-none" />
+                  <input
+                    value={emailSearch}
+                    onChange={(e) => setEmailSearch(e.target.value)}
+                    placeholder="Search emails"
+                    className="w-full pl-8 pr-8 py-2 rounded-[8px] border border-[#E2E6E9] bg-white text-[12.5px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors"
+                  />
+                  {emailSearch && (
+                    <button onClick={() => setEmailSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#97999B] hover:text-[#262626] cursor-pointer transition-colors">
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="relative flex-1 min-h-0">
+                {emailsScrolled && (
+                  <div className="absolute left-0 right-0 top-0 h-6 bg-gradient-to-b from-white to-transparent pointer-events-none z-10" />
+                )}
+                <div
+                  className="h-full overflow-y-auto"
+                  onScroll={(e) => setEmailsScrolled(e.currentTarget.scrollTop > 0)}
+                >
+                {filteredEmails.length === 0 ? (
+                  <p className="text-[12.5px] text-[#97999B] text-center py-8 px-4">No emails match "{emailSearch}"</p>
+                ) : (
+                  filteredEmails.map((emailRow, i) => {
+                    const active = emailRow.id === selectedEmailId;
+                    return (
+                      <button
+                        key={emailRow.id}
+                        onClick={() => setSelectedEmailId(emailRow.id)}
+                        className={`w-full flex items-center gap-2.5 px-5 py-3 min-h-[64px] text-left cursor-pointer transition-colors ${
+                          i !== 0 ? "border-t border-[#F1F2F4]" : ""
+                        } ${active ? "bg-[#EAF1FB]" : "hover:bg-[#F7F7F7]"}`}
+                      >
+                        <div className={`size-[26px] rounded-[6px] flex items-center justify-center shrink-0 ${active ? "bg-white" : "bg-[#F1F2F4]"}`}>
+                          <Mail size={13} className={active ? "text-[#30578D]" : "text-[#97999B]"} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-[13px] leading-tight truncate ${active ? "font-semibold text-[#262626]" : "text-[#4D4D4D]"}`}>
+                            {emailRow.subject}
+                          </p>
+                          <p className="text-[11px] text-[#97999B] truncate mt-0.5">{emailRow.sender}</p>
+                          {emailRow.category && (
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                              <span className="inline-flex items-center gap-1 text-[9.5px] font-bold uppercase tracking-wide rounded-[8px] px-1.5 py-[2px] text-[#30578D] bg-[#30578D]/10">
+                                {emailRow.category}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right side: single-email thread read in place, plus reply flow — CmdCenterThreadAndReply
+                mirrors ThreadAndReply's composer, just without the follow-up/escalation tabs. */}
+            {selectedEmail ? (
+              <CmdCenterThreadAndReply key={selectedEmail.id} email={selectedEmail} />
+            ) : (
+              <div className="flex-1 min-w-0 bg-white rounded-[8px] border border-[#E2E6E9] flex items-center justify-center">
+                <p className="text-[12px] text-[#97999B]">Select an email to view its thread</p>
+              </div>
+            )}
+              </>
             )}
           </div>
         </main>

@@ -22,8 +22,6 @@ export function AppHeader({
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
-  onNavigateDefaultMapping,
-  onNavigateReview,
   onNavigateEmailWorkflow,
   onNavigateFeedbackCenter,
 }: {
@@ -39,8 +37,6 @@ export function AppHeader({
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
-  onNavigateDefaultMapping?: () => void;
-  onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
 }) {
@@ -83,17 +79,10 @@ export function AppHeader({
       children: [
         { label: "Overview", onClick: onNavigateHoldManagementOverview },
         { label: "Order Listing", onClick: onNavigateOrderListing },
-        { label: "Communication", onClick: onNavigateCommunication },
       ],
     },
-    {
-      label: "Email",
-      match: (n) => n === "Email Template",
-      children: [
-        { label: "Email Templates", onClick: onNavigateEmailTemplate },
-        { label: "Default Mapping", onClick: onNavigateDefaultMapping },
-      ],
-    },
+    { label: "Communication", match: (n) => n === "Communication", onClick: onNavigateCommunication },
+    { label: "Email", match: (n) => n === "Email Template", onClick: onNavigateEmailTemplate },
     {
       label: "Feedback Center",
       match: (n) => n === "Feedback Center",
@@ -103,7 +92,6 @@ export function AppHeader({
         { label: "SOM", onClick: () => onNavigateFeedbackCenter?.("som") },
       ],
     },
-    { label: "Review", match: (n) => n === "Review", onClick: onNavigateReview },
     { label: "Old Pages", match: (n) => n === "Old Pages", children: oldPages },
   ];
 
