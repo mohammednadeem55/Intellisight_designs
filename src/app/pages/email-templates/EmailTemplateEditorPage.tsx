@@ -88,7 +88,7 @@ function SampleDataEditor({ value, onChange, error }: { value: string; onChange:
         value={value}
         onChange={(e) => onChange(e.target.value)}
         spellCheck={false}
-        className="w-full h-[240px] px-4 py-3 text-[12px] font-mono leading-[1.6] text-[#374151] outline-none resize-none bg-white"
+        className="w-full h-[320px] px-4 py-3 text-[12px] font-mono leading-[1.6] text-[#374151] outline-none resize-none bg-white"
       />
       {error && <p className="px-4 pb-2.5 text-[11px] text-[#B91C1C]">{error} — showing the last valid data until this is fixed.</p>}
     </div>
@@ -191,7 +191,7 @@ function SampleDataFieldsEditor({ data, onChange }: { data: Record<string, strin
           </div>
         </div>
       )}
-      <div ref={scrollRef} className="max-h-[260px] overflow-y-auto px-4">
+      <div ref={scrollRef} className="max-h-[320px] overflow-y-auto px-4">
         {visibleIndices.length === 0 ? (
           <p className="text-[12px] text-[#9ca3af] text-center py-4">No fields match "{query}"</p>
         ) : (
@@ -386,9 +386,7 @@ export function EmailTemplateEditorPage({
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
-  onNavigateDefaultMapping,
   onNavigateFeedbackCenter,
-  onNavigateReview,
   onNavigateEmailWorkflow,
 }: {
   onBack: () => void;
@@ -403,9 +401,7 @@ export function EmailTemplateEditorPage({
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
-  onNavigateDefaultMapping?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
-  onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
   // Editing an existing template arrives here with its row data via router state (from EmailTemplatePage's
@@ -422,6 +418,12 @@ export function EmailTemplateEditorPage({
   const [body, setBody] = useState("");
   const [htmlSource, setHtmlSource] = useState("");
   const [activeTab, setActiveTab] = useState<"rich" | "html" | "preview">("rich");
+  // The editor+merge-tags row is tall enough (viewport-based) that Sample Data below it starts off-screen
+  // on the Preview tab — scroll it into view automatically instead of leaving the user to find it.
+  const sampleDataRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (activeTab === "preview") sampleDataRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [activeTab]);
   const [format, setFormat] = useState({ bold: false, italic: false, underline: false, strikethrough: false, align: "left" as "left" | "center" | "right", fontFamily: FONT_OPTIONS[0].value });
 
   // Sample data — editable JSON, seeded from the template being edited (if it has its own saved sample
@@ -448,6 +450,11 @@ export function EmailTemplateEditorPage({
   // Row editor is the default (no JSON syntax required); JSON stays available for bulk-pasting data.
   // Switching to JSON re-serializes whatever's currently in `sampleData` so it always shows the latest state.
   const [sampleDataMode, setSampleDataMode] = useState<"fields" | "json">("fields");
+  // Collapsed by default — Sample Data is a config widget, not the main content of the Preview tab; left
+  // expanded, its field rows compete with the actual preview for vertical space in the same column and can
+  // squeeze the preview down to a sliver. Closed by default gives the preview the full column height, and
+  // it's one click away when the user actually wants to edit sample values.
+  const [sampleDataOpen, setSampleDataOpen] = useState(false);
   const handleSampleDataFieldsChange = (next: Record<string, string>) => {
     setSampleData(next);
     setSampleDataText(JSON.stringify(next, null, 2));
@@ -513,9 +520,11 @@ export function EmailTemplateEditorPage({
   };
 
   return (
-    <div className="bg-[#f5f6fa] flex flex-col size-full h-screen overflow-hidden" style={{ fontFamily: "Inter, sans-serif" }}>
-      <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
-        <div className="shrink-0 shadow-[0_2px_6px_rgba(15,23,42,0.06)] relative z-50">
+    <div className="bg-[#f5f6fa] flex flex-col w-full min-h-screen" style={{ fontFamily: "Inter, sans-serif" }}>
+      <div className="flex flex-col flex-1 min-w-0">
+        {/* sticky, not just relative — the page itself scrolls now (see `main` below), so the header needs
+            to stay pinned on its own instead of relying on an outer h-screen/overflow-hidden shell. */}
+        <div className="shrink-0 sticky top-0 shadow-[0_2px_6px_rgba(15,23,42,0.06)] z-50 bg-[#f5f6fa]">
           <AppHeader
             activeNav="Email Template"
             onViewAllNotifications={onViewAllNotifications}
@@ -529,14 +538,16 @@ export function EmailTemplateEditorPage({
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
-            onNavigateDefaultMapping={onNavigateDefaultMapping}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
-            onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
 
-        <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 pt-3 pb-5 gap-4 overflow-hidden">
+        {/* flex-1 (classic sticky-footer pattern, not min-h) — fills exactly the leftover space between
+            header and footer when content is short, so the footer sits flush at the bottom of the screen;
+            when Sample Data expands past that, this just grows along with it (no inner scroll region, no
+            overflow-hidden anywhere above), pushing the footer down the page instead of shrinking anything. */}
+        <main className="flex-1 flex flex-col w-full max-w-[1600px] mx-auto px-5 pt-3 pb-5 gap-4">
           <Breadcrumbs
             items={[
               { label: "Email", onClick: onNavigateEmailTemplate },
@@ -579,12 +590,16 @@ export function EmailTemplateEditorPage({
             <ToolbarSelectField value={fromEmail} placeholder="Default From Email" options={FROM_EMAILS} onChange={setFromEmail} className="flex-1 min-w-[180px]" />
           </div>
 
-          {/* Content: editor + merge tags, matching the listing page's white rounded-[8px] card convention */}
-          <div className="flex-1 min-h-0 flex gap-5 overflow-hidden">
-            {/* Main column */}
-            <div className="flex-1 min-w-0 flex flex-col gap-4 overflow-hidden">
-              {/* Editor card */}
-              <div className="flex-1 min-h-0 bg-white border border-[#E2E6E9] rounded-[8px] flex flex-col overflow-hidden">
+          {/* Content: editor + merge tags, matching the listing page's white rounded-[8px] card convention.
+              This row gets a genuinely fixed height (viewport-based, so it still adapts to screen size) —
+              not flex-1. flex-1 computed through several nested ancestors turned out to still let Merge
+              Tags' own ~20-tag unclipped list influence the final height (the row's flex-basis starts from
+              its children's content before growing), so its list never actually got small enough to need
+              its own scroller. An explicit height is a hard value nothing can feed back into. */}
+          <div className="flex flex-col gap-4">
+          <div className="h-[calc(100vh-260px)] flex gap-5">
+            {/* Editor card */}
+            <div className="flex-1 min-w-0 min-h-0 bg-white border border-[#E2E6E9] rounded-[8px] flex flex-col overflow-hidden">
                 <div className="shrink-0 flex items-center justify-between gap-2 px-2 border-b border-[#E2E6E9]">
                   <div className="flex items-center gap-1">
                     {(
@@ -654,7 +669,7 @@ export function EmailTemplateEditorPage({
                       onChange={(e) => setBody(e.target.value)}
                       placeholder="Start writing your email template..."
                       style={{ fontFamily: format.fontFamily }}
-                      className={`w-full h-full min-h-[400px] px-6 py-5 text-[13.5px] text-[#374151] leading-[1.7] outline-none resize-none ${
+                      className={`w-full h-full px-6 py-5 text-[13.5px] text-[#374151] leading-[1.7] outline-none resize-none ${
                         format.align === "center" ? "text-center" : format.align === "right" ? "text-right" : "text-left"
                       } ${format.bold ? "font-bold" : ""} ${format.italic ? "italic" : ""} ${format.underline ? "underline" : ""} ${format.strikethrough ? "line-through" : ""}`}
                     />
@@ -665,7 +680,7 @@ export function EmailTemplateEditorPage({
                       onChange={(e) => setHtmlSource(e.target.value)}
                       placeholder="<p>Write raw HTML for this template...</p>"
                       spellCheck={false}
-                      className="w-full h-full min-h-[400px] px-6 py-5 text-[12.5px] font-mono text-[#374151] leading-[1.6] outline-none resize-none"
+                      className="w-full h-full px-6 py-5 text-[12.5px] font-mono text-[#374151] leading-[1.6] outline-none resize-none"
                     />
                   )}
                   {activeTab === "preview" && (
@@ -689,41 +704,10 @@ export function EmailTemplateEditorPage({
                 </div>
               </div>
 
-              {/* Sample Data — the data the Preview tab substitutes into {{merge_tags}} above. Scoped to
-                  this left column only, not the Merge Tags sidebar. Fields is the default (no JSON syntax
-                  needed); JSON stays available for pasting bulk data in one go. */}
-              {activeTab === "preview" && (
-                <div className="shrink-0 bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden">
-                  <div className="flex items-start justify-between gap-2 px-4 py-3 border-b border-[#E2E6E9]">
-                    <div>
-                      <span className="text-[13px] font-bold text-[#111827]">Sample Data</span>
-                      <p className="text-[11px] text-[#9ca3af] mt-0.5">Values used to preview {"{{merge_tags}}"} in the body above.</p>
-                    </div>
-                    <div className="flex items-center gap-1 p-0.5 rounded-[6px] bg-[#F1F2F4] shrink-0">
-                      {(["fields", "json"] as const).map((mode) => (
-                        <button
-                          key={mode}
-                          onClick={() => setSampleDataMode(mode)}
-                          className={`px-2 py-1 rounded-[5px] text-[10.5px] font-semibold uppercase tracking-wide cursor-pointer transition-colors ${
-                            sampleDataMode === mode ? "bg-white text-[#262626] shadow-[0_1px_2px_rgba(15,23,42,0.08)]" : "text-[#97999B] hover:text-[#4D4D4D]"
-                          }`}
-                        >
-                          {mode === "fields" ? "Fields" : "JSON"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {sampleDataMode === "fields" ? (
-                    <SampleDataFieldsEditor data={sampleData} onChange={handleSampleDataFieldsChange} />
-                  ) : (
-                    <SampleDataEditor value={sampleDataText} onChange={handleSampleDataChange} error={sampleDataError} />
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* Merge tags — same card/search/list chrome as SoaBody's "Email Templates" panel
-                (SoaBody.tsx:474-477), 380px to match that panel's column width */}
+                (SoaBody.tsx:474-477), 380px to match that panel's column width. No height of its own —
+                default flex stretch matches it to the Editor card's height exactly; the tag list inside
+                (MergeTagSearch) scrolls internally via its own overflow-y-auto once it outgrows that. */}
             <div className="w-[380px] shrink-0 bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4 flex flex-col overflow-hidden">
               <div className="flex items-center justify-between gap-2 shrink-0">
                 <h3 className="text-[14px] font-bold text-[#111827]">Merge Tags</h3>
@@ -733,10 +717,59 @@ export function EmailTemplateEditorPage({
               <MergeTagSearch tags={Object.keys(sampleData)} onInsert={insertMergeTag} />
             </div>
           </div>
+
+          {/* Sample Data — the data the Preview tab substitutes into {{merge_tags}} above. Lives inside
+              `main` (which scrolls), below the editor+merge-tags row — not a sibling pinned above the
+              footer — so opening it extends the scrollable area downward (pushing the footer down) instead
+              of shrinking the editor above it. Fields is the default (no JSON syntax needed); JSON stays
+              available for pasting bulk data in one go. */}
+          {activeTab === "preview" && (
+            <div ref={sampleDataRef} className="shrink-0 scroll-mb-[80px] bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden">
+              <button
+                onClick={() => setSampleDataOpen((v) => !v)}
+                className={`w-full flex items-start justify-between gap-2 px-4 py-3 cursor-pointer text-left ${sampleDataOpen ? "border-b border-[#E2E6E9]" : ""}`}
+              >
+                <div className="flex items-center gap-2">
+                  <ChevronDown size={14} className={`text-[#9ca3af] shrink-0 transition-transform duration-200 ${sampleDataOpen ? "" : "-rotate-90"}`} />
+                  <div>
+                    <span className="text-[13px] font-bold text-[#111827]">Sample Data</span>
+                    <p className="text-[11px] text-[#9ca3af] mt-0.5">Values used to preview {"{{merge_tags}}"} in the body above.</p>
+                  </div>
+                </div>
+                {sampleDataOpen && (
+                  <div
+                    className="flex items-center gap-1 p-0.5 rounded-[6px] bg-[#F1F2F4] shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {(["fields", "json"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => setSampleDataMode(mode)}
+                        className={`px-2 py-1 rounded-[5px] text-[10.5px] font-semibold uppercase tracking-wide cursor-pointer transition-colors ${
+                          sampleDataMode === mode ? "bg-white text-[#262626] shadow-[0_1px_2px_rgba(15,23,42,0.08)]" : "text-[#97999B] hover:text-[#4D4D4D]"
+                        }`}
+                      >
+                        {mode === "fields" ? "Fields" : "JSON"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </button>
+              {sampleDataOpen && (
+                sampleDataMode === "fields" ? (
+                  <SampleDataFieldsEditor data={sampleData} onChange={handleSampleDataFieldsChange} />
+                ) : (
+                  <SampleDataEditor value={sampleDataText} onChange={handleSampleDataChange} error={sampleDataError} />
+                )
+              )}
+            </div>
+          )}
+          </div>
         </main>
 
-        {/* Footer actions — full-bleed bar flush with the bottom edge, mirroring WorkflowPage's footer */}
-        <div className="shrink-0 bg-white border-t border-[#ebebeb]">
+        {/* Footer actions — sticky to the bottom of the viewport (mirroring the sticky header), so it stays
+            in view while the page scrolls instead of ending up wherever the content happens to end. */}
+        <div className="shrink-0 sticky bottom-0 z-40 bg-white border-t border-[#ebebeb]">
           <div className="max-w-[1600px] mx-auto px-5 py-3.5 flex items-center justify-between gap-3">
             <Button variant="secondary" icon={ArrowLeft} onClick={onBack}>Back</Button>
             <Button variant="primary" onClick={handleSave}>Save</Button>

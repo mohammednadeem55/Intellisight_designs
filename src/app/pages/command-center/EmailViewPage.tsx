@@ -1,7 +1,7 @@
 import { AppHeader } from "../../components/common/AppHeader";
 import { EmailViewBody } from "./emailViewShared";
 
-export function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateDefaultMapping, onNavigateFeedbackCenter, onNavigateReview, onNavigateEmailWorkflow }: {
+export function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateWorkflow, onNavigateNewOverview, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateFeedbackCenter, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
@@ -14,9 +14,7 @@ export function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
-  onNavigateDefaultMapping?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
-  onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
   return (
@@ -34,9 +32,7 @@ export function EmailViewPage({ onLogout, onViewAllNotifications, onNavigateHome
         onNavigateReleasedOrders={onNavigateReleasedOrders}
         onNavigateCommunication={onNavigateCommunication}
         onNavigateEmailTemplate={onNavigateEmailTemplate}
-        onNavigateDefaultMapping={onNavigateDefaultMapping}
         onNavigateFeedbackCenter={onNavigateFeedbackCenter}
-        onNavigateReview={onNavigateReview}
         onNavigateEmailWorkflow={onNavigateEmailWorkflow}
       />
       <EmailViewBody onOpenWorkflow={onNavigateWorkflow} />

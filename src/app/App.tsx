@@ -6,10 +6,9 @@ import { CommandCenterOverviewPage } from "./pages/command-center/CommandCenterO
 import { EmailViewPage } from "./pages/command-center/EmailViewPage";
 import { HomePage } from "./pages/home/HomePage";
 import { NotificationsPage } from "./pages/home/NotificationsPage";
-import { PlaceholderPage } from "./pages/placeholder/PlaceholderPage";
 import { EmailTemplatePage } from "./pages/email-templates/EmailTemplatePage";
 import { EmailTemplateEditorPage } from "./pages/email-templates/EmailTemplateEditorPage";
-import { DefaultMappingPage } from "./pages/email-templates/DefaultMappingPage";
+import { ExceptionEditorPage } from "./pages/email-templates/ExceptionEditorPage";
 import { WorkflowPage } from "./pages/command-center/WorkflowPage";
 import { HoldManagementOverview } from "./pages/hold-management/HoldManagementOverview";
 import { OrderListingPage } from "./pages/hold-management/OrderListingPage";
@@ -35,11 +34,9 @@ type NavCallbacks = {
   onNavigateHoldManagementOverview: () => void;
   onNavigateOrderListing: () => void;
   onNavigateReleasedOrders: () => void;
-  onNavigateCommunication: (fromOrderId?: string) => void;
+  onNavigateCommunication: (source?: { orderId?: string; emailId?: string }) => void;
   onNavigateEmailTemplate: () => void;
-  onNavigateDefaultMapping: () => void;
   onNavigateFeedbackCenter: (docType: DocType) => void;
-  onNavigateReview: () => void;
   onNavigateEmailWorkflow: () => void;
 };
 
@@ -92,13 +89,27 @@ function OrderListingRoute({ nav, onNavigateOverview }: { nav: NavCallbacks; onN
 }
 
 // Communication's back arrow returns to wherever it was opened from — Order Details when reached via its
-// "Open Communication" button/link (carries ?orderId=), the Hold Management Overview otherwise.
+// "Open Communication" button/link (carries ?orderId=), the Command Center workflow when reached via a
+// listing row's Send Email action (carries ?emailId=), the Hold Management Overview otherwise.
 function CommunicationRoute({ nav, onNavigateOverview }: { nav: NavCallbacks; onNavigateOverview: () => void }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fromOrderId = searchParams.get("orderId") ?? undefined;
-  const onNavigateBack = fromOrderId ? () => navigate(`/hold-management/orders/${fromOrderId}`) : onNavigateOverview;
-  return <CommunicationPage onNavigateOverview={onNavigateOverview} onNavigateBack={onNavigateBack} fromOrderId={fromOrderId} {...nav} />;
+  const fromEmailId = searchParams.get("emailId") ?? undefined;
+  const onNavigateBack = fromOrderId
+    ? () => navigate(`/hold-management/orders/${fromOrderId}`)
+    : fromEmailId
+      ? () => navigate(`/command-center/email/${fromEmailId}`)
+      : onNavigateOverview;
+  return (
+    <CommunicationPage
+      onNavigateOverview={onNavigateOverview}
+      onNavigateBack={onNavigateBack}
+      fromOrderId={fromOrderId}
+      fromEmailId={fromEmailId}
+      {...nav}
+    />
+  );
 }
 
 function AppRoutes() {
@@ -114,12 +125,15 @@ function AppRoutes() {
     onNavigateHoldManagementOverview: () => navigate("/hold-management"),
     onNavigateOrderListing: () => navigate("/hold-management/orders"),
     onNavigateReleasedOrders: () => navigate("/hold-management/orders/released"),
-    onNavigateCommunication: (fromOrderId) =>
-      navigate(fromOrderId ? `/hold-management/communication?orderId=${fromOrderId}` : "/hold-management/communication"),
+    onNavigateCommunication: (source) => {
+      const params = new URLSearchParams();
+      if (source?.orderId) params.set("orderId", source.orderId);
+      if (source?.emailId) params.set("emailId", source.emailId);
+      const query = params.toString();
+      navigate(query ? `/communication?${query}` : "/communication");
+    },
     onNavigateEmailTemplate: () => navigate("/email-template"),
-    onNavigateDefaultMapping: () => navigate("/email-template/default-mapping"),
     onNavigateFeedbackCenter: (docType) => navigate(`/feedback-center/${docType}`),
-    onNavigateReview: () => navigate("/review"),
     onNavigateEmailWorkflow: () => navigate(`/command-center/email/${ALL_EMAILS_WITH_CCC[0].id}`),
   };
   const onNavigateWorkflow = (emailId: string, scope?: "mine" | "all") =>
@@ -167,7 +181,7 @@ function AppRoutes() {
         }
       />
       <Route path="/hold-management/orders/:orderId" element={<OrderDetailsRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />
-      <Route path="/hold-management/communication" element={<CommunicationRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />
+      <Route path="/communication" element={<CommunicationRoute nav={nav} onNavigateOverview={onNavigateOverview} />} />
 
       <Route
         path="/email-template"
@@ -176,25 +190,19 @@ function AppRoutes() {
             {...nav}
             onNavigateCreateEmailTemplate={() => navigate("/email-template/new")}
             onNavigateEditEmailTemplate={(template) => navigate("/email-template/new", { state: template })}
+            onNavigateCreateException={() => navigate("/email-template/exceptions/new")}
+            onNavigateEditException={(exception) => navigate("/email-template/exceptions/new", { state: exception })}
           />
         }
       />
       <Route path="/email-template/new" element={<EmailTemplateEditorPage {...nav} onBack={() => navigate("/email-template")} />} />
-      <Route path="/email-template/default-mapping" element={<DefaultMappingPage {...nav} />} />
+      <Route
+        path="/email-template/exceptions/new"
+        element={<ExceptionEditorPage {...nav} onBack={() => navigate("/email-template?tab=exceptions")} />}
+      />
       <Route path="/feedback-center/trade-order" element={<FeedbackCenterPage docType="trade-order" {...nav} />} />
       <Route path="/feedback-center/service-agreement" element={<FeedbackCenterPage docType="service-agreement" {...nav} />} />
       <Route path="/feedback-center/som" element={<FeedbackCenterPage docType="som" {...nav} />} />
-      <Route
-        path="/review"
-        element={
-          <PlaceholderPage
-            title="Review"
-            description="Review flagged items and approve or reject pending actions in one place."
-            activeNav="Review"
-            {...nav}
-          />
-        }
-      />
 
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

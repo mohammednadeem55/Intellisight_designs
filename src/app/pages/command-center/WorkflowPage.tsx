@@ -5,7 +5,7 @@ import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import { Button, IconButton } from "../../components/common/Button";
 import { PageLoaderOverlay, WaveLoader } from "../../components/common/Loader";
-import { EMAIL_TABLE_NAVY, EmailTableAssignModal, EmailTableSendEmailModal, EmailTableCommentModal, EmailTableSendEmailButton, EmailTableFeedbackButton, EmailTableStatusValuePill, EmailTableTatPill, CCC_STATUS_CSR_EXPECTATION } from "../../components/common/EmailTable";
+import { EMAIL_TABLE_NAVY, EmailTableAssignModal, EmailTableCommentModal, EmailTableSendEmailButton, EmailTableFeedbackButton, EmailTableStatusValuePill, EmailTableTatPill, CCC_STATUS_CSR_EXPECTATION } from "../../components/common/EmailTable";
 import { AuditTrailModal, useAuditLog } from "../../components/common/AuditTrail";
 import { AiOrderValidationBody } from "./AiOrderValidationBody";
 import { CccCreationBody, type CccExtractionStatus } from "./CccCreationBody";
@@ -112,9 +112,7 @@ export function WorkflowPage({
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
-  onNavigateDefaultMapping,
   onNavigateFeedbackCenter,
-  onNavigateReview,
   onNavigateEmailWorkflow,
 }: {
   emailId: string;
@@ -130,11 +128,9 @@ export function WorkflowPage({
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
-  onNavigateCommunication?: () => void;
+  onNavigateCommunication?: (source?: { emailId?: string }) => void;
   onNavigateEmailTemplate?: () => void;
-  onNavigateDefaultMapping?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
-  onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
   // `email` falls back to a safe empty placeholder while the fetch is in flight, purely so the state below
@@ -145,7 +141,6 @@ export function WorkflowPage({
   const senderName = senderDisplayName(email.sender);
   const assignedTo = email.assignedTo ?? "Unassigned";
   const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [reaction, setReaction] = useState<"like" | "dislike" | undefined>(undefined);
   const toggleReaction = (r: "like" | "dislike") => setReaction(prev => (prev === r ? undefined : r));
@@ -309,9 +304,7 @@ export function WorkflowPage({
               onNavigateReleasedOrders={onNavigateReleasedOrders}
               onNavigateCommunication={onNavigateCommunication}
               onNavigateEmailTemplate={onNavigateEmailTemplate}
-              onNavigateDefaultMapping={onNavigateDefaultMapping}
               onNavigateFeedbackCenter={onNavigateFeedbackCenter}
-              onNavigateReview={onNavigateReview}
               onNavigateEmailWorkflow={onNavigateEmailWorkflow}
             />
           </div>
@@ -352,9 +345,7 @@ export function WorkflowPage({
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
-            onNavigateDefaultMapping={onNavigateDefaultMapping}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
-            onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
@@ -434,7 +425,7 @@ export function WorkflowPage({
                 )}
               </button>
               <EmailTableSendEmailButton
-                onSendEmail={() => setSendEmailModalOpen(true)}
+                onSendEmail={() => onNavigateCommunication?.({ emailId: email.id })}
                 size={38}
                 colorClassName="bg-white border-[#e5e7eb] text-[#6b7280] hover:bg-[#f8fafc] hover:text-[#111827]"
               />
@@ -460,10 +451,6 @@ export function WorkflowPage({
             entries={auditLog.getEntries(currentStageKey)}
             onClose={() => setAuditModalOpen(false)}
           />
-        )}
-
-        {sendEmailModalOpen && (
-          <EmailTableSendEmailModal email={email} onClose={() => setSendEmailModalOpen(false)} />
         )}
 
         {commentModalOpen && (

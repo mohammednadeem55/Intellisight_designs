@@ -938,7 +938,7 @@ function ApplyHoldModal({ rows, orderId, onClose, onConfirm }: {
   );
 }
 
-export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateDefaultMapping, onNavigateFeedbackCenter, onNavigateReview, onNavigateEmailWorkflow }: {
+export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateFeedbackCenter, onNavigateEmailWorkflow }: {
   orderId: string;
   /** "credit" when this order was reached via the Overview page's Credit view — shows the credit-only Line
       Listing table (with per-line Apply Hold) alongside the usual Hold Listings. */
@@ -955,11 +955,9 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
   onNavigateOverview: () => void;
   onNavigateOrderListing: () => void;
   onNavigateReleasedOrders?: () => void;
-  onNavigateCommunication?: (fromOrderId?: string) => void;
+  onNavigateCommunication?: (source?: { orderId?: string }) => void;
   onNavigateEmailTemplate?: () => void;
-  onNavigateDefaultMapping?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
-  onNavigateReview?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
   const order = ALL_ORDERS.find((o) => o.id === orderId) ?? ALL_ORDERS[0];
@@ -1768,9 +1766,7 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
-            onNavigateDefaultMapping={onNavigateDefaultMapping}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
-            onNavigateReview={onNavigateReview}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
         </div>
@@ -1839,7 +1835,7 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
                   />
                 </div>
                 <button
-                  onClick={() => onNavigateCommunication?.(orderId)}
+                  onClick={() => onNavigateCommunication?.({ orderId })}
                   title="Open Communication"
                   className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer"
                 >
@@ -2175,7 +2171,7 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
         <FollowUpEscalateModal
           row={followUpRow}
           onClose={() => setFollowUpRow(null)}
-          onNavigateCommunication={() => onNavigateCommunication?.(orderId)}
+          onNavigateCommunication={() => onNavigateCommunication?.({ orderId })}
           onSent={(entry) => { setFollowUpLog((prev) => [entry, ...prev]); setActiveTab("followup"); }}
         />
       )}
