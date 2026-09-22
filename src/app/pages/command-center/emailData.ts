@@ -130,6 +130,16 @@ export const LANGUAGE_DETECTED_OPTIONS = [
   "Spanish (es) and English (en)", "th",
 ];
 export const SOURCE_OPTIONS = ["INTERNAL", "EXTERNAL"];
+// Moved here from NewOverviewPage (its own filter panel's Mailboxes multi-select) so it can also be used as
+// a Cmd Center Adv. Filter condition field, instead of the same list living in two places and drifting.
+export const MAILBOXES = [
+  "usa_orders@keysight.com",
+  "contactcenter_uk@keysight.com",
+  "contact_japan@keysight.com",
+  "service_japan@keysight.com",
+  "system.support@keysight.com",
+  "lar_orders@keysight.com",
+];
 const ASSIGNEES: { name: string; initials: string }[] = [
   { name: "Jagdish K.", initials: "JK" },
   { name: "Gaurish", initials: "G" },

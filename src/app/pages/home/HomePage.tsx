@@ -129,27 +129,25 @@ function HomeCard({
 export function HomePage({
   onLogout,
   onViewAllNotifications,
-  onNavigateCommandCenterOverview,
-  onNavigateCommandCenterEmailView,
   onNavigateNewOverview,
   onNavigateHoldManagementOverview,
   onNavigateOrderListing,
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
+  onNavigateCmdCenterAdvFilter,
   onNavigateFeedbackCenter,
   onNavigateEmailWorkflow,
 }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
-  onNavigateCommandCenterOverview?: () => void;
-  onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateCmdCenterAdvFilter?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -160,14 +158,13 @@ export function HomePage({
           activeNav="Home"
           onViewAllNotifications={onViewAllNotifications}
           onLogout={onLogout}
-          onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-          onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
           onNavigateNewOverview={onNavigateNewOverview}
           onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
           onNavigateOrderListing={onNavigateOrderListing}
           onNavigateReleasedOrders={onNavigateReleasedOrders}
           onNavigateCommunication={onNavigateCommunication}
           onNavigateEmailTemplate={onNavigateEmailTemplate}
+          onNavigateCmdCenterAdvFilter={onNavigateCmdCenterAdvFilter}
           onNavigateFeedbackCenter={onNavigateFeedbackCenter}
           onNavigateEmailWorkflow={onNavigateEmailWorkflow}
         />

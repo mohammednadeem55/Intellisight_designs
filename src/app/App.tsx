@@ -2,13 +2,13 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams, useSear
 import { Toaster } from "sonner";
 import { LoginScreen } from "./pages/auth/LoginScreen";
 import { NewOverviewPage } from "./pages/command-center/NewOverviewPage";
-import { CommandCenterOverviewPage } from "./pages/command-center/CommandCenterOverviewPage";
-import { EmailViewPage } from "./pages/command-center/EmailViewPage";
 import { HomePage } from "./pages/home/HomePage";
 import { NotificationsPage } from "./pages/home/NotificationsPage";
 import { EmailTemplatePage } from "./pages/email-templates/EmailTemplatePage";
 import { EmailTemplateEditorPage } from "./pages/email-templates/EmailTemplateEditorPage";
 import { ExceptionEditorPage } from "./pages/email-templates/ExceptionEditorPage";
+import { CmdCenterAdvFilterPage } from "./pages/command-center/CmdCenterAdvFilterPage";
+import { CmdCenterAdvFilterEditorPage } from "./pages/command-center/CmdCenterAdvFilterEditorPage";
 import { WorkflowPage } from "./pages/command-center/WorkflowPage";
 import { HoldManagementOverview } from "./pages/hold-management/HoldManagementOverview";
 import { OrderListingPage } from "./pages/hold-management/OrderListingPage";
@@ -28,14 +28,13 @@ type NavCallbacks = {
   onViewAllNotifications: () => void;
   onLogout: () => void;
   onNavigateHome: () => void;
-  onNavigateCommandCenterOverview: () => void;
-  onNavigateCommandCenterEmailView: () => void;
   onNavigateNewOverview: () => void;
   onNavigateHoldManagementOverview: () => void;
   onNavigateOrderListing: () => void;
   onNavigateReleasedOrders: () => void;
   onNavigateCommunication: (source?: { orderId?: string; emailId?: string }) => void;
   onNavigateEmailTemplate: () => void;
+  onNavigateCmdCenterAdvFilter: () => void;
   onNavigateFeedbackCenter: (docType: DocType) => void;
   onNavigateEmailWorkflow: () => void;
 };
@@ -119,8 +118,6 @@ function AppRoutes() {
     onViewAllNotifications: () => navigate("/notifications"),
     onLogout: () => navigate("/login"),
     onNavigateHome: () => navigate("/home"),
-    onNavigateCommandCenterOverview: () => navigate("/command-center/overview-v1"),
-    onNavigateCommandCenterEmailView: () => navigate("/command-center/email-view"),
     onNavigateNewOverview: () => navigate("/command-center/overview"),
     onNavigateHoldManagementOverview: () => navigate("/hold-management"),
     onNavigateOrderListing: () => navigate("/hold-management/orders"),
@@ -133,6 +130,7 @@ function AppRoutes() {
       navigate(query ? `/communication?${query}` : "/communication");
     },
     onNavigateEmailTemplate: () => navigate("/email-template"),
+    onNavigateCmdCenterAdvFilter: () => navigate("/admin/cmd-center-filters"),
     onNavigateFeedbackCenter: (docType) => navigate(`/feedback-center/${docType}`),
     onNavigateEmailWorkflow: () => navigate(`/command-center/email/${ALL_EMAILS_WITH_CCC[0].id}`),
   };
@@ -149,8 +147,6 @@ function AppRoutes() {
       <Route path="/notifications" element={<NotificationsPage onBack={() => navigate("/home")} {...nav} />} />
 
       <Route path="/command-center/overview" element={<NewOverviewPage {...nav} onNavigateWorkflow={onNavigateWorkflow} />} />
-      <Route path="/command-center/overview-v1" element={<CommandCenterOverviewPage {...nav} onNavigateWorkflow={onNavigateWorkflow} />} />
-      <Route path="/command-center/email-view" element={<EmailViewPage {...nav} onNavigateWorkflow={onNavigateWorkflow} />} />
       <Route path="/command-center/email/:emailId" element={<WorkflowRoute nav={nav} />} />
 
       <Route
@@ -200,6 +196,22 @@ function AppRoutes() {
         path="/email-template/exceptions/new"
         element={<ExceptionEditorPage {...nav} onBack={() => navigate("/email-template?tab=exceptions")} />}
       />
+
+      <Route
+        path="/admin/cmd-center-filters"
+        element={
+          <CmdCenterAdvFilterPage
+            {...nav}
+            onNavigateCreateCmdCenterFilter={() => navigate("/admin/cmd-center-filters/new")}
+            onNavigateEditCmdCenterFilter={(filter) => navigate("/admin/cmd-center-filters/new", { state: filter })}
+          />
+        }
+      />
+      <Route
+        path="/admin/cmd-center-filters/new"
+        element={<CmdCenterAdvFilterEditorPage {...nav} onBack={() => navigate("/admin/cmd-center-filters")} />}
+      />
+
       <Route path="/feedback-center/trade-order" element={<FeedbackCenterPage docType="trade-order" {...nav} />} />
       <Route path="/feedback-center/service-agreement" element={<FeedbackCenterPage docType="service-agreement" {...nav} />} />
       <Route path="/feedback-center/som" element={<FeedbackCenterPage docType="som" {...nav} />} />

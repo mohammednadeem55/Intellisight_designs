@@ -24,14 +24,13 @@ export function ExceptionEditorPage({
   onViewAllNotifications,
   onLogout,
   onNavigateHome,
-  onNavigateCommandCenterOverview,
-  onNavigateCommandCenterEmailView,
   onNavigateNewOverview,
   onNavigateHoldManagementOverview,
   onNavigateOrderListing,
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
+  onNavigateCmdCenterAdvFilter,
   onNavigateFeedbackCenter,
   onNavigateEmailWorkflow,
 }: {
@@ -39,14 +38,13 @@ export function ExceptionEditorPage({
   onViewAllNotifications: () => void;
   onLogout?: () => void;
   onNavigateHome?: () => void;
-  onNavigateCommandCenterOverview?: () => void;
-  onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateCmdCenterAdvFilter?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -102,14 +100,13 @@ export function ExceptionEditorPage({
             onViewAllNotifications={onViewAllNotifications}
             onLogout={onLogout}
             onNavigateHome={onNavigateHome}
-            onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-            onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
             onNavigateNewOverview={onNavigateNewOverview}
             onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateCmdCenterAdvFilter={onNavigateCmdCenterAdvFilter}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
@@ -118,6 +115,7 @@ export function ExceptionEditorPage({
         <main className="flex-1 flex flex-col w-full max-w-[1600px] mx-auto px-5 pt-3 pb-5 gap-4">
           <Breadcrumbs
             items={[
+              { label: "Admin" },
               { label: "Email", onClick: onNavigateEmailTemplate },
               { label: "Exceptions", onClick: onBack },
               { label: editing ? displayName : "New Exception" },

@@ -124,14 +124,13 @@ export function FeedbackCenterPage({
   onViewAllNotifications,
   onLogout,
   onNavigateHome,
-  onNavigateCommandCenterOverview,
-  onNavigateCommandCenterEmailView,
   onNavigateNewOverview,
   onNavigateHoldManagementOverview,
   onNavigateOrderListing,
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
+  onNavigateCmdCenterAdvFilter,
   onNavigateEmailWorkflow,
 }: {
   docType: DocType;
@@ -139,14 +138,13 @@ export function FeedbackCenterPage({
   onViewAllNotifications: () => void;
   onLogout?: () => void;
   onNavigateHome?: () => void;
-  onNavigateCommandCenterOverview?: () => void;
-  onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateCmdCenterAdvFilter?: () => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
   const docLabel = DOC_TYPE_LABELS[docType];
@@ -263,14 +261,13 @@ export function FeedbackCenterPage({
             onViewAllNotifications={onViewAllNotifications}
             onLogout={onLogout}
             onNavigateHome={onNavigateHome}
-            onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-            onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
             onNavigateNewOverview={onNavigateNewOverview}
             onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateCmdCenterAdvFilter={onNavigateCmdCenterAdvFilter}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
           />

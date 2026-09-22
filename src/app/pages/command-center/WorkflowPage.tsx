@@ -104,14 +104,13 @@ export function WorkflowPage({
   onLogout,
   onViewAllNotifications,
   onNavigateHome,
-  onNavigateCommandCenterOverview,
-  onNavigateCommandCenterEmailView,
   onNavigateNewOverview,
   onNavigateHoldManagementOverview,
   onNavigateOrderListing,
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
+  onNavigateCmdCenterAdvFilter,
   onNavigateFeedbackCenter,
   onNavigateEmailWorkflow,
 }: {
@@ -122,14 +121,13 @@ export function WorkflowPage({
   onLogout?: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
-  onNavigateCommandCenterOverview?: () => void;
-  onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: (source?: { emailId?: string }) => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateCmdCenterAdvFilter?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -296,14 +294,13 @@ export function WorkflowPage({
               onViewAllNotifications={onViewAllNotifications}
               onLogout={onLogout}
               onNavigateHome={onNavigateHome}
-              onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-              onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
               onNavigateNewOverview={onNavigateNewOverview}
               onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
               onNavigateOrderListing={onNavigateOrderListing}
               onNavigateReleasedOrders={onNavigateReleasedOrders}
               onNavigateCommunication={onNavigateCommunication}
               onNavigateEmailTemplate={onNavigateEmailTemplate}
+              onNavigateCmdCenterAdvFilter={onNavigateCmdCenterAdvFilter}
               onNavigateFeedbackCenter={onNavigateFeedbackCenter}
               onNavigateEmailWorkflow={onNavigateEmailWorkflow}
             />
@@ -337,14 +334,13 @@ export function WorkflowPage({
             onViewAllNotifications={onViewAllNotifications}
             onLogout={onLogout}
             onNavigateHome={onNavigateHome}
-            onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-            onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
             onNavigateNewOverview={onNavigateNewOverview}
             onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateCmdCenterAdvFilter={onNavigateCmdCenterAdvFilter}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />

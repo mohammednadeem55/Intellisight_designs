@@ -456,14 +456,13 @@ export function EmailTemplatePage({
   onViewAllNotifications,
   onLogout,
   onNavigateHome,
-  onNavigateCommandCenterOverview,
-  onNavigateCommandCenterEmailView,
   onNavigateNewOverview,
   onNavigateHoldManagementOverview,
   onNavigateOrderListing,
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
+  onNavigateCmdCenterAdvFilter,
   onNavigateFeedbackCenter,
   onNavigateEmailWorkflow,
   onNavigateCreateEmailTemplate,
@@ -474,14 +473,13 @@ export function EmailTemplatePage({
   onViewAllNotifications: () => void;
   onLogout?: () => void;
   onNavigateHome?: () => void;
-  onNavigateCommandCenterOverview?: () => void;
-  onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateCmdCenterAdvFilter?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateEmailWorkflow?: () => void;
   onNavigateCreateEmailTemplate?: () => void;
@@ -776,14 +774,13 @@ export function EmailTemplatePage({
             onViewAllNotifications={onViewAllNotifications}
             onLogout={onLogout}
             onNavigateHome={onNavigateHome}
-            onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-            onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
             onNavigateNewOverview={onNavigateNewOverview}
             onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateCmdCenterAdvFilter={onNavigateCmdCenterAdvFilter}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
@@ -792,7 +789,7 @@ export function EmailTemplatePage({
         <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1600px] mx-auto px-5 pt-3 pb-5 gap-4 overflow-hidden">
           {/* Page header */}
           <div>
-            <Breadcrumbs items={[{ label: "Email" }, { label: TAB_LABELS[activeTab] }]} />
+            <Breadcrumbs items={[{ label: "Admin" }, { label: "Email" }, { label: TAB_LABELS[activeTab] }]} />
             <h1 className="text-[18px] font-semibold text-[#262626] leading-tight">
               {activeTab === "templates" ? "Email Templates" : activeTab === "mapping" ? "Template Default Mappings" : "Template Exceptions"}
             </h1>
