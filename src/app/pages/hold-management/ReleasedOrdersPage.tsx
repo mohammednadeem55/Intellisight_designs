@@ -33,12 +33,10 @@ const HOLD_CATEGORIES = Array.from(new Set(ALL_RELEASED.map((o) => o.holdType)))
 // Mirrors the original page's dropdown exactly: labeled "Hold Type" but filters on `title`.
 const HOLD_TYPES = Array.from(new Set(ALL_RELEASED.map((o) => o.title)));
 
-export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateFeedbackCenter, onNavigateEmailWorkflow }: {
+export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateCmdCenterAdvFilter, onNavigateFeedbackCenter, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
-  onNavigateCommandCenterOverview?: () => void;
-  onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateOverview: () => void;
   onNavigateOrderListing?: () => void;
@@ -46,6 +44,7 @@ export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigat
   onNavigateCommunication?: () => void;
   onNavigateOrderDetails?: (orderId: string) => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateCmdCenterAdvFilter?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -169,14 +168,13 @@ export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigat
             onViewAllNotifications={onViewAllNotifications}
             onLogout={onLogout}
             onNavigateHome={onNavigateHome}
-            onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-            onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
             onNavigateNewOverview={onNavigateNewOverview}
             onNavigateHoldManagementOverview={onNavigateOverview}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateCmdCenterAdvFilter={onNavigateCmdCenterAdvFilter}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />

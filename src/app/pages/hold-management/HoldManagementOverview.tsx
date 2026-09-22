@@ -373,12 +373,10 @@ function HoldGroupModal({ group, onClose, onSave, onDelete }: {
   );
 }
 
-export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateFeedbackCenter, onNavigateEmailWorkflow }: {
+export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateNewOverview, onViewAllOrders, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateCmdCenterAdvFilter, onNavigateFeedbackCenter, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
-  onNavigateCommandCenterOverview?: () => void;
-  onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onViewAllOrders?: (view?: string, cardName?: string) => void;
   onNavigateOrderListing?: () => void;
@@ -386,6 +384,7 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
   onNavigateCommunication?: () => void;
   onNavigateOrderDetails?: (orderId: string) => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateCmdCenterAdvFilter?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -593,14 +592,13 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
             onViewAllNotifications={onViewAllNotifications}
             onLogout={onLogout}
             onNavigateHome={onNavigateHome}
-            onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-            onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
             onNavigateNewOverview={onNavigateNewOverview}
             onNavigateHoldManagementOverview={() => {}}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateCmdCenterAdvFilter={onNavigateCmdCenterAdvFilter}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />

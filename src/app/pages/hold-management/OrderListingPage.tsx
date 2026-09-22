@@ -59,12 +59,10 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateFeedbackCenter, onNavigateEmailWorkflow, sourceCardName }: {
+export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateOrderDetails, onNavigateEmailTemplate, onNavigateCmdCenterAdvFilter, onNavigateFeedbackCenter, onNavigateEmailWorkflow, sourceCardName }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
-  onNavigateCommandCenterOverview?: () => void;
-  onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateOverview: () => void;
   onNavigateOrderListing?: () => void;
@@ -72,6 +70,7 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
   onNavigateCommunication?: () => void;
   onNavigateOrderDetails?: (orderId: string) => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateCmdCenterAdvFilter?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateEmailWorkflow?: () => void;
   /** The specific hold card clicked on Overview to get here (if any) — shown in the breadcrumb as extra context. */
@@ -242,14 +241,13 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
             onViewAllNotifications={onViewAllNotifications}
             onLogout={onLogout}
             onNavigateHome={onNavigateHome}
-            onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-            onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
             onNavigateNewOverview={onNavigateNewOverview}
             onNavigateHoldManagementOverview={onNavigateOverview}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateCmdCenterAdvFilter={onNavigateCmdCenterAdvFilter}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />

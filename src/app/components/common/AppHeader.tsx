@@ -14,14 +14,13 @@ export function AppHeader({
   onViewAllNotifications,
   onLogout,
   onNavigateHome,
-  onNavigateCommandCenterOverview,
-  onNavigateCommandCenterEmailView,
   onNavigateNewOverview,
   onNavigateHoldManagementOverview,
   onNavigateOrderListing,
   onNavigateReleasedOrders,
   onNavigateCommunication,
   onNavigateEmailTemplate,
+  onNavigateCmdCenterAdvFilter,
   onNavigateEmailWorkflow,
   onNavigateFeedbackCenter,
 }: {
@@ -29,14 +28,13 @@ export function AppHeader({
   onViewAllNotifications: () => void;
   onLogout?: () => void;
   onNavigateHome?: () => void;
-  onNavigateCommandCenterOverview?: () => void;
-  onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateHoldManagementOverview?: () => void;
   onNavigateOrderListing?: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: () => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateCmdCenterAdvFilter?: () => void;
   onNavigateEmailWorkflow?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
 }) {
@@ -64,13 +62,6 @@ export function AppHeader({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Pages get moved in here on request (e.g. "move this page to old") — add a { label, onClick }
-  // entry per page, same shape as Command Center/Hold Mgmt's children below.
-  const oldPages: NavChild[] = [
-    { label: "Overview V1", onClick: onNavigateCommandCenterOverview },
-    { label: "Email View", onClick: onNavigateCommandCenterEmailView },
-  ];
-
   const navItems: NavItem[] = [
     { label: "Command Center", match: (n) => n.startsWith("Command Center"), onClick: onNavigateNewOverview },
     {
@@ -82,7 +73,14 @@ export function AppHeader({
       ],
     },
     { label: "Communication", match: (n) => n === "Communication", onClick: onNavigateCommunication },
-    { label: "Email", match: (n) => n === "Email Template", onClick: onNavigateEmailTemplate },
+    {
+      label: "Admin",
+      match: (n) => n === "Email Template" || n === "Cmd Center Adv. Filter",
+      children: [
+        { label: "Email", onClick: onNavigateEmailTemplate },
+        { label: "Cmd Center Adv. Filter", onClick: onNavigateCmdCenterAdvFilter },
+      ],
+    },
     {
       label: "Feedback Center",
       match: (n) => n === "Feedback Center",
@@ -92,7 +90,6 @@ export function AppHeader({
         { label: "SOM", onClick: () => onNavigateFeedbackCenter?.("som") },
       ],
     },
-    { label: "Old Pages", match: (n) => n === "Old Pages", children: oldPages },
   ];
 
   const runMobileNav = (fn?: () => void) => {

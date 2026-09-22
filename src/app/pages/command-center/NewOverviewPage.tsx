@@ -27,7 +27,7 @@ import {
 import { AppHeader } from "../../components/common/AppHeader";
 import { WaveLoader } from "../../components/common/Loader";
 import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
-import { type Email, CLASSIFICATIONS, BUSINESS_GROUPS } from "./emailData";
+import { type Email, CLASSIFICATIONS, BUSINESS_GROUPS, MAILBOXES } from "./emailData";
 import { useWorklistEmails } from "./useWorklistEmails";
 import {
   EMAIL_TABLE_NAVY,
@@ -48,15 +48,6 @@ import { TablePagination, type RowDensity } from "../../components/common/TableP
 // Deliberately does not reuse OrderListingTable, CccDetailCard, or EmailViewBody — its own table, toolbar,
 // KPI strip, and email view, styled to the reference's navy/light-border look rather than the app's pink brand.
 // The table itself (EmailTable) lives in its own file — see EmailTable.tsx.
-
-const NEW_OVERVIEW_MAILBOXES = [
-  "usa_orders@keysight.com",
-  "contactcenter_uk@keysight.com",
-  "contact_japan@keysight.com",
-  "service_japan@keysight.com",
-  "system.support@keysight.com",
-  "lar_orders@keysight.com",
-];
 
 const NEW_OVERVIEW_INTERVALS = ["24h", "48h", "72h", "1 Week", "2 Weeks", "Custom"];
 
@@ -297,12 +288,10 @@ function NewOverviewListView({ rows, selectedId, selected, onSelect, expandedIds
   );
 }
 
-export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateWorkflow, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateFeedbackCenter, onNavigateEmailWorkflow }: {
+export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHome, onNavigateNewOverview, onNavigateWorkflow, onNavigateHoldManagementOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateCmdCenterAdvFilter, onNavigateFeedbackCenter, onNavigateEmailWorkflow }: {
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
-  onNavigateCommandCenterOverview?: () => void;
-  onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateWorkflow: (emailId: string, scope?: "mine" | "all") => void;
   onNavigateHoldManagementOverview?: () => void;
@@ -310,6 +299,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: (source?: { emailId?: string }) => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateCmdCenterAdvFilter?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -392,14 +382,14 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
 
   // Mailboxes — multi-select, staged behind its own Apply (mirrors Classification/Interval below).
   const [mailboxOpen, setMailboxOpen] = useState(false);
-  const [appliedMailboxes, setAppliedMailboxes] = useState<string[]>(NEW_OVERVIEW_MAILBOXES);
-  const [pendingMailboxes, setPendingMailboxes] = useState<string[]>(NEW_OVERVIEW_MAILBOXES);
+  const [appliedMailboxes, setAppliedMailboxes] = useState<string[]>(MAILBOXES);
+  const [pendingMailboxes, setPendingMailboxes] = useState<string[]>(MAILBOXES);
   const mailboxesDirty = pendingMailboxes.slice().sort().join("|") !== appliedMailboxes.slice().sort().join("|");
-  const allMailboxesSelected = pendingMailboxes.length === NEW_OVERVIEW_MAILBOXES.length;
+  const allMailboxesSelected = pendingMailboxes.length === MAILBOXES.length;
   const someMailboxesSelected = pendingMailboxes.length > 0 && !allMailboxesSelected;
   const toggleMailbox = (m: string) =>
     setPendingMailboxes((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
-  const toggleAllMailboxes = () => setPendingMailboxes(allMailboxesSelected ? [] : [...NEW_OVERVIEW_MAILBOXES]);
+  const toggleAllMailboxes = () => setPendingMailboxes(allMailboxesSelected ? [] : [...MAILBOXES]);
   const applyMailboxes = () => {
     setAppliedMailboxes(pendingMailboxes);
     setMailboxOpen(false);
@@ -636,14 +626,13 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
               onViewAllNotifications={onViewAllNotifications}
               onLogout={onLogout}
               onNavigateHome={onNavigateHome}
-              onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-              onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
               onNavigateNewOverview={onNavigateNewOverview}
               onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
               onNavigateOrderListing={onNavigateOrderListing}
               onNavigateReleasedOrders={onNavigateReleasedOrders}
               onNavigateCommunication={onNavigateCommunication}
               onNavigateEmailTemplate={onNavigateEmailTemplate}
+              onNavigateCmdCenterAdvFilter={onNavigateCmdCenterAdvFilter}
               onNavigateFeedbackCenter={onNavigateFeedbackCenter}
               onNavigateEmailWorkflow={onNavigateEmailWorkflow}
             />
@@ -679,14 +668,13 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
             onViewAllNotifications={onViewAllNotifications}
             onLogout={onLogout}
             onNavigateHome={onNavigateHome}
-            onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-            onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
             onNavigateNewOverview={onNavigateNewOverview}
             onNavigateHoldManagementOverview={onNavigateHoldManagementOverview}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateCmdCenterAdvFilter={onNavigateCmdCenterAdvFilter}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
@@ -732,7 +720,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                         <span className="font-semibold text-[#262626]">Select all</span>
                       </button>
                       <div className="max-h-[240px] overflow-y-auto py-1">
-                        {NEW_OVERVIEW_MAILBOXES.map((m) => {
+                        {MAILBOXES.map((m) => {
                           const checked = pendingMailboxes.includes(m);
                           return (
                             <button

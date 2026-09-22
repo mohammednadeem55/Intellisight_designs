@@ -938,7 +938,7 @@ function ApplyHoldModal({ rows, orderId, onClose, onConfirm }: {
   );
 }
 
-export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewAllNotifications, onNavigateHome, onNavigateCommandCenterOverview, onNavigateCommandCenterEmailView, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateFeedbackCenter, onNavigateEmailWorkflow }: {
+export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewAllNotifications, onNavigateHome, onNavigateNewOverview, onNavigateOverview, onNavigateOrderListing, onNavigateReleasedOrders, onNavigateCommunication, onNavigateEmailTemplate, onNavigateCmdCenterAdvFilter, onNavigateFeedbackCenter, onNavigateEmailWorkflow }: {
   orderId: string;
   /** "credit" when this order was reached via the Overview page's Credit view — shows the credit-only Line
       Listing table (with per-line Apply Hold) alongside the usual Hold Listings. */
@@ -949,14 +949,13 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
   onLogout: () => void;
   onViewAllNotifications: () => void;
   onNavigateHome?: () => void;
-  onNavigateCommandCenterOverview?: () => void;
-  onNavigateCommandCenterEmailView?: () => void;
   onNavigateNewOverview?: () => void;
   onNavigateOverview: () => void;
   onNavigateOrderListing: () => void;
   onNavigateReleasedOrders?: () => void;
   onNavigateCommunication?: (source?: { orderId?: string }) => void;
   onNavigateEmailTemplate?: () => void;
+  onNavigateCmdCenterAdvFilter?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
@@ -1758,14 +1757,13 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
             onViewAllNotifications={onViewAllNotifications}
             onLogout={onLogout}
             onNavigateHome={onNavigateHome}
-            onNavigateCommandCenterOverview={onNavigateCommandCenterOverview}
-            onNavigateCommandCenterEmailView={onNavigateCommandCenterEmailView}
             onNavigateNewOverview={onNavigateNewOverview}
             onNavigateHoldManagementOverview={onNavigateOverview}
             onNavigateOrderListing={onNavigateOrderListing}
             onNavigateReleasedOrders={onNavigateReleasedOrders}
             onNavigateCommunication={onNavigateCommunication}
             onNavigateEmailTemplate={onNavigateEmailTemplate}
+            onNavigateCmdCenterAdvFilter={onNavigateCmdCenterAdvFilter}
             onNavigateFeedbackCenter={onNavigateFeedbackCenter}
             onNavigateEmailWorkflow={onNavigateEmailWorkflow}
           />
