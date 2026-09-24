@@ -26,6 +26,14 @@ export type CmdCenterAdvFilter = {
   /** Which mailboxes this filter applies to — assigned separately from the AND/OR conditions, via the
       listing table's own "Add Mailboxes" checklist modal rather than as a condition rule. */
   mailboxes: string[];
+  /** "predefined" = created here, on the admin page. "user" = a CSR/manager's own fork, created from the
+      New Overview Filters panel when they edit a predefined filter's values (see CmdCenterAdvFilterModal
+      in NewOverviewPage.tsx) — never listed or editable on this admin page. */
+  scope: "predefined" | "user";
+  /** Set only on a "user"-scoped fork — whose predefined (or user) filter it started from, for lineage. */
+  originId?: string;
+  /** Set only on a "user"-scoped fork — who created it. */
+  createdBy?: string;
 };
 
 // The Command Center fields an advanced filter's conditions can be built from — the same fields already
@@ -59,7 +67,10 @@ function mockGroup(combinator: ConditionGroup["combinator"], children: Condition
   return { ...createConditionGroup(combinator), children };
 }
 
-const INITIAL_CMD_CENTER_FILTERS: CmdCenterAdvFilter[] = [
+// Exported so New Overview (FCNV/CSR listing) can use the same defaults as its "Saved Filters" fallback
+// when localStorage hasn't been seeded yet — the listing page and this admin page must agree on what
+// "predefined" means out of the box.
+export const INITIAL_CMD_CENTER_FILTERS: CmdCenterAdvFilter[] = [
   {
     id: "ccf-1",
     name: "Sensitive Enterprise Work Orders",
@@ -70,6 +81,7 @@ const INITIAL_CMD_CENTER_FILTERS: CmdCenterAdvFilter[] = [
       mockRule("classification", "is one of", ["WORK_ORDER"]),
     ]),
     mailboxes: ["usa_orders@keysight.com"],
+    scope: "predefined",
   },
   {
     id: "ccf-2",
@@ -83,6 +95,7 @@ const INITIAL_CMD_CENTER_FILTERS: CmdCenterAdvFilter[] = [
       ]),
     ]),
     mailboxes: ["contact_japan@keysight.com", "service_japan@keysight.com"],
+    scope: "predefined",
   },
   {
     id: "ccf-3",
@@ -90,6 +103,7 @@ const INITIAL_CMD_CENTER_FILTERS: CmdCenterAdvFilter[] = [
     priority: 3,
     conditions: mockGroup("AND", [mockRule("classification", "is one of", ["TRADE_ORDER", "WORK_ORDER"])]),
     mailboxes: ["usa_orders@keysight.com", "lar_orders@keysight.com"],
+    scope: "predefined",
   },
 ];
 

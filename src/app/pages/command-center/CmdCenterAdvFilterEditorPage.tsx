@@ -68,6 +68,7 @@ export function CmdCenterAdvFilterEditorPage({
       priority,
       conditions,
       mailboxes,
+      scope: "predefined",
     };
     const existing = loadCmdCenterAdvFilters([]);
     const next = existing.some((f) => f.id === filter.id)

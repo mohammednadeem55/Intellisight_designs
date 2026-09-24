@@ -123,6 +123,30 @@ export function isConditionTreeComplete(node: ConditionNode): boolean {
   return node.children.length > 0 && node.children.every(isConditionTreeComplete);
 }
 
+// Best-effort projection of a condition tree onto flat field -> values pairs, ignoring AND/OR structure —
+// used to seed simple toolbar dropdowns/checkboxes from a saved filter that can't represent arbitrary
+// boolean nesting. Multiple rules on the same field (e.g. one in each branch of an OR) union their values.
+export function flattenConditionValues(node: ConditionNode, into: Record<string, string[]> = {}): Record<string, string[]> {
+  if (node.kind === "rule") {
+    if (node.field && node.values.length > 0) {
+      into[node.field] = Array.from(new Set([...(into[node.field] ?? []), ...node.values]));
+    }
+    return into;
+  }
+  for (const child of node.children) flattenConditionValues(child, into);
+  return into;
+}
+
+// Inverse of the above, for forking a saved filter from the current flat dropdown/checkbox state — always
+// a single flat AND-of-"is one of" group, since that's all a fork out of flat fields can faithfully express
+// (any richer AND/OR structure the original predefined filter had is intentionally not preserved).
+export function buildFlatConditionGroup(fieldValues: Record<string, string[] | undefined>): ConditionGroup {
+  const rules = Object.entries(fieldValues)
+    .filter((entry): entry is [string, string[]] => (entry[1]?.length ?? 0) > 0)
+    .map(([field, values]) => ({ ...createConditionRule(field), operator: "is one of" as ConditionOperator, values }));
+  return { ...createConditionGroup("AND"), children: rules };
+}
+
 // Plain-English summary for a read-only context (a listing row, a confirmation dialog) — e.g.
 // "Operating Unit is one of GBS-OU-2613, ILS-OU-1213 AND Bill To Country is IE".
 export function summarizeConditionTree(node: ConditionNode, fields: ConditionFieldOption[]): string {

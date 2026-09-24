@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  Bookmark,
   Building2,
   Check,
   ChevronDown,
@@ -8,6 +9,7 @@ import {
   CornerDownRight,
   Download,
   FileText,
+  Filter,
   Globe,
   GripVertical,
   Inbox,
@@ -17,6 +19,7 @@ import {
   Maximize2,
   Minimize2,
   Paperclip,
+  Plus,
   RefreshCw,
   SlidersHorizontal,
   User,
@@ -27,6 +30,7 @@ import {
 import { AppHeader } from "../../components/common/AppHeader";
 import { WaveLoader } from "../../components/common/Loader";
 import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
+import { MailboxPickerModal } from "../../components/common/MailboxPickerModal";
 import { type Email, CLASSIFICATIONS, BUSINESS_GROUPS, MAILBOXES } from "./emailData";
 import { useWorklistEmails } from "./useWorklistEmails";
 import {
@@ -43,6 +47,17 @@ import {
 import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch } from "../../components/common/TableToolbar";
 import { TableFilterPanel, TableFilterTrigger } from "../../components/common/TableFilterPanel";
 import { TablePagination, type RowDensity } from "../../components/common/TablePagination";
+import {
+  ConditionBuilder,
+  createConditionGroup,
+  flattenConditionValues,
+  buildFlatConditionGroup,
+  isConditionTreeComplete,
+  type ConditionGroup,
+} from "../../components/common/ConditionBuilder";
+import { CMD_CENTER_FILTER_FIELDS, INITIAL_CMD_CENTER_FILTERS, type CmdCenterAdvFilter } from "./CmdCenterAdvFilterPage";
+import { loadCmdCenterAdvFilters } from "./cmdCenterAdvFilterStorage";
+import { loadUserAdvFilters, saveUserAdvFilters } from "./cmdCenterUserAdvFilterStorage";
 
 // ─── New Overview (fresh build, matching the shared reference design) ──────────
 // Deliberately does not reuse OrderListingTable, CccDetailCard, or EmailViewBody — its own table, toolbar,
@@ -127,6 +142,19 @@ const NEW_OVERVIEW_CSR_FILTER_SECTIONS: { key: string; label: string; getValue: 
 ];
 
 const NEW_OVERVIEW_VIEW_OPTIONS = ["FCNV", "CSR"];
+
+// Fields a Saved Filter (predefined or user-forked) can pin, mapped to the toolbar/panel controls that
+// surface them — Classification/Business Group/Mailboxes on the toolbar, Sensitivity/Language/Source in
+// the Filters panel. Interval is deliberately not in this list: it's a report time-window, not something a
+// saved filter should fix.
+const ADV_FILTER_FIELD_LABELS: Record<string, string> = {
+  classification: "Classification",
+  businessGroup: "Business Group",
+  mailboxes: "Mailboxes",
+  sensitivity: "Sensitivity",
+  languageDetected: "Language Detected",
+  source: "Source",
+};
 
 // Custom email view — sidebar list (with the same simple one-level CCC nesting) + a detail panel matching the
 // reference: avatar, sender/timestamp, Assigned To pill, subject, body, attachments, and an "earlier in this
@@ -391,9 +419,15 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
     setPendingMailboxes((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
   const toggleAllMailboxes = () => setPendingMailboxes(allMailboxesSelected ? [] : [...MAILBOXES]);
   const applyMailboxes = () => {
-    setAppliedMailboxes(pendingMailboxes);
-    setMailboxOpen(false);
-    setPage(1);
+    applyWithFilterGuard(
+      { mailboxes: pendingMailboxes },
+      () => {
+        setAppliedMailboxes(pendingMailboxes);
+        setMailboxOpen(false);
+        setPage(1);
+      },
+      () => setPendingMailboxes(appliedMailboxes)
+    );
   };
 
   // Classification + Interval are "staged" — picks in their popovers don't take effect until Apply is
@@ -432,15 +466,22 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
       : pendingToolbarInterval ?? "Interval";
 
   const applyToolbarFilters = () => {
-    setAppliedClassifications(pendingClassifications);
-    setAppliedBusinessGroups(pendingBusinessGroups);
-    setAppliedToolbarInterval(pendingToolbarInterval);
-    setAppliedCustomStart(pendingCustomStart);
-    setAppliedCustomEnd(pendingCustomEnd);
-    setClassificationOpen(false);
-    setBusinessGroupOpen(false);
-    setToolbarIntervalOpen(false);
-    setPage(1);
+    applyWithFilterGuard(
+      { classification: pendingClassifications, businessGroup: pendingBusinessGroups },
+      () => {
+        setAppliedClassifications(pendingClassifications);
+        setAppliedBusinessGroups(pendingBusinessGroups);
+        setAppliedToolbarInterval(pendingToolbarInterval);
+        setAppliedCustomStart(pendingCustomStart);
+        setAppliedCustomEnd(pendingCustomEnd);
+        setClassificationOpen(false);
+        setBusinessGroupOpen(false);
+        setToolbarIntervalOpen(false);
+        setPage(1);
+      },
+      // Reuses the same "discard pending edits" logic as the toolbar's own Reset button.
+      resetToolbarFilters
+    );
   };
   const resetToolbarFilters = () => {
     setPendingClassifications(appliedClassifications);
@@ -484,6 +525,217 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
   const [checkedFilters, setCheckedFilters] = useState<Record<string, Set<string>>>({});
   const activeFilterCount = Object.values(checkedFilters).reduce((sum, set) => sum + set.size, 0);
   const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
+
+  // Predefined Filters (admin-defined, Cmd Center Adv. Filter page) and Saved Filters (this user's own),
+  // kept and surfaced as two distinct groups at the top of the Filters panel — never merged into one list.
+  // Picking either seeds Classification, Business Group, Mailboxes, and this panel's own Sensitivity/
+  // Language/Source checkboxes from its conditions. Changing any of those fields while one is active
+  // doesn't silently overwrite it — applyWithFilterGuard below intercepts the next Apply/Save and offers
+  // Save-as-new vs continuing unsaved instead.
+  const [predefinedFilters] = useState<CmdCenterAdvFilter[]>(() => loadCmdCenterAdvFilters(INITIAL_CMD_CENTER_FILTERS));
+  const [userFilters, setUserFilters] = useState<CmdCenterAdvFilter[]>(() => loadUserAdvFilters(NEW_OVERVIEW_CURRENT_USER.name));
+  const savedFilters = [...predefinedFilters, ...userFilters];
+  const [activeAdvFilterId, setActiveAdvFilterId] = useState<string | null>(null);
+  const activeAdvFilter = savedFilters.find((f) => f.id === activeAdvFilterId) ?? null;
+  // An Apply/Save the guard intercepted, waiting on the confirm modal — both resolutions run the same
+  // `commit` the user originally triggered; the fork additionally needs `snapshot` (the full prospective
+  // field state, not just what changed) to build the new filter's own conditions. `revert` undoes whatever
+  // pending/staged edit triggered the guard, run only if the user cancels outright.
+  const [pendingFilterEdit, setPendingFilterEdit] = useState<{ commit: () => void; revert: () => void; snapshot: Record<string, string[]> } | null>(null);
+  const [forkFilterName, setForkFilterName] = useState("");
+  // Single-choice resolution for the modal below — replaces what used to be 3-4 competing buttons. Defaults
+  // to the most likely intent: overwrite in place for the user's own filter, fork for a Predefined one
+  // (which can never be overwritten).
+  const [filterEditChoice, setFilterEditChoice] = useState<"existing" | "new" | "continue">("new");
+  // Forces the Filters panel's own staged `pending` to re-sync from the committed state even when that
+  // committed state hasn't moved — used when a panel-triggered guard is cancelled, since nothing was ever
+  // committed for the panel's pending to naturally re-sync against.
+  const [panelFilterResetSignal, setPanelFilterResetSignal] = useState(0);
+
+  const advFilterFieldSnapshot = (filter: CmdCenterAdvFilter): Record<string, string[]> => ({
+    ...flattenConditionValues(filter.conditions),
+    mailboxes: filter.mailboxes,
+  });
+  const currentFieldSnapshot = (overrides: Record<string, string[]> = {}): Record<string, string[]> => ({
+    classification: overrides.classification ?? appliedClassifications,
+    businessGroup: overrides.businessGroup ?? appliedBusinessGroups,
+    mailboxes: overrides.mailboxes ?? appliedMailboxes,
+    sensitivity: overrides.sensitivity ?? Array.from(checkedFilters.sensitivity ?? []),
+    languageDetected: overrides.languageDetected ?? Array.from(checkedFilters.languageDetected ?? []),
+    source: overrides.source ?? Array.from(checkedFilters.source ?? []),
+  });
+  const snapshotFieldsDiffer = (a: Record<string, string[]>, b: Record<string, string[]>): string[] =>
+    Object.keys(ADV_FILTER_FIELD_LABELS).filter(
+      (key) => (a[key] ?? []).slice().sort().join("|") !== (b[key] ?? []).slice().sort().join("|")
+    );
+
+  // Every toolbar/panel Apply goes through here instead of committing directly — if a Predefined/Saved
+  // filter is active and the change would actually diverge from its own definition, hold the commit and
+  // surface the confirm modal instead. Returns whether it committed immediately (false = deferred to the
+  // modal), so a caller that itself optimistically closes/toasts (the Filters panel) can hold off instead.
+  const applyWithFilterGuard = (overrides: Record<string, string[]>, commit: () => void, revert: () => void): boolean => {
+    if (activeAdvFilter) {
+      const snapshot = currentFieldSnapshot(overrides);
+      const diffFields = snapshotFieldsDiffer(advFilterFieldSnapshot(activeAdvFilter), snapshot);
+      if (diffFields.length > 0) {
+        setForkFilterName(`${activeAdvFilter.name} (Custom)`);
+        setFilterEditChoice(activeAdvFilter.scope === "user" ? "existing" : "new");
+        setPendingFilterEdit({ commit, revert, snapshot });
+        return false;
+      }
+    }
+    commit();
+    return true;
+  };
+
+  const applySavedFilter = (filter: CmdCenterAdvFilter) => {
+    const values = flattenConditionValues(filter.conditions);
+    setAppliedClassifications(values.classification ?? []);
+    setPendingClassifications(values.classification ?? []);
+    setAppliedBusinessGroups(values.businessGroup ?? []);
+    setPendingBusinessGroups(values.businessGroup ?? []);
+    setAppliedMailboxes(filter.mailboxes);
+    setPendingMailboxes(filter.mailboxes);
+    setCheckedFilters((prev) => ({
+      ...prev,
+      sensitivity: new Set(values.sensitivity ?? []),
+      languageDetected: new Set(values.languageDetected ?? []),
+      source: new Set(values.source ?? []),
+    }));
+    setActiveAdvFilterId(filter.id);
+    setPage(1);
+  };
+  const clearActiveAdvFilter = () => setActiveAdvFilterId(null);
+
+  // Cancel — unlike the other two resolutions, this discards the edit entirely: whatever pending/staged
+  // change triggered the guard gets reverted, and the active filter (unchanged all along) stays active.
+  const cancelFilterEdit = () => {
+    pendingFilterEdit?.revert();
+    setPendingFilterEdit(null);
+  };
+
+  // "Continue without saving" — the edited values still apply, but the filter is no longer active: not
+  // predefined, not saved, just the plain toolbar/panel state a user gets from picking things manually.
+  const continueFilterEditUnsaved = () => {
+    if (!pendingFilterEdit) return;
+    pendingFilterEdit.commit();
+    setActiveAdvFilterId(null);
+    setPendingFilterEdit(null);
+  };
+  // Shared by both ways a new Saved Filter gets created: forking an edited Predefined/Saved filter (below),
+  // and building one from scratch off whatever's currently applied (the "+ New" button in the panel — plain
+  // or Advanced). Takes a ready-built ConditionGroup rather than a snapshot, since the Advanced path builds
+  // its own AND/OR tree via ConditionBuilder instead of the flat "is one of" one buildFlatConditionGroup
+  // would produce.
+  const persistNewUserFilter = (name: string, conditions: ConditionGroup, mailboxes: string[], originId?: string): CmdCenterAdvFilter => {
+    const newFilter: CmdCenterAdvFilter = {
+      id: `ucf-${Date.now()}`,
+      name,
+      priority: Math.max(0, ...savedFilters.map((f) => f.priority)) + 1,
+      conditions,
+      mailboxes,
+      scope: "user",
+      createdBy: NEW_OVERVIEW_CURRENT_USER.name,
+      ...(originId ? { originId } : {}),
+    };
+    const nextUserFilters = [...userFilters, newFilter];
+    setUserFilters(nextUserFilters);
+    saveUserAdvFilters(NEW_OVERVIEW_CURRENT_USER.name, nextUserFilters);
+    return newFilter;
+  };
+  const flatConditionsFromSnapshot = (snapshot: Record<string, string[]>): ConditionGroup =>
+    buildFlatConditionGroup({
+      classification: snapshot.classification,
+      businessGroup: snapshot.businessGroup,
+      sensitivity: snapshot.sensitivity,
+      languageDetected: snapshot.languageDetected,
+      source: snapshot.source,
+    });
+  const saveFilterEditAsNew = () => {
+    if (!pendingFilterEdit || !activeAdvFilter) return;
+    if (!forkFilterName.trim()) { toast.warning("Give this filter a name"); return; }
+    const newFilter = persistNewUserFilter(
+      forkFilterName.trim(),
+      flatConditionsFromSnapshot(pendingFilterEdit.snapshot),
+      pendingFilterEdit.snapshot.mailboxes ?? [],
+      activeAdvFilter.originId ?? activeAdvFilter.id
+    );
+    pendingFilterEdit.commit();
+    setActiveAdvFilterId(newFilter.id);
+    setPendingFilterEdit(null);
+    toast.success(`Saved as "${newFilter.name}"`);
+  };
+  // "Save to existing" — only offered for the user's own Saved Filters, never Predefined ones (those stay
+  // admin-owned; editing one can only fork or continue unsaved). Overwrites that filter's own conditions/
+  // mailboxes in place instead of creating a new entry — the active filter id doesn't change.
+  const saveFilterEditToExisting = () => {
+    if (!pendingFilterEdit || !activeAdvFilter || activeAdvFilter.scope !== "user") return;
+    const updated: CmdCenterAdvFilter = {
+      ...activeAdvFilter,
+      conditions: buildFlatConditionGroup({
+        classification: pendingFilterEdit.snapshot.classification,
+        businessGroup: pendingFilterEdit.snapshot.businessGroup,
+        sensitivity: pendingFilterEdit.snapshot.sensitivity,
+        languageDetected: pendingFilterEdit.snapshot.languageDetected,
+        source: pendingFilterEdit.snapshot.source,
+      }),
+      mailboxes: pendingFilterEdit.snapshot.mailboxes ?? [],
+    };
+    const nextUserFilters = userFilters.map((f) => (f.id === updated.id ? updated : f));
+    setUserFilters(nextUserFilters);
+    saveUserAdvFilters(NEW_OVERVIEW_CURRENT_USER.name, nextUserFilters);
+    pendingFilterEdit.commit();
+    setPendingFilterEdit(null);
+    toast.success(`Updated "${updated.name}"`);
+  };
+  // Single entry point for the modal's one Confirm button — dispatches to whichever resolution the radio
+  // selection above points at.
+  const confirmFilterEdit = () => {
+    if (filterEditChoice === "continue") continueFilterEditUnsaved();
+    else if (filterEditChoice === "existing") saveFilterEditToExisting();
+    else saveFilterEditAsNew();
+  };
+
+  // Create a Saved Filter directly from whatever's currently applied — no active/edited filter required.
+  // Defaults to that plain capture; "Advanced" swaps in the same ConditionBuilder the admin editor uses, for
+  // real AND/OR logic the toolbar/panel can't express, pre-seeded from the current capture as a starting point.
+  const [createFilterOpen, setCreateFilterOpen] = useState(false);
+  const [newFilterName, setNewFilterName] = useState("");
+  const [createFilterAdvanced, setCreateFilterAdvanced] = useState(false);
+  const [createFilterConditions, setCreateFilterConditions] = useState<ConditionGroup>(() => createConditionGroup("AND"));
+  // Starts from the toolbar's current selection but is editable right here — via the same MailboxPickerModal
+  // the admin editor uses — instead of forcing a close-this-modal-and-go-change-the-toolbar round trip.
+  const [createFilterMailboxes, setCreateFilterMailboxes] = useState<string[]>([]);
+  const [createFilterMailboxPickerOpen, setCreateFilterMailboxPickerOpen] = useState(false);
+  const openCreateFilter = () => {
+    setNewFilterName("");
+    setCreateFilterAdvanced(false);
+    setCreateFilterConditions(flatConditionsFromSnapshot(currentFieldSnapshot()));
+    setCreateFilterMailboxes(appliedMailboxes);
+    setCreateFilterOpen(true);
+  };
+  const createFilterFromCurrentState = () => {
+    if (!newFilterName.trim()) { toast.warning("Give this filter a name"); return; }
+    if (createFilterAdvanced && !isConditionTreeComplete(createFilterConditions)) {
+      toast.warning("Finish or remove any incomplete conditions");
+      return;
+    }
+    const conditions = createFilterAdvanced ? createFilterConditions : flatConditionsFromSnapshot(currentFieldSnapshot());
+    const newFilter = persistNewUserFilter(newFilterName.trim(), conditions, createFilterMailboxes);
+    setActiveAdvFilterId(newFilter.id);
+    setCreateFilterOpen(false);
+    toast.success(`Saved as "${newFilter.name}"`);
+  };
+  const renderSavedFilterRow = (f: CmdCenterAdvFilter) => (
+    <button
+      key={f.id}
+      onClick={() => applySavedFilter(f)}
+      className={`text-left px-2.5 py-1.5 rounded-[6px] text-[12.5px] truncate cursor-pointer transition-colors ${f.id === activeAdvFilterId ? "bg-[#30578D]/[0.06] font-semibold" : "hover:bg-[#F7F7F7]"}`}
+      style={f.id === activeAdvFilterId ? { color: EMAIL_TABLE_NAVY } : { color: "#262626" }}
+    >
+      {f.name}
+    </button>
+  );
 
   // Column Mgmt panel — slide-in with "Additional Columns" (categorized checklist) and "Sort Columns"
   // (drag-reorder, enabled columns only) tabs, plus Save/Cancel staging.
@@ -970,12 +1222,55 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
 
                 <div className="w-px h-5 bg-[#E2E6E9]" />
 
-                {/* Filter — opens the slide-in Filters panel below */}
-                <TableFilterTrigger
-                  open={filterOpen}
-                  onOpenChange={(o) => { setFilterOpen(o); if (o) setColMgmtOpen(false); }}
-                  activeCount={activeFilterCount}
-                />
+                {/* Filter — plain funnel trigger normally. Once a Predefined/Saved Filter is active, it fuses
+                    into one pill with a name + clear affordance instead of floating next to it as a separate,
+                    unlabeled-looking box — the bookmark icon and shared navy border read as "this funnel button
+                    has a named filter loaded", not as an unrelated field. */}
+                {activeAdvFilter ? (
+                  // No overflow-hidden here — the funnel's count badge deliberately pokes outside its own
+                  // button via a negative offset, same as the standalone TableFilterTrigger; clipping the
+                  // container would clip that badge too. Rounding just the two end segments instead keeps
+                  // the pill's corners clean without needing to clip anything.
+                  <div className="flex items-center h-[36px] rounded-[8px] border" style={{ borderColor: EMAIL_TABLE_NAVY }}>
+                    <button
+                      onClick={() => { setFilterOpen(true); setColMgmtOpen(false); }}
+                      title={activeAdvFilter.name}
+                      className="flex items-center gap-1.5 h-full pl-2.5 pr-2 max-w-[200px] rounded-l-[8px] text-[12.5px] font-semibold cursor-pointer transition-colors hover:bg-[#30578D]/10"
+                      style={{ color: EMAIL_TABLE_NAVY, backgroundColor: "#30578D0D" }}
+                    >
+                      <Bookmark size={13} className="shrink-0" fill="currentColor" fillOpacity={0.15} />
+                      <span className="truncate">{activeAdvFilter.name}</span>
+                    </button>
+                    <button
+                      onClick={clearActiveAdvFilter}
+                      title="Clear filter"
+                      className="flex items-center justify-center h-full w-[22px] shrink-0 cursor-pointer transition-colors hover:bg-[#30578D]/10"
+                      style={{ color: `${EMAIL_TABLE_NAVY}99`, backgroundColor: "#30578D0D" }}
+                    >
+                      <X size={12} />
+                    </button>
+                    <div className="w-px self-stretch shrink-0" style={{ backgroundColor: "#30578D33" }} />
+                    <button
+                      onClick={() => { setFilterOpen((v) => !v); if (!filterOpen) setColMgmtOpen(false); }}
+                      title="More filters"
+                      className="relative flex items-center justify-center h-full w-[36px] shrink-0 rounded-r-[8px] cursor-pointer transition-colors hover:bg-[#30578D]/10"
+                      style={{ color: EMAIL_TABLE_NAVY }}
+                    >
+                      <Filter size={15} />
+                      {activeFilterCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[15px] h-[15px] px-[3px] rounded-[8px] text-white text-[9px] font-bold" style={{ backgroundColor: EMAIL_TABLE_NAVY }}>
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <TableFilterTrigger
+                    open={filterOpen}
+                    onOpenChange={(o) => { setFilterOpen(o); if (o) setColMgmtOpen(false); }}
+                    activeCount={activeFilterCount}
+                  />
+                )}
 
                 {/* Manage columns — opens the slide-in Column Mgmt panel below (bespoke: categorized "Additional
                     Columns" checklist, doesn't fit the shared flat-column-list Column Mgmt panel) */}
@@ -1047,7 +1342,54 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
               columns={activeFilterSections.map((sec) => ({ key: sec.key, label: sec.label }))}
               columnFilters={checkedFilters}
               getOptions={(key) => Object.entries(filterSectionOptions.find((sec) => sec.key === key)?.options ?? {}).sort((a, b) => b[1] - a[1])}
-              onApply={(next) => { setCheckedFilters(next); setPage(1); }}
+              resetSignal={panelFilterResetSignal}
+              onApply={(next) =>
+                applyWithFilterGuard(
+                  {
+                    sensitivity: Array.from(next.sensitivity ?? []),
+                    languageDetected: Array.from(next.languageDetected ?? []),
+                    source: Array.from(next.source ?? []),
+                  },
+                  () => { setCheckedFilters(next); setPage(1); },
+                  // Nothing was committed for the panel's own `pending` to naturally re-sync against — force
+                  // it to re-derive from the (unchanged) committed columnFilters instead.
+                  () => setPanelFilterResetSignal((n) => n + 1)
+                )
+              }
+              topContent={
+                // No separate "Active: X / Clear" line here — the fused toolbar pill already shows the
+                // active filter's name with its own clear (✕), and the matching row below is highlighted,
+                // so repeating it here was just the same fact twice.
+                <div className="shrink-0 border-b border-[#E2E6E9] flex flex-col">
+                  <div className="px-4 py-3 flex flex-col gap-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-[#97999B]">Predefined Filters</span>
+                      {predefinedFilters.length === 0 ? (
+                        <p className="text-[12px] text-[#97999B] px-0.5">None configured yet.</p>
+                      ) : (
+                        <div className="flex flex-col gap-1">{predefinedFilters.map(renderSavedFilterRow)}</div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wide text-[#97999B]">Saved Filters</span>
+                        <button
+                          onClick={openCreateFilter}
+                          className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer transition-colors hover:opacity-80"
+                          style={{ color: EMAIL_TABLE_NAVY }}
+                        >
+                          <Plus size={11} /> New
+                        </button>
+                      </div>
+                      {userFilters.length === 0 ? (
+                        <p className="text-[12px] text-[#97999B] px-0.5">No saved filters yet.</p>
+                      ) : (
+                        <div className="flex flex-col gap-1">{userFilters.map(renderSavedFilterRow)}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              }
             />
 
             {/* Column Mgmt Panel — slide-in with Additional Columns / Sort Columns tabs, contained between toolbar and pagination */}
@@ -1196,6 +1538,211 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
         attachments={previewAttachments ?? undefined}
         onClose={() => setPreviewAttachments(null)}
       />
+
+      {/* "You're modifying a saved filter" confirm — fires when Apply/Save on the toolbar or Filters panel
+          would diverge from the active Saved Filter's own definition. Mirrors the inline-modal convention
+          used for the delete confirm on the Cmd Center Adv. Filter admin page. */}
+      {pendingFilterEdit && activeAdvFilter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={cancelFilterEdit} />
+          <div className="relative bg-white rounded-[8px] shadow-xl w-full max-w-[460px]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#DEDEDE]">
+              <span className="text-[16px] font-bold text-[#262626]">Modify "{activeAdvFilter.name}"?</span>
+              <button onClick={cancelFilterEdit} className="text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-6 py-5 flex flex-col gap-4">
+              <p className="text-[13px] text-[#4D4D4D] leading-[1.6]">
+                You're changing{" "}
+                <span className="font-semibold text-[#262626]">
+                  {snapshotFieldsDiffer(advFilterFieldSnapshot(activeAdvFilter), pendingFilterEdit.snapshot).map((k) => ADV_FILTER_FIELD_LABELS[k]).join(", ")}
+                </span>{" "}
+                on {activeAdvFilter.scope === "predefined" ? "a predefined" : "your saved"} filter. What would you like to do?
+              </p>
+
+              {/* One choice at a time instead of a row of competing buttons — picking an option is the whole
+                  decision; Confirm below just carries it out. Only the user's own Saved Filters offer
+                  "existing" — Predefined ones (admin-managed) can never be overwritten in place. */}
+              <div className="flex flex-col gap-2">
+                {activeAdvFilter.scope === "user" && (
+                  <label
+                    className={`flex items-start gap-2.5 p-3 rounded-[8px] border cursor-pointer transition-colors ${filterEditChoice === "existing" ? "border-[#30578D] bg-[#EAF1FB]" : "border-[#E2E6E9] hover:bg-[#F7F7F7]"}`}
+                  >
+                    <input type="radio" checked={filterEditChoice === "existing"} onChange={() => setFilterEditChoice("existing")} className="mt-[3px] accent-[#30578D]" />
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-[#262626]">Save changes to "{activeAdvFilter.name}"</p>
+                      <p className="text-[11.5px] text-[#97999B] mt-0.5">Updates this filter in place for next time.</p>
+                    </div>
+                  </label>
+                )}
+
+                <label
+                  className={`flex items-start gap-2.5 p-3 rounded-[8px] border cursor-pointer transition-colors ${filterEditChoice === "new" ? "border-[#30578D] bg-[#EAF1FB]" : "border-[#E2E6E9] hover:bg-[#F7F7F7]"}`}
+                >
+                  <input type="radio" checked={filterEditChoice === "new"} onChange={() => setFilterEditChoice("new")} className="mt-[3px] accent-[#30578D]" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold text-[#262626]">Save as a new filter</p>
+                    <p className="text-[11.5px] text-[#97999B] mt-0.5">Keeps "{activeAdvFilter.name}" untouched and creates a separate one.</p>
+                    {filterEditChoice === "new" && (
+                      <input
+                        autoFocus
+                        value={forkFilterName}
+                        onChange={(e) => setForkFilterName(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        placeholder="Untitled filter"
+                        className="mt-2 w-full h-[34px] px-2.5 rounded-[6px] border border-[#E2E6E9] bg-white text-[12.5px] text-[#262626] outline-none focus:border-[#30578D] transition-colors"
+                      />
+                    )}
+                  </div>
+                </label>
+
+                <label
+                  className={`flex items-start gap-2.5 p-3 rounded-[8px] border cursor-pointer transition-colors ${filterEditChoice === "continue" ? "border-[#30578D] bg-[#EAF1FB]" : "border-[#E2E6E9] hover:bg-[#F7F7F7]"}`}
+                >
+                  <input type="radio" checked={filterEditChoice === "continue"} onChange={() => setFilterEditChoice("continue")} className="mt-[3px] accent-[#30578D]" />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-[#262626]">Continue without saving</p>
+                    <p className="text-[11.5px] text-[#97999B] mt-0.5">"{activeAdvFilter.name}" will no longer be the active filter.</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[#DEDEDE]">
+              <button
+                onClick={cancelFilterEdit}
+                className="px-4 py-2 rounded-[8px] border border-[#E2E6E9] text-[13px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmFilterEdit}
+                disabled={filterEditChoice === "new" && !forkFilterName.trim()}
+                className="px-4 py-2 rounded-[8px] text-[13px] font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Filter — the "+ New" affordance under Saved Filters, for building one from scratch instead
+          of only via forking a Predefined/Saved filter. Defaults to capturing whatever's currently applied
+          (Classification, Business Group, Mailboxes, Sensitivity, Language, Source); "Advanced" swaps that
+          capture for the same ConditionBuilder the admin editor uses, for real AND/OR logic the toolbar/
+          panel can't express — pre-seeded from the current capture so switching over isn't a blank slate. */}
+      {createFilterOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setCreateFilterOpen(false)} />
+          <div className={`relative bg-white rounded-[8px] shadow-xl w-full flex flex-col max-h-[85vh] transition-[max-width] duration-150 ${createFilterAdvanced ? "max-w-[760px]" : "max-w-[440px]"}`}>
+            <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-[#DEDEDE]">
+              <span className="text-[16px] font-bold text-[#262626]">Create filter</span>
+              <button onClick={() => setCreateFilterOpen(false)} className="text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="min-h-0 overflow-y-auto px-6 py-5 flex flex-col gap-3">
+              <div>
+                <label className="block text-[10.5px] font-bold text-[#97999B] uppercase tracking-wide mb-1.5">Filter name</label>
+                <input
+                  autoFocus
+                  value={newFilterName}
+                  onChange={(e) => setNewFilterName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !createFilterAdvanced) createFilterFromCurrentState(); }}
+                  placeholder="Untitled filter"
+                  className="w-full h-[38px] px-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[13px] text-[#262626] outline-none focus:border-[#30578D] transition-colors"
+                />
+              </div>
+              {/* Mailboxes — its own always-visible, editable section (same split as the admin editor:
+                  Mailboxes and Conditions are separate concerns), not tucked inside the Advanced toggle, and
+                  not just a read-only echo of the toolbar — starts from it but can be changed right here. */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10.5px] font-bold text-[#97999B] uppercase tracking-wide">Mailboxes</span>
+                  <button
+                    onClick={() => setCreateFilterMailboxPickerOpen(true)}
+                    className="text-[11px] font-semibold cursor-pointer transition-colors hover:opacity-80"
+                    style={{ color: EMAIL_TABLE_NAVY }}
+                  >
+                    Edit
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 px-3 py-2 rounded-[8px] bg-[#F7F8FA] border border-[#E2E6E9] text-[11.5px]">
+                  {createFilterMailboxes.length === 0 ? (
+                    <span className="text-[#97999B]">No mailboxes selected.</span>
+                  ) : (
+                    <span className="text-[#4D4D4D]">{createFilterMailboxes.join(", ")}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10.5px] font-bold text-[#97999B] uppercase tracking-wide">
+                    {createFilterAdvanced ? "Conditions" : "Will capture"}
+                  </span>
+                  <button
+                    onClick={() => setCreateFilterAdvanced((v) => !v)}
+                    className="text-[11px] font-semibold cursor-pointer transition-colors hover:opacity-80"
+                    style={{ color: EMAIL_TABLE_NAVY }}
+                  >
+                    {createFilterAdvanced ? "Use simple capture instead" : "Advanced"}
+                  </button>
+                </div>
+                {createFilterAdvanced ? (
+                  <>
+                    <p className="text-[11.5px] text-[#97999B]">Build custom AND/OR conditions below.</p>
+                    <ConditionBuilder value={createFilterConditions} onChange={setCreateFilterConditions} fields={CMD_CENTER_FILTER_FIELDS} />
+                  </>
+                ) : (
+                  (() => {
+                    const snapshot = currentFieldSnapshot();
+                    const entries = Object.entries(ADV_FILTER_FIELD_LABELS).filter(([key]) => key !== "mailboxes" && (snapshot[key] ?? []).length > 0);
+                    return entries.length === 0 ? (
+                      <p className="text-[12px] text-[#97999B]">No other criteria selected — this filter will only match on mailboxes.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {entries.map(([key, label]) => (
+                          <span key={key} className="inline-flex items-center gap-1 px-2 py-1 rounded-[6px] bg-[#F1F2F4] text-[11.5px] text-[#4D4D4D]">
+                            <span className="font-semibold text-[#262626]">{label}:</span> {snapshot[key].join(", ")}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+            </div>
+            <div className="shrink-0 flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[#DEDEDE]">
+              <button
+                onClick={() => setCreateFilterOpen(false)}
+                className="px-4 py-2 rounded-[8px] border border-[#E2E6E9] text-[13px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createFilterFromCurrentState}
+                className="px-4 py-2 rounded-[8px] text-[13px] font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer"
+                style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+              >
+                Create filter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {createFilterMailboxPickerOpen && (
+        <MailboxPickerModal
+          subtitle={newFilterName.trim() || "New filter"}
+          mailboxes={MAILBOXES}
+          selected={createFilterMailboxes}
+          onSave={(next) => { setCreateFilterMailboxes(next); setCreateFilterMailboxPickerOpen(false); }}
+          onClose={() => setCreateFilterMailboxPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }
