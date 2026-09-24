@@ -31,6 +31,60 @@ export const ALL_ORDERS = [
   { id: "7822135", status: "At Risk",   holdType: "Invoice Hold",         customer: "Sterling & Co", poId: "STR-POQ-8080810", ocn: "77891",   ou: "KRS-OU-8004", ssd: "Jan 28", ssdDelta: "+7D", country: "UAE"    },
 ];
 
+// Order Listing's "Customer Information" panel — keyed by the `customer` name on ALL_ORDERS, so clicking a
+// customer name/credit-check icon in the table can look up its credit profile without a separate join table.
+export type CustomerCreditInfo = {
+  profileClass: string;
+  creditLimit: number;
+  exposure: number;
+  wadlDays: number;
+  gtmHold: "Clear" | "Hold";
+  rplHold: "Clear" | "Hold";
+  screening: "Pass" | "Fail" | "Review";
+  payTerm: string;
+  billCountry: string;
+  shipCountry: string;
+  currency: string;
+  arCurrent: number;
+  ar1to30: number;
+  ar31to60: number;
+  ar61to90: number;
+  arOver90: number;
+};
+
+export const CUSTOMER_CREDIT_INFO: Record<string, CustomerCreditInfo> = {
+  "Metasite Inc": {
+    profileClass: "Standard", creditLimit: 500000, exposure: 210000, wadlDays: 5.2,
+    gtmHold: "Clear", rplHold: "Clear", screening: "Pass", payTerm: "Net 30",
+    billCountry: "IN", shipCountry: "IN", currency: "INR",
+    arCurrent: 80000, ar1to30: 40000, ar31to60: 10000, ar61to90: 0, arOver90: 0,
+  },
+  "Acme Corp": {
+    profileClass: "Preferred", creditLimit: 750000, exposure: 320000, wadlDays: 3.1,
+    gtmHold: "Clear", rplHold: "Clear", screening: "Pass", payTerm: "Net 45",
+    billCountry: "US", shipCountry: "US", currency: "USD",
+    arCurrent: 150000, ar1to30: 60000, ar31to60: 20000, ar61to90: 5000, arOver90: 0,
+  },
+  GlobalTech: {
+    profileClass: "Standard", creditLimit: 400000, exposure: 380000, wadlDays: 9.7,
+    gtmHold: "Hold", rplHold: "Clear", screening: "Review", payTerm: "Net 30",
+    billCountry: "GB", shipCountry: "GB", currency: "GBP",
+    arCurrent: 40000, ar1to30: 35000, ar31to60: 25000, ar61to90: 15000, arOver90: 8000,
+  },
+  "Nexus Corp": {
+    profileClass: "Standard", creditLimit: 300000, exposure: 95000, wadlDays: 4.4,
+    gtmHold: "Clear", rplHold: "Clear", screening: "Pass", payTerm: "Net 60",
+    billCountry: "IN", shipCountry: "IN", currency: "INR",
+    arCurrent: 30000, ar1to30: 12000, ar31to60: 3000, ar61to90: 0, arOver90: 0,
+  },
+  "Sterling & Co": {
+    profileClass: "High Risk", creditLimit: 600000, exposure: 590000, wadlDays: 14.2,
+    gtmHold: "Hold", rplHold: "Hold", screening: "Fail", payTerm: "Net 15",
+    billCountry: "AE", shipCountry: "AE", currency: "USD",
+    arCurrent: 20000, ar1to30: 45000, ar31to60: 60000, ar61to90: 40000, arOver90: 25000,
+  },
+};
+
 export const ALL_RELEASED = [
   { id: "7800028", customer: "Acme Industries Ltd",  holdType: "Credit Check Failure", value: "$210K", title: "Bill Only Line Order",  releasedDays: "09 day's ago", poId: "ACM-POQ-9000001" },
   { id: "7800029", customer: "GlobalTech Corp",       holdType: "Invoice Hold",         value: "$85K",  title: "Standard Order",         releasedDays: "09 day's ago", poId: "GLB-POQ-9000002" },
@@ -201,6 +255,70 @@ export const LINE_LISTING_ROWS: LineListingRow[] = [
   },
 ];
 
+// Credit view "My Holds / All Holds / teammate / group" picker — each record is one order sitting on a
+// credit hold, assigned to a real team member, so switching scope in HoldManagementOverview.tsx actually
+// changes which orders are counted/aggregated into the Credit Holds cards instead of just swapping a label.
+export type CreditTeamUser = { id: string; name: string };
+export const CREDIT_TEAM_USERS: CreditTeamUser[] = [
+  { id: "me", name: "Jagdish Kumar" },
+  { id: "u1", name: "Priya Shah" },
+  { id: "u2", name: "Wasim Shaikh" },
+  { id: "u3", name: "Pranjal Bailung" },
+  { id: "u4", name: "Khaja Mohideen" },
+  { id: "u5", name: "Winstina D'Souza" },
+  { id: "u6", name: "Brenden Kirby" },
+  { id: "u7", name: "Jouni Lantto" },
+  { id: "u8", name: "Sari Pellinen" },
+];
+// "me" = the logged-in user (matches AppHeader's CURRENT_USER), so "My Holds" is just scope { type: "user", userId: CURRENT_CREDIT_USER_ID }.
+export const CURRENT_CREDIT_USER_ID = "me";
+
+export type CreditHoldRecord = {
+  id: string;
+  holdType: (typeof CREDIT_HOLD_TYPES)[number];
+  assignedToId: string;
+  value: number;
+  status: "On Track" | "At Risk" | "Breached";
+  agingDays: number;
+  ssdProximityDays: number;
+  ageHours: number;
+};
+
+export const CREDIT_HOLD_RECORDS: CreditHoldRecord[] = [
+  // Credit Check Failure (12)
+  { id: "ch1", holdType: "Credit Check Failure", assignedToId: "me", value: 220000, status: "Breached", agingDays: 9, ssdProximityDays: 4, ageHours: 70 },
+  { id: "ch2", holdType: "Credit Check Failure", assignedToId: "u1", value: 180000, status: "On Track", agingDays: 4, ssdProximityDays: 9, ageHours: 30 },
+  { id: "ch3", holdType: "Credit Check Failure", assignedToId: "u1", value: 95000, status: "At Risk", agingDays: 6, ssdProximityDays: 7, ageHours: 45 },
+  { id: "ch4", holdType: "Credit Check Failure", assignedToId: "u2", value: 260000, status: "Breached", agingDays: 12, ssdProximityDays: 2, ageHours: 96 },
+  { id: "ch5", holdType: "Credit Check Failure", assignedToId: "u2", value: 140000, status: "On Track", agingDays: 3, ssdProximityDays: 11, ageHours: 22 },
+  { id: "ch6", holdType: "Credit Check Failure", assignedToId: "u3", value: 175000, status: "At Risk", agingDays: 7, ssdProximityDays: 6, ageHours: 50 },
+  { id: "ch7", holdType: "Credit Check Failure", assignedToId: "u3", value: 110000, status: "Breached", agingDays: 15, ssdProximityDays: 1, ageHours: 130 },
+  { id: "ch8", holdType: "Credit Check Failure", assignedToId: "u4", value: 130000, status: "On Track", agingDays: 2, ssdProximityDays: 12, ageHours: 16 },
+  { id: "ch9", holdType: "Credit Check Failure", assignedToId: "u5", value: 165000, status: "At Risk", agingDays: 8, ssdProximityDays: 5, ageHours: 60 },
+  { id: "ch10", holdType: "Credit Check Failure", assignedToId: "u6", value: 95000, status: "On Track", agingDays: 3, ssdProximityDays: 10, ageHours: 24 },
+  { id: "ch11", holdType: "Credit Check Failure", assignedToId: "u7", value: 145000, status: "Breached", agingDays: 11, ssdProximityDays: 3, ageHours: 88 },
+  { id: "ch12", holdType: "Credit Check Failure", assignedToId: "u8", value: 105000, status: "At Risk", agingDays: 5, ssdProximityDays: 8, ageHours: 40 },
+
+  // Credit Hold at Pick (9)
+  { id: "cp1", holdType: "Credit Hold at Pick", assignedToId: "me", value: 145000, status: "On Track", agingDays: 3, ssdProximityDays: 10, ageHours: 20 },
+  { id: "cp2", holdType: "Credit Hold at Pick", assignedToId: "u1", value: 88000, status: "On Track", agingDays: 2, ssdProximityDays: 12, ageHours: 14 },
+  { id: "cp3", holdType: "Credit Hold at Pick", assignedToId: "u2", value: 102000, status: "Breached", agingDays: 10, ssdProximityDays: 3, ageHours: 84 },
+  { id: "cp4", holdType: "Credit Hold at Pick", assignedToId: "u3", value: 76000, status: "On Track", agingDays: 1, ssdProximityDays: 13, ageHours: 10 },
+  { id: "cp5", holdType: "Credit Hold at Pick", assignedToId: "u4", value: 94000, status: "At Risk", agingDays: 6, ssdProximityDays: 6, ageHours: 48 },
+  { id: "cp6", holdType: "Credit Hold at Pick", assignedToId: "u5", value: 68000, status: "On Track", agingDays: 2, ssdProximityDays: 11, ageHours: 18 },
+  { id: "cp7", holdType: "Credit Hold at Pick", assignedToId: "u6", value: 112000, status: "At Risk", agingDays: 5, ssdProximityDays: 7, ageHours: 42 },
+  { id: "cp8", holdType: "Credit Hold at Pick", assignedToId: "u7", value: 85000, status: "On Track", agingDays: 3, ssdProximityDays: 9, ageHours: 26 },
+  { id: "cp9", holdType: "Credit Hold at Pick", assignedToId: "u8", value: 130000, status: "On Track", agingDays: 4, ssdProximityDays: 8, ageHours: 33 },
+
+  // Manual Credit Hold (6)
+  { id: "mc1", holdType: "Manual Credit Hold", assignedToId: "me", value: 118000, status: "Breached", agingDays: 18, ssdProximityDays: 2, ageHours: 200 },
+  { id: "mc2", holdType: "Manual Credit Hold", assignedToId: "u1", value: 95000, status: "At Risk", agingDays: 9, ssdProximityDays: 5, ageHours: 72 },
+  { id: "mc3", holdType: "Manual Credit Hold", assignedToId: "u2", value: 87000, status: "On Track", agingDays: 4, ssdProximityDays: 9, ageHours: 30 },
+  { id: "mc4", holdType: "Manual Credit Hold", assignedToId: "u4", value: 76000, status: "Breached", agingDays: 14, ssdProximityDays: 3, ageHours: 150 },
+  { id: "mc5", holdType: "Manual Credit Hold", assignedToId: "u6", value: 108000, status: "At Risk", agingDays: 7, ssdProximityDays: 6, ageHours: 55 },
+  { id: "mc6", holdType: "Manual Credit Hold", assignedToId: "u8", value: 116000, status: "On Track", agingDays: 5, ssdProximityDays: 8, ageHours: 38 },
+];
+
 export const HOLD_COLUMNS = ["Hold Name", "Category", "Level/Line", "Workflow", "Owner", "Impact", "ERD", "Notes Preview", "Action"];
 export const HOLD_FILTER_SECTIONS = [
   { key: "Category",  label: "Category",  options: { Financial: 2, Factory: 1, Forecast: 1, Framework: 1, Folio: 1, Fusion: 1 } },
@@ -209,3 +327,90 @@ export const HOLD_FILTER_SECTIONS = [
   { key: "Owner",     label: "Owner",     options: { CSR: 5, Factory: 1, "CSR Factory": 1 } },
   { key: "Impact",    label: "Impact",    options: { Ship: 7 } },
 ];
+
+// Order Details' "Show More Order Info" modal — a wider set of order/shipping fields than the base
+// ALL_ORDERS row carries (payment term, credit analyst, sales rep, net/tax/total amounts, ...). Derived
+// deterministically per order id (rather than a 29-row hand-authored table) so every order still shows
+// distinct, stable values on every render — same names pool (CREDIT_TEAM_USERS) as the rest of Hold Mgmt.
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+const ORDER_TYPES = ["Standard", "Bill Only", "Sample", "RMA"];
+const ORDER_STATUSES = ["Entered", "Booked", "AWAITING_FULFILLMENT"];
+const PAYMENT_TERMS = ["Net 15", "Net 30", "Net 45", "Net 60"];
+const SALES_REPS = ["Klaus Berg", "Meera Iyer", "Tom Becker", "Aiko Tanaka"];
+const REGION_BY_COUNTRY: Record<string, { region: string; currency: string; fx: number }> = {
+  India: { region: "APAC", currency: "INR", fx: 83 },
+  Japan: { region: "APAC", currency: "JPY", fx: 150 },
+  USA: { region: "AMER", currency: "USD", fx: 1 },
+  Manual: { region: "APAC", currency: "USD", fx: 1 },
+};
+
+export type OrderShowMoreInfo = {
+  directInquiriesTo: string;
+  orderType: string;
+  status: string;
+  customerNumber: string;
+  region: string;
+  holdComment: string;
+  holdRetriggerReason: string;
+  holdAppliedBy: string;
+  holdAppliedDate: string;
+  paymentTerm: string;
+  daysToSSD: string;
+  orderValueUSD: number;
+  creditAnalyst: string;
+  salesRep: string;
+  salesOrderOwner: string;
+  endCustomer: string;
+  currency: string;
+  netAmountTRX: number;
+  taxAmountTRX: number;
+  taxAmountUSD: number;
+  totalWithTaxTRX: number;
+  totalWithTaxUSD: number;
+};
+
+export function getOrderShowMoreInfo(order: (typeof ALL_ORDERS)[number]): OrderShowMoreInfo {
+  // hashStr returns an unsigned 32-bit value (up to ~4.29B). Clamped here into a small range so every `>>`
+  // below stays a small positive int — `>>` coerces its operand to a *signed* 32-bit int first, so an
+  // unclamped seed above 2^31 would go negative, and a negative `% length` in JS stays negative, producing
+  // an out-of-bounds (undefined) array index.
+  const seed = hashStr(order.id) % 1_000_003;
+  const analyst = CREDIT_TEAM_USERS[seed % CREDIT_TEAM_USERS.length];
+  const salesRep = SALES_REPS[(seed >> 2) % SALES_REPS.length];
+  const emailOf = (name: string) => `${name.toLowerCase().replace(/[^a-z ]/g, "").replace(/\s+/g, ".")}@keysight.com`;
+  const { region, currency, fx } = REGION_BY_COUNTRY[order.country] ?? { region: "AMER", currency: "USD", fx: 1 };
+
+  const orderValueUSD = 15000 + (seed % 40) * 3250;
+  const netAmountTRX = Math.round(orderValueUSD * fx * 0.985);
+  const taxAmountTRX = Math.round(netAmountTRX * 0.08);
+  const taxAmountUSD = Math.round(orderValueUSD * 0.08);
+
+  return {
+    directInquiriesTo: emailOf(analyst.name),
+    orderType: ORDER_TYPES[seed % ORDER_TYPES.length],
+    status: ORDER_STATUSES[(seed >> 3) % ORDER_STATUSES.length],
+    customerNumber: `CUST-${order.customer.slice(0, 3).toUpperCase()}-${100 + (seed % 900)}`,
+    region,
+    holdComment: seed % 3 === 0 ? "Awaiting customer response" : "—",
+    holdRetriggerReason: seed % 5 === 0 ? "Manual re-evaluation" : "—",
+    holdAppliedBy: analyst.name,
+    holdAppliedDate: `${String(1 + (seed % 28)).padStart(2, "0")}-Jan-26`,
+    paymentTerm: PAYMENT_TERMS[(seed >> 1) % PAYMENT_TERMS.length],
+    daysToSSD: order.ssdDelta.replace("+", "+").replace("D", "d"),
+    orderValueUSD,
+    creditAnalyst: analyst.name,
+    salesRep,
+    salesOrderOwner: emailOf(salesRep),
+    endCustomer: `${order.customer} Ship`,
+    currency,
+    netAmountTRX,
+    taxAmountTRX,
+    taxAmountUSD,
+    totalWithTaxTRX: netAmountTRX + taxAmountTRX,
+    totalWithTaxUSD: orderValueUSD + taxAmountUSD,
+  };
+}

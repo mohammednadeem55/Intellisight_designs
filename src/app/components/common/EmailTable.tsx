@@ -850,6 +850,19 @@ function EmailTableSubjectCell({ entity, density, primaryField = "id", onOpenAtt
 // trigger's real screen coordinates) rather than CSS anchored to an ancestor. The table scrolls inside an
 // `overflow-auto` container, and a plain CSS/absolute tooltip gets clipped at whichever edge (top, bottom,
 // or the sticky-right Action column) it happens to overflow — fixed positioning escapes that entirely.
+// A single read-only stat — grey uppercase label + compact bold value. Shared "our design" pattern for
+// info/detail modals (Order Listing's Customer Information, Order Details' Show More Order Info): laid out
+// by the caller with grid+gap rather than borders-between-items, so alignment stays correct once fields
+// wrap onto multiple rows.
+export function InfoTile({ label, value, labelColor = "#97999B", valueColor = "#262626" }: { label: string; value: ReactNode; labelColor?: string; valueColor?: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10.5px] font-semibold uppercase tracking-wide truncate" style={{ color: labelColor }}>{label}</p>
+      <p className="text-[13.5px] font-semibold mt-1 truncate" style={{ color: valueColor }}>{value}</p>
+    </div>
+  );
+}
+
 export function EmailTableTooltip({ label, children }: { label: string; children: ReactNode }) {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLSpanElement>(null);
