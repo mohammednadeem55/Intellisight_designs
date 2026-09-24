@@ -1,33 +1,60 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowDown, ArrowUp, Check, CheckCircle2, ChevronDown, ChevronsUpDown, Clock, DollarSign, Inbox, Maximize2, Minimize2, Package, Pencil, Plus, RefreshCw, Search, Star, Trash2, User, Users, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, CheckCircle2, ChevronDown, Clock, DollarSign, Hourglass, Inbox, Maximize2, Minimize2, Package, Pencil, Plus, RefreshCw, Search, Star, Target, Trash2, User, Users, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
-import { EMAIL_TABLE_NAVY } from "../../components/common/EmailTable";
-import { ALL_ORDERS } from "./holdManagementData";
+import { EMAIL_TABLE_NAVY, EmailTableTooltip } from "../../components/common/EmailTable";
+import { ALL_ORDERS, CREDIT_HOLD_RECORDS, CREDIT_HOLD_TYPES, CREDIT_TEAM_USERS, CURRENT_CREDIT_USER_ID } from "./holdManagementData";
 import { loadFavoriteOrderIds, saveFavoriteOrderIds } from "./favoritesStorage";
 
 const HOLD_CARD_WIDTH = 280;
 const TIMELINE_OPTIONS = ["24h", "48h", "72h", "1 Week", "2 Weeks"];
 const TIMELINE_HOURS: Record<string, number> = { "24h": 24, "48h": 48, "72h": 72, "1 Week": 168, "2 Weeks": 336 };
 const SORT_OPTIONS = ["Aging", "SSD Proximity", "Value", "Order Volume"];
+// Icon-only Sort By buttons — the metric each represents, so a tooltip (title) is the only place the full
+// label appears once the toolbar got too crowded for text pills per option.
+const SORT_ICONS: Record<string, typeof Clock> = { Aging: Hourglass, "SSD Proximity": Target, Value: DollarSign, "Order Volume": Package };
 const VIEW_OPTIONS = ["CSR", "Credit"];
 const FAVORITE_STATUS_COLOR: Record<string, string> = { "On Track": "#468657", "At Risk": "#E67919", Breached: "#C83737" };
 
-// "My Holds" vs. a named group of teammates whose holds should be viewed together — saved per-browser so a
-// group set up today is still there on the next login. Real per-user hold assignment isn't in the mock data
-// model yet, so selecting a group is illustrative (toast) rather than actually re-filtering the panels.
+// "My Holds" / "All Holds" / a single teammate / a saved group of teammates — saved per-browser so a group
+// set up today is still there on the next login. Real filtering is backed by CREDIT_HOLD_RECORDS (each an
+// order on a credit hold, assigned to a CREDIT_TEAM_USERS id), see scopeRecordIds/computeCreditPanel below.
 const HOLD_GROUPS_STORAGE_KEY = "intellisight.holdManagement.holdGroups";
 type HoldGroup = { id: string; name: string; memberIds: string[] };
-const MOCK_USERS = [
-  { id: "u1", name: "Priya Shah" },
-  { id: "u2", name: "Wasim Shaikh" },
-  { id: "u3", name: "Pranjal Bailung" },
-  { id: "u4", name: "Khaja Mohideen" },
-  { id: "u5", name: "Winstina D'Souza" },
-  { id: "u6", name: "Brenden Kirby" },
-  { id: "u7", name: "Jouni Lantto" },
-  { id: "u8", name: "Sari Pellinen" },
-];
+type HoldScope = { type: "mine" } | { type: "all" } | { type: "user"; userId: string } | { type: "group"; groupId: string };
+const TEAMMATES = CREDIT_TEAM_USERS.filter((u) => u.id !== CURRENT_CREDIT_USER_ID);
+
+function scopeRecordIds(scope: HoldScope, groups: HoldGroup[]): string[] | null {
+  switch (scope.type) {
+    case "mine": return [CURRENT_CREDIT_USER_ID];
+    case "all": return null;
+    case "user": return [scope.userId];
+    case "group": return groups.find((g) => g.id === scope.groupId)?.memberIds ?? [];
+  }
+}
+function scopeRecordCount(scope: HoldScope, groups: HoldGroup[]): number {
+  const ids = scopeRecordIds(scope, groups);
+  return ids ? CREDIT_HOLD_RECORDS.filter((r) => ids.includes(r.assignedToId)).length : CREDIT_HOLD_RECORDS.length;
+}
+function scopeLabel(scope: HoldScope, groups: HoldGroup[]): string {
+  switch (scope.type) {
+    case "mine": return "My Holds";
+    case "all": return "All Holds";
+    case "user": return TEAMMATES.find((u) => u.id === scope.userId)?.name ?? "Teammate";
+    case "group": return groups.find((g) => g.id === scope.groupId)?.name ?? "Group";
+  }
+}
+function formatCurrency(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${n}`;
+}
+const CREDIT_HOLD_TYPE_META: Record<string, { level: "Line" | "Header" }> = {
+  "Credit Check Failure": { level: "Line" },
+  "Credit Hold at Pick": { level: "Line" },
+  "Manual Credit Hold": { level: "Header" },
+};
 function loadHoldGroups(): HoldGroup[] {
   try {
     const raw = localStorage.getItem(HOLD_GROUPS_STORAGE_KEY);
@@ -64,6 +91,47 @@ type HoldCardData = {
   agingDays: number; ssdProximityDays: number; ageHours: number;
 };
 type HoldPanelData = { title: string; count: number; critical: number; total: string; accentColor: string; cards: HoldCardData[] };
+
+// Aggregates CREDIT_HOLD_RECORDS (filtered to the given scope) into the same 3-card "Credit Holds" panel
+// shape the UI already renders — one card per hold type, counts/value/critical recomputed from whichever
+// orders fall under the selected scope instead of a fixed mock number.
+function computeCreditPanel(scope: HoldScope, groups: HoldGroup[]): HoldPanelData {
+  const ids = scopeRecordIds(scope, groups);
+  const records = ids ? CREDIT_HOLD_RECORDS.filter((r) => ids.includes(r.assignedToId)) : CREDIT_HOLD_RECORDS;
+  const cards = CREDIT_HOLD_TYPES.map((holdType): HoldCardData | null => {
+    const typeRecords = records.filter((r) => r.holdType === holdType);
+    if (typeRecords.length === 0) return null;
+    const breachedCount = typeRecords.filter((r) => r.status === "Breached").length;
+    const worstStatus = breachedCount > 0 ? "Breached" : typeRecords.some((r) => r.status === "At Risk") ? "At Risk" : "On Track";
+    const statusColor = worstStatus === "Breached" ? "#C83737" : worstStatus === "At Risk" ? "#E67919" : "#468657";
+    const level = CREDIT_HOLD_TYPE_META[holdType].level;
+    return {
+      code: holdType,
+      badge: "CREDIT",
+      badgeColor: "#7C3AED",
+      orders: String(typeRecords.length).padStart(2, "0"),
+      breached: String(breachedCount).padStart(2, "0"),
+      value: formatCurrency(typeRecords.reduce((sum, r) => sum + r.value, 0)),
+      critical: breachedCount > 0,
+      agingDays: Math.max(...typeRecords.map((r) => r.agingDays)),
+      ssdProximityDays: Math.min(...typeRecords.map((r) => r.ssdProximityDays)),
+      ageHours: Math.max(...typeRecords.map((r) => r.ageHours)),
+      tags: [
+        { label: level, color: level === "Line" ? EMAIL_TABLE_NAVY : "#637590", bg: level === "Line" ? "rgba(48,87,141,0.1)" : "rgba(99,117,144,0.1)" },
+        { label: worstStatus, color: statusColor, bg: `${statusColor}1A` },
+      ],
+    };
+  }).filter((c): c is HoldCardData => c !== null);
+
+  return {
+    title: "Credit Holds",
+    count: records.length,
+    critical: cards.filter((c) => c.critical).length,
+    total: formatCurrency(records.reduce((sum, r) => sum + r.value, 0)),
+    accentColor: "#7C3AED",
+    cards,
+  };
+}
 
 // A single hold-panel section: header (title, counts, View All, prev/next) + a smooth horizontally-scrolling,
 // snap-aligned card carousel. Kept as its own component (rather than inline in the parent's .map) so the
@@ -275,7 +343,7 @@ function HoldGroupModal({ group, onClose, onSave, onDelete }: {
   const [userSearch, setUserSearch] = useState("");
 
   const toggleMember = (id: string) => setMemberIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const filteredUsers = MOCK_USERS.filter((u) => u.name.toLowerCase().includes(userSearch.trim().toLowerCase()));
+  const filteredUsers = TEAMMATES.filter((u) => u.name.toLowerCase().includes(userSearch.trim().toLowerCase()));
 
   const save = () => {
     if (!name.trim()) { toast.warning("Enter a group name"); return; }
@@ -406,18 +474,38 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
   const timelineRef = useRef<HTMLDivElement>(null);
   const timelineLabel = timelineTab ?? "Timeline";
 
-  // "My Holds" (default) vs. a saved group of teammates — persisted in localStorage so groups created
-  // today are still there next login.
+  // "My Holds" (default) / "All Holds" / a single teammate / a saved group — persisted in localStorage so
+  // groups created today are still there next login.
   const [holdGroups, setHoldGroups] = useState<HoldGroup[]>(() => loadHoldGroups());
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [holdScope, setHoldScope] = useState<HoldScope>({ type: "mine" });
+  const teamSelected = holdScope.type === "user" || holdScope.type === "group";
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
-  const groupPickerRef = useRef<HTMLDivElement>(null);
+  // The picker's trigger button lives inside a card with `overflow-hidden` (for its rounded corners), which
+  // would clip a long dropdown instead of letting it scroll — so the open menu is portaled to <body> and
+  // positioned from the button's own rect rather than rendered as a normal absolutely-positioned child.
+  const groupPickerRef = useRef<HTMLButtonElement>(null);
+  const groupDropdownRef = useRef<HTMLDivElement>(null);
+  const [groupPickerPos, setGroupPickerPos] = useState<{ top: number; left: number } | null>(null);
+  const [teamSearch, setTeamSearch] = useState("");
+  const toggleGroupPicker = () => {
+    if (!groupPickerOpen && groupPickerRef.current) {
+      const rect = groupPickerRef.current.getBoundingClientRect();
+      setGroupPickerPos({ top: rect.bottom + 4, left: rect.left });
+    } else {
+      setTeamSearch("");
+    }
+    setGroupPickerOpen((v) => !v);
+  };
+  const teamSearchQuery = teamSearch.trim().toLowerCase();
+  const filteredTeammates = TEAMMATES.filter((u) => u.name.toLowerCase().includes(teamSearchQuery));
+  const filteredHoldGroups = holdGroups.filter((g) => g.name.toLowerCase().includes(teamSearchQuery));
   const [groupModal, setGroupModal] = useState<{ mode: "create" } | { mode: "edit"; group: HoldGroup } | null>(null);
-  const selectedGroup = holdGroups.find((g) => g.id === selectedGroupId) ?? null;
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (groupPickerRef.current && !groupPickerRef.current.contains(e.target as Node)) setGroupPickerOpen(false);
+      const insideButton = groupPickerRef.current?.contains(e.target as Node) ?? false;
+      const insideDropdown = groupDropdownRef.current?.contains(e.target as Node) ?? false;
+      if (!insideButton && !insideDropdown) setGroupPickerOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -434,7 +522,7 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
       const updated = [...holdGroups, newGroup];
       setHoldGroups(updated);
       saveHoldGroups(updated);
-      setSelectedGroupId(newGroup.id);
+      setHoldScope({ type: "group", groupId: newGroup.id });
       toast.success(`"${name}" created`);
     }
     setGroupModal(null);
@@ -443,7 +531,7 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
     const updated = holdGroups.filter((g) => g.id !== id);
     setHoldGroups(updated);
     saveHoldGroups(updated);
-    if (selectedGroupId === id) setSelectedGroupId(null);
+    if (holdScope.type === "group" && holdScope.groupId === id) setHoldScope({ type: "mine" });
     setGroupModal(null);
     toast.info("Group deleted");
   };
@@ -549,32 +637,11 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
   ];
 
   // Credit view — same panel/carousel shape as the CSR panels above, just one panel covering the three
-  // credit-specific hold types instead of the full CSR breakdown.
-  const creditPanel: HoldPanelData = {
-    title: "Credit Holds", count: 25, critical: 3, total: "$3.3M", accentColor: "#7C3AED",
-    cards: [
-      {
-        code: "Credit Check Failure", badge: "CREDIT", badgeColor: "#7C3AED", orders: "12", breached: "04", value: "$1.8M", critical: true,
-        agingDays: 9, ssdProximityDays: 4, ageHours: 70,
-        tags: [{ label: "Line", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "At Risk", color: "#E67919", bg: "rgba(230,121,25,0.1)" }],
-      },
-      {
-        code: "Credit Hold at Pick", badge: "CREDIT", badgeColor: "#7C3AED", orders: "08", breached: "01", value: "$0.9M",
-        agingDays: 3, ssdProximityDays: 10, ageHours: 20,
-        tags: [{ label: "Line", color: EMAIL_TABLE_NAVY, bg: "rgba(48,87,141,0.1)" }, { label: "On Track", color: "#468657", bg: "rgba(70,134,87,0.1)" }],
-      },
-      {
-        code: "Manual Credit Hold", badge: "CREDIT", badgeColor: "#7C3AED", orders: "05", breached: "02", value: "$0.6M",
-        agingDays: 18, ssdProximityDays: 2, ageHours: 200,
-        tags: [{ label: "Header", color: "#637590", bg: "rgba(99,117,144,0.1)" }, { label: "Late", color: "#C83737", bg: "rgba(200,55,55,0.1)" }],
-      },
-    ],
-  };
+  // credit-specific hold types, aggregated live from CREDIT_HOLD_RECORDS for whichever scope (My Holds /
+  // All Holds / a teammate / a group) is selected in the picker above.
+  const creditPanel = computeCreditPanel(holdScope, holdGroups);
   const displayedPanels = activeView === "Credit" ? [creditPanel] : holdPanels;
   const totalHoldCount = displayedPanels.reduce((sum, p) => sum + p.count, 0);
-  // No real per-user hold assignment in the mock data yet — a stable, illustrative count per group
-  // (scales with member count) stands in until that data model exists.
-  const groupHoldCount = (group: HoldGroup) => Math.max(5, group.memberIds.length * 9 + 3);
 
   const releasedOrders = [
     { id: "#7800011", value: "$340K", company: "Acme Industries Ltd", reason: "Credit Check Failure", time: "Released 2d ago" },
@@ -728,103 +795,194 @@ export function HoldManagementOverview({ onLogout, onViewAllNotifications, onNav
                   as the single divider (both this boundary and every boundary between panels); adding one
                   here too would stack two 1px borders back-to-back and read as one thick, muddy line. */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5">
-                {/* My Holds / saved group picker — Credit-only; CSR keeps the plain "Holds (N)" title since
-                    holds there aren't scoped by user/group. */}
+                {/* My Holds / All Holds / a teammate / a saved group — Credit-only; CSR keeps the plain
+                    "Holds (N)" title since holds there aren't scoped by user/group. */}
                 {activeView !== "Credit" ? (
                   <h3 className="text-[14px] font-bold text-[#111827]">
                     Holds <span className="text-[#9ca3af] font-medium">({totalHoldCount})</span>
                   </h3>
                 ) : (
-                <div className="relative" ref={groupPickerRef}>
-                  <button
-                    onClick={() => setGroupPickerOpen((v) => !v)}
-                    className={`flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-medium transition-colors cursor-pointer ${
-                      groupPickerOpen ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#111827] hover:bg-[#F7F7F7]"
-                    }`}
-                  >
-                    {selectedGroup ? (
-                      <Users size={13} className={groupPickerOpen ? "text-[#30578D]" : "text-[#97999B]"} />
-                    ) : (
-                      <User size={13} className={groupPickerOpen ? "text-[#30578D]" : "text-[#97999B]"} />
-                    )}
-                    {selectedGroup ? selectedGroup.name : "My Holds"}
-                    <span className="text-[#9ca3af] font-medium">({selectedGroup ? groupHoldCount(selectedGroup) : totalHoldCount})</span>
-                    <ChevronDown size={13} className={`transition-transform duration-200 ${groupPickerOpen ? "rotate-180" : ""}`} />
-                  </button>
-                  {groupPickerOpen && (
-                    <div className="absolute top-full left-0 mt-1 bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-40 py-1 w-[240px]">
-                      <button
-                        onClick={() => { setSelectedGroupId(null); setGroupPickerOpen(false); toast.success("Showing My Holds"); }}
-                        className={`w-full flex items-center gap-2 text-left px-3.5 py-2 text-[12.5px] cursor-pointer transition-colors ${!selectedGroup ? "font-bold bg-[#EAF1FB]" : "font-normal hover:bg-[#F7F7F7]"}`}
-                        style={{ color: !selectedGroup ? EMAIL_TABLE_NAVY : "#4D4D4D" }}
-                      >
-                        <User size={12} className={!selectedGroup ? "text-[#30578D]" : "text-[#97999B]"} />
-                        My Holds <span className="text-[#97999B] font-normal">({totalHoldCount})</span>
-                      </button>
-                      {holdGroups.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* My Holds / All Holds — same segmented-toggle pattern as Command Center's My Tasks / All
+                      Tasks. Neither segment is highlighted once a specific teammate/group is picked below. */}
+                  <div className="flex items-center gap-[3px] p-[3px] bg-[#F1F2F4] border border-[#E2E6E9] rounded-[8px] h-[36px] shrink-0">
+                    <button
+                      onClick={() => setHoldScope({ type: "mine" })}
+                      className={`flex items-center gap-1.5 px-3 h-full rounded-[6px] text-[12.5px] font-semibold transition-all cursor-pointer whitespace-nowrap ${holdScope.type === "mine" ? "bg-white shadow-sm" : "text-[#666666] hover:text-[#4D4D4D]"}`}
+                      style={holdScope.type === "mine" ? { color: EMAIL_TABLE_NAVY } : undefined}
+                    >
+                      <User size={13} />
+                      My Holds
+                    </button>
+                    <button
+                      onClick={() => setHoldScope({ type: "all" })}
+                      className={`flex items-center gap-1.5 px-3 h-full rounded-[6px] text-[12.5px] font-semibold transition-all cursor-pointer whitespace-nowrap ${holdScope.type === "all" ? "bg-white shadow-sm" : "text-[#666666] hover:text-[#4D4D4D]"}`}
+                      style={holdScope.type === "all" ? { color: EMAIL_TABLE_NAVY } : undefined}
+                    >
+                      <Users size={13} />
+                      All Holds
+                    </button>
+                  </div>
+
+                  {/* Team — a separate drill-down into a specific teammate or saved group, kept out of the
+                      toggle above since it's a deliberate, less-common action. Picking one overrides the
+                      toggle (neither segment stays highlighted); the ✕ clears back to My Holds. Stays
+                      highlighted while a teammate/group is the active scope, not just while the menu is open. */}
+                  <div className="relative">
+                    <button
+                      ref={groupPickerRef}
+                      onClick={toggleGroupPicker}
+                      className={`flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-medium transition-colors cursor-pointer ${
+                        groupPickerOpen || teamSelected ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7]"
+                      }`}
+                    >
+                      <Users size={13} className={groupPickerOpen || teamSelected ? "text-[#30578D]" : "text-[#97999B]"} />
+                      {holdScope.type === "user" || holdScope.type === "group" ? (
                         <>
-                          <div className="h-px bg-[#E2E6E9] my-1" />
-                          {holdGroups.map((g) => {
-                            const selected = g.id === selectedGroupId;
-                            return (
-                            <div
-                              key={g.id}
-                              className={`group flex items-center gap-1 px-1.5 ${selected ? "bg-[#EAF1FB]" : "hover:bg-[#F7F7F7]"} transition-colors`}
-                            >
-                              <button
-                                onClick={() => { setSelectedGroupId(g.id); setGroupPickerOpen(false); toast.success(`Showing holds for "${g.name}"`); }}
-                                className={`flex-1 min-w-0 flex items-center gap-2 text-left pl-2 pr-1 py-2 text-[12.5px] truncate cursor-pointer ${selected ? "font-bold" : "font-normal"}`}
-                                style={{ color: selected ? EMAIL_TABLE_NAVY : "#4D4D4D" }}
-                              >
-                                <Users size={12} className={selected ? "text-[#30578D]" : "text-[#97999B]"} />
-                                {g.name}
-                                <span className="text-[10.5px] text-[#97999B] font-normal ml-1">({groupHoldCount(g)})</span>
-                              </button>
-                              <button
-                                onClick={() => { setGroupModal({ mode: "edit", group: g }); setGroupPickerOpen(false); }}
-                                title="Edit group"
-                                className="shrink-0 p-1.5 rounded-[6px] text-[#97999B] hover:text-[#30578D] hover:bg-white cursor-pointer transition-colors opacity-0 group-hover:opacity-100"
-                              >
-                                <Pencil size={12} />
-                              </button>
-                            </div>
-                            );
-                          })}
+                          {scopeLabel(holdScope, holdGroups)}
+                          <span className="text-[#9ca3af] font-normal">({scopeRecordCount(holdScope, holdGroups)})</span>
+                          <span
+                            role="button"
+                            title="Clear"
+                            onClick={(e) => { e.stopPropagation(); setHoldScope({ type: "mine" }); }}
+                            className="shrink-0 p-0.5 rounded-full hover:bg-[#E2E6E9] cursor-pointer transition-colors"
+                          >
+                            <X size={12} />
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          Team
+                          <ChevronDown size={13} className={`transition-transform duration-200 ${groupPickerOpen ? "rotate-180" : ""}`} />
                         </>
                       )}
-                      <div className="h-px bg-[#E2E6E9] my-1" />
+                    </button>
+                    {groupPickerOpen && groupPickerPos && createPortal(
+                      <div
+                        ref={groupDropdownRef}
+                        className="fixed bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-[100] w-[260px] max-h-[320px] flex flex-col"
+                        style={{ top: groupPickerPos.top, left: groupPickerPos.left }}
+                      >
+                      {/* Search — pinned above the scroller so it stays reachable no matter how far the list is scrolled */}
+                      <div className="shrink-0 p-2 border-b border-[#E2E6E9]">
+                        <div className="relative">
+                          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#97999B] pointer-events-none" />
+                          <input
+                            autoFocus
+                            value={teamSearch}
+                            onChange={(e) => setTeamSearch(e.target.value)}
+                            placeholder="Search teammates or groups"
+                            className="w-full h-[30px] pl-7 pr-2 rounded-[6px] border border-[#E2E6E9] bg-white text-[12px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-h-0 overflow-y-auto py-1">
+                        {filteredTeammates.length === 0 && filteredHoldGroups.length === 0 ? (
+                          <p className="px-3.5 py-6 text-[12px] text-[#97999B] text-center">No matches for "{teamSearch}"</p>
+                        ) : (
+                          <>
+                            {filteredTeammates.length > 0 && (
+                              <>
+                                <p className="px-3.5 pt-1.5 pb-1 text-[10px] font-semibold text-[#97999B] uppercase tracking-wide">Teammates</p>
+                                {filteredTeammates.map((u) => {
+                                  const selected = holdScope.type === "user" && holdScope.userId === u.id;
+                                  return (
+                                    <button
+                                      key={u.id}
+                                      onClick={() => { setHoldScope({ type: "user", userId: u.id }); setGroupPickerOpen(false); toast.success(`Showing holds for ${u.name}`); }}
+                                      className={`w-full flex items-center gap-2 text-left px-3.5 py-2 text-[12.5px] truncate cursor-pointer transition-colors ${selected ? "font-bold bg-[#EAF1FB]" : "font-normal hover:bg-[#F7F7F7]"}`}
+                                      style={{ color: selected ? EMAIL_TABLE_NAVY : "#4D4D4D" }}
+                                    >
+                                      <User size={12} className={selected ? "text-[#30578D]" : "text-[#97999B]"} />
+                                      {u.name}
+                                      <span className="text-[10.5px] text-[#97999B] font-normal ml-auto shrink-0">({scopeRecordCount({ type: "user", userId: u.id }, holdGroups)})</span>
+                                    </button>
+                                  );
+                                })}
+                              </>
+                            )}
+
+                            {filteredHoldGroups.length > 0 && (
+                              <>
+                                <p className="px-3.5 pt-2 pb-1 text-[10px] font-semibold text-[#97999B] uppercase tracking-wide">Groups</p>
+                                {filteredHoldGroups.map((g) => {
+                                  const selected = holdScope.type === "group" && holdScope.groupId === g.id;
+                                  return (
+                                  <div
+                                    key={g.id}
+                                    className={`group flex items-center gap-1 px-1.5 ${selected ? "bg-[#EAF1FB]" : "hover:bg-[#F7F7F7]"} transition-colors`}
+                                  >
+                                    <button
+                                      onClick={() => { setHoldScope({ type: "group", groupId: g.id }); setGroupPickerOpen(false); toast.success(`Showing holds for "${g.name}"`); }}
+                                      className={`flex-1 min-w-0 flex items-center gap-2 text-left pl-2 pr-1 py-2 text-[12.5px] truncate cursor-pointer ${selected ? "font-bold" : "font-normal"}`}
+                                      style={{ color: selected ? EMAIL_TABLE_NAVY : "#4D4D4D" }}
+                                    >
+                                      <Users size={12} className={selected ? "text-[#30578D]" : "text-[#97999B]"} />
+                                      {g.name}
+                                      <span className="text-[10.5px] text-[#97999B] font-normal ml-1">({scopeRecordCount({ type: "group", groupId: g.id }, holdGroups)})</span>
+                                    </button>
+                                    <button
+                                      onClick={() => { setGroupModal({ mode: "edit", group: g }); setGroupPickerOpen(false); }}
+                                      title="Edit group"
+                                      className="shrink-0 p-1.5 rounded-[6px] text-[#97999B] hover:text-[#30578D] hover:bg-white cursor-pointer transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                      <Pencil size={12} />
+                                    </button>
+                                  </div>
+                                  );
+                                })}
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+
                       <button
                         onClick={() => { setGroupModal({ mode: "create" }); setGroupPickerOpen(false); }}
-                        className="w-full flex items-center gap-1.5 text-left px-3.5 py-2 text-[12.5px] font-semibold hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                        className="shrink-0 w-full flex items-center gap-1.5 text-left px-3.5 py-2 text-[12.5px] font-semibold border-t border-[#E2E6E9] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
                         style={{ color: EMAIL_TABLE_NAVY }}
                       >
                         <Plus size={13} />
                         Create New Group
                       </button>
-                    </div>
+                    </div>,
+                    document.body
                   )}
+                  </div>
                 </div>
                 )}
 
                 {/* Sort By + Timeline, grouped together on the right edge of the toolbar */}
                 <div className="flex items-center gap-2.5 flex-wrap ml-auto">
-                  {/* Sort By — plain toggle buttons (not a dropdown): click a button to sort by it, click the
-                      already-active one again to flip direction, same as a table header sort click. */}
+                  {/* Sort By — icon-only toggle buttons (not a dropdown): click a button to sort by it, click
+                      the already-active one again to flip direction, same as a table header sort click. Each
+                      icon represents its metric (hourglass/target/$/package — hourglass rather than a clock
+                      for Aging so it doesn't read as a duplicate of the Timeline control); the label only
+                      shows on hover now that 4 full-text pills made the toolbar too crowded. Uses the same
+                      portal-rendered EmailTableTooltip as the rest of the app rather than the native `title`
+                      attribute, which doesn't reliably render here. */}
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {SORT_OPTIONS.map((opt) => {
                       const active = activeSort === opt;
-                      const SortIcon = sortDirection === "desc" ? ArrowDown : ArrowUp;
+                      const MetricIcon = SORT_ICONS[opt];
+                      const DirIcon = sortDirection === "desc" ? ArrowDown : ArrowUp;
                       return (
+                        <EmailTableTooltip key={opt} label={`Sort by ${opt}${active ? ` — ${sortDirection === "desc" ? "descending" : "ascending"}` : ""}`}>
                         <button
-                          key={opt}
                           onClick={() => toggleSort(opt)}
-                          className={`flex items-center gap-1.5 h-[36px] px-3 rounded-[8px] border text-[12.5px] font-medium transition-colors cursor-pointer ${
+                          className={`relative flex items-center justify-center size-[36px] rounded-[8px] border transition-colors cursor-pointer ${
                             active ? "border-[#30578D] text-[#30578D] bg-[#30578D]/5" : "border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7]"
                           }`}
                         >
-                          {opt}
-                          {active ? <SortIcon size={13} style={{ color: EMAIL_TABLE_NAVY }} /> : <ChevronsUpDown size={13} className="text-[#97999B]" />}
+                          <MetricIcon size={15} />
+                          {active && (
+                            <span className="absolute -bottom-1 -right-1 flex items-center justify-center size-[14px] rounded-full bg-white border border-[#E2E6E9]">
+                              <DirIcon size={9} style={{ color: EMAIL_TABLE_NAVY }} />
+                            </span>
+                          )}
                         </button>
+                        </EmailTableTooltip>
                       );
                     })}
                   </div>

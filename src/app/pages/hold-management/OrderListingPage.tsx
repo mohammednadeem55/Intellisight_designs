@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
+  Check,
   CheckCircle2,
   ChevronsUpDown,
   Clock,
@@ -13,18 +14,28 @@ import {
   Maximize2,
   Minimize2,
   RefreshCw,
+  ShieldAlert,
+  ShieldCheck,
   Star,
+  X,
 } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
-import { EMAIL_TABLE_NAVY, EMPTY_SET, EmailTableColumnFilterButton, TruncateTooltip } from "../../components/common/EmailTable";
+import { EMAIL_TABLE_NAVY, EMPTY_SET, EmailTableColumnFilterButton, InfoTile, TruncateTooltip } from "../../components/common/EmailTable";
 import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch, useExclusiveOpen, useStagedMultiSelect } from "../../components/common/TableToolbar";
 import { TableFilterPanel, TableFilterTrigger } from "../../components/common/TableFilterPanel";
 import { TableColumnMgmtPanel, TableColumnMgmtTrigger } from "../../components/common/TableColumnMgmtPanel";
 import { TablePagination, type RowDensity } from "../../components/common/TablePagination";
 import { exportRowsToExcel } from "../../components/common/exportExcel";
-import { ALL_ORDERS } from "./holdManagementData";
+import { ALL_ORDERS, CUSTOMER_CREDIT_INFO } from "./holdManagementData";
 import { loadFavoriteOrderIds, saveFavoriteOrderIds } from "./favoritesStorage";
+
+// A "✓ Clear"/"✓ Pass" style value — its own component (rather than a literal "✓ Label" string) since a
+// plain space after the glyph reads as visually touching the word at this font weight/size.
+function CheckValue({ label }: { label: string }) {
+  return <><Check size={13} strokeWidth={3} className="inline -mt-0.5 mr-1" />{label}</>;
+}
+const money = (n: number) => `$${n.toLocaleString()}`;
 
 type Order = (typeof ALL_ORDERS)[number];
 type ColumnKey = keyof Order;
@@ -56,6 +67,66 @@ function StatusBadge({ status }: { status: string }) {
     <span className="inline-flex items-center justify-center px-2 py-1 rounded-[8px] text-[12px] font-medium whitespace-nowrap" style={{ color: s.color, backgroundColor: s.bg }}>
       {status}
     </span>
+  );
+}
+
+// Customer Information — opened from the Customer Name column's name/credit-check icon. Same modal chrome
+// as the rest of the app's dialogs (e.g. MailboxPickerModal, Hold Management's "Create/Edit Group"): dimmed
+// backdrop, centered white card, plain white header with a bordered X close — navy is reserved for the
+// interactive bits (the ✓ Clear/Pass values, not a decorative header fill).
+function CustomerInfoModal({ row, onClose }: { row: Order; onClose: () => void }) {
+  const info = CUSTOMER_CREDIT_INFO[row.customer];
+  const totalAR = info ? info.arCurrent + info.ar1to30 + info.ar31to60 + info.ar61to90 + info.arOver90 : 0;
+  const holdColor = (v: "Clear" | "Hold") => (v === "Clear" ? "#468657" : "#C83737");
+  const screeningColor = info?.screening === "Pass" ? "#468657" : info?.screening === "Review" ? "#E67919" : "#C83737";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-[8px] shadow-xl w-full max-w-[760px] max-h-[85vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#DEDEDE] shrink-0">
+          <div className="min-w-0">
+            <span className="text-[16px] font-bold text-[#262626] truncate">{row.customer}</span>
+            {/* Order #/OU only — country isn't repeated here since the body's own Bill/Ship Country tile is
+                the customer's billing profile, not this specific order's ship-to, and the two can legitimately
+                differ; showing both next to each other read as conflicting data for the same field. */}
+            <p className="text-[12px] text-[#97999B] mt-0.5 truncate">Order #{row.id} · OU {row.ou}</p>
+          </div>
+          <button onClick={onClose} className="shrink-0 text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-auto px-6 py-5">
+          {info ? (
+            <div className="flex flex-col gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-5">
+                <InfoTile label="Profile Class" value={info.profileClass} />
+                <InfoTile label="Credit Limit" value={money(info.creditLimit)} />
+                <InfoTile label="Exposure" value={money(info.exposure)} />
+                <InfoTile label="WADL" value={`${info.wadlDays}d`} />
+                <InfoTile label="GTM Hold" value={info.gtmHold === "Clear" ? <CheckValue label="Clear" /> : "Hold"} valueColor={holdColor(info.gtmHold)} />
+                <InfoTile label="RPL Hold" value={info.rplHold === "Clear" ? <CheckValue label="Clear" /> : "Hold"} valueColor={holdColor(info.rplHold)} />
+                <InfoTile label="Screening" value={info.screening === "Pass" ? <CheckValue label="Pass" /> : info.screening} valueColor={screeningColor} />
+                <InfoTile label="Pay Term" value={info.payTerm} />
+                <InfoTile label="Bill / Ship Country" value={`${info.billCountry} / ${info.shipCountry}`} />
+                <InfoTile label="Currency" value={info.currency} />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-5 border-t border-[#F1F2F4] pt-5">
+                <InfoTile label="AR Current" value={money(info.arCurrent)} />
+                <InfoTile label="AR 1–30D" value={money(info.ar1to30)} />
+                <InfoTile label="AR 31–60D" value={money(info.ar31to60)} />
+                <InfoTile label="AR 61–90D" value={money(info.ar61to90)} valueColor={info.ar61to90 > 0 ? "#C83737" : undefined} />
+                <InfoTile label="AR >90D" value={money(info.arOver90)} valueColor={info.arOver90 > 0 ? "#871518" : undefined} />
+                <InfoTile label="Total AR" value={money(totalAR)} valueColor={EMAIL_TABLE_NAVY} />
+              </div>
+            </div>
+          ) : (
+            <p className="text-[12.5px] text-[#97999B] text-center py-8">No credit profile on file for this customer.</p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -95,6 +166,11 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
     });
   };
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  // Customer Information panel — replaces the KPI strip in place (rather than a modal) when a customer
+  // name/credit-check icon is clicked, so the table stays interactive underneath. Keeps the specific row
+  // clicked (not just the customer name) so the panel header can show that order's own Order #/OU/Country.
+  const [selectedCustomerRow, setSelectedCustomerRow] = useState<Order | null>(null);
 
   // Sync status + KPI collapse — same pattern as HoldManagementOverview's page header.
   const [kpisExpanded, setKpisExpanded] = useState(true);
@@ -218,6 +294,23 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
             {row.id}
           </button>
         );
+      case "customer": {
+        const info = CUSTOMER_CREDIT_INFO[row.customer];
+        const creditOk = !info || (info.screening === "Pass" && info.gtmHold === "Clear" && info.rplHold === "Clear");
+        return (
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelectedCustomerRow(row); }}
+            className="group flex items-center gap-1.5 text-left cursor-pointer bg-transparent border-0 p-0 max-w-full"
+          >
+            {creditOk ? (
+              <ShieldCheck size={13} className="text-[#468657] shrink-0" />
+            ) : (
+              <ShieldAlert size={13} className="text-[#C83737] shrink-0" />
+            )}
+            <span className="text-[12.5px] text-[#30578D] font-semibold group-hover:underline truncate">{row.customer}</span>
+          </button>
+        );
+      }
       case "poId":
         return <TruncateTooltip label={row.poId} className="text-[12.5px] text-[#4D4D4D] max-w-[160px]" />;
       case "ssd":
@@ -480,6 +573,10 @@ export function OrderListingPage({ onLogout, onViewAllNotifications, onNavigateH
           </div>
         </main>
       </div>
+
+      {selectedCustomerRow && (
+        <CustomerInfoModal row={selectedCustomerRow} onClose={() => setSelectedCustomerRow(null)} />
+      )}
     </div>
   );
 }

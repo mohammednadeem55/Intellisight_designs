@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Check, ChevronDown, Filter, X } from "lucide-react";
 import { EMAIL_TABLE_NAVY } from "./EmailTable";
@@ -44,22 +44,37 @@ export function TableFilterPanel({
   columnFilters,
   getOptions,
   onApply,
+  topContent,
+  resetSignal,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   columns: TableColumnDef[];
   columnFilters: Record<string, Set<string>>;
   getOptions: (key: string) => [string, number][];
-  onApply: (next: Record<string, Set<string>>) => void;
+  /** Return `false` to hold the change (e.g. a caller is showing its own confirm step first) — the panel
+      then stays open and skips the "Filters applied" toast instead of optimistically closing. Any other
+      return value (including void, for existing callers) is treated as "applied immediately". */
+  onApply: (next: Record<string, Set<string>>) => boolean | void;
+  /** Extra content rendered between the header and the column accordion — e.g. New Overview's "Saved
+      Filters" picker. Optional so existing callers (Order Listing, etc.) are unaffected. */
+  topContent?: ReactNode;
+  /** Bump this (e.g. a counter) to force `pending` to re-sync from columnFilters even though columnFilters
+      itself hasn't changed — e.g. New Overview reverting a held change after its own confirm modal is
+      cancelled, where the committed state never moved in the first place. */
+  resetSignal?: number | string;
 }) {
   const [expandedSection, setExpandedSection] = useState<string | null>(columns[0]?.key ?? null);
   const [pending, setPending] = useState<Record<string, Set<string>>>({});
   const [sectionSearch, setSectionSearch] = useState<Record<string, string>>({});
 
+  // Re-syncs whenever the committed columnFilters change while open too, not just on the closed->open
+  // transition — otherwise an external reset of the committed state (e.g. New Overview applying a saved
+  // filter while this panel is already open) would leave `pending` stale, and the next Save would push that
+  // stale snapshot back out via onApply instead of what was just applied.
   useEffect(() => {
     if (open) setPending(Object.fromEntries(Object.entries(columnFilters).map(([k, v]) => [k, new Set(v)])));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, columnFilters, resetSignal]);
 
   const close = () => { setPending(columnFilters); onOpenChange(false); };
   const togglePending = (key: string, value: string) => {
@@ -71,7 +86,14 @@ export function TableFilterPanel({
       return next;
     });
   };
-  const save = () => { onApply(pending); onOpenChange(false); toast.success("Filters applied"); };
+  // Doesn't close/toast on its own — onApply returning false means the caller is holding the change behind
+  // its own confirmation, so the panel just stays put until that resolves (and either commits for real, via
+  // the committed columnFilters changing, or gets reverted via resetSignal).
+  const save = () => {
+    if (onApply(pending) === false) return;
+    onOpenChange(false);
+    toast.success("Filters applied");
+  };
 
   return (
     <div className={`absolute top-0 right-0 bottom-0 w-[320px] bg-white border-l border-[#E2E6E9] z-40 flex flex-col transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "translate-x-full"}`}>
@@ -81,7 +103,11 @@ export function TableFilterPanel({
           <X size={16} />
         </button>
       </div>
+      {/* topContent scrolls together with the column accordion below, as one list — it used to sit outside
+          this scroll container as a fixed-growing block, which meant it and the accordion scrolled
+          separately instead of the panel just being one continuous scrollable body. */}
       <div className="flex-1 overflow-y-auto">
+        {topContent}
         {columns.map((col) => {
           const isOpen = expandedSection === col.key;
           const selected = pending[col.key];

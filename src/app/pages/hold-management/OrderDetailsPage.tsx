@@ -17,6 +17,7 @@ import {
   DollarSign,
   Download,
   History,
+  Info,
   Layers,
   List,
   MapPin,
@@ -34,7 +35,7 @@ import {
 } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
-import { EMAIL_TABLE_NAVY, EMPTY_SET, EmailTableColumnFilterButton, TruncateTooltip } from "../../components/common/EmailTable";
+import { EMAIL_TABLE_NAVY, EMPTY_SET, EmailTableColumnFilterButton, InfoTile, TruncateTooltip } from "../../components/common/EmailTable";
 import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch, useExclusiveOpen, useStagedMultiSelect } from "../../components/common/TableToolbar";
 import { TableFilterPanel, TableFilterTrigger, type TableColumnDef } from "../../components/common/TableFilterPanel";
 import { TableColumnMgmtPanel, TableColumnMgmtTrigger } from "../../components/common/TableColumnMgmtPanel";
@@ -45,6 +46,7 @@ import {
   AUDIT_NOTES,
   CREDIT_HOLD_TYPES,
   FOLLOWUP_ESCALATION_LOG,
+  getOrderShowMoreInfo,
   HOLD_ROWS,
   LINE_LISTING_ROWS,
   type FollowUpEscalationEntry,
@@ -707,6 +709,103 @@ function AdditionalOracleNotesModal({ orderId, onClose }: { orderId: string; onC
   );
 }
 
+const money = (n: number) => `$${n.toLocaleString()}`;
+
+// "Full Order Details" — the fuller field set the business wants surfaced from a link near the Reference
+// strip. Same modal chrome as AdditionalOracleNotesModal above (plain white header, bold title + subtitle,
+// bordered X close) and the same InfoTile grid+gap pattern as Order Listing's Customer Information modal,
+// rather than the dense bordered table / navy header of the business's reference mock — kept consistent
+// with the rest of the app instead of copying that look 1:1.
+function ShowMoreOrderInfoModal({ order, onClose }: { order: (typeof ALL_ORDERS)[number]; onClose: () => void }) {
+  const info = getOrderShowMoreInfo(order);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-[8px] shadow-xl w-full max-w-[820px] max-h-[85vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#DEDEDE] shrink-0">
+          <div className="min-w-0">
+            <span className="text-[16px] font-bold text-[#262626] truncate">Full Order Details</span>
+            <p className="text-[12px] text-[#97999B] mt-0.5 truncate">Order #{order.id}</p>
+          </div>
+          <button onClick={onClose} className="shrink-0 text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-auto px-6 py-5 flex flex-col gap-5">
+          <div>
+            <h3 className="text-[11px] font-bold uppercase tracking-wide mb-3" style={{ color: EMAIL_TABLE_NAVY }}>Order Details</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-5">
+              <InfoTile label="Order #" value={order.id} />
+              <InfoTile label="Order Type" value={info.orderType} />
+              <InfoTile label="Status" value={info.status} />
+              <InfoTile label="PO #" value={order.poId} />
+              <InfoTile label="Order Payment Term" value={info.paymentTerm} />
+              <InfoTile label="SSD" value={order.ssd} />
+              <InfoTile label="Days to SSD" value={info.daysToSSD} />
+            </div>
+          </div>
+
+          <div className="border-t border-[#F1F2F4] pt-5">
+            <h3 className="text-[11px] font-bold uppercase tracking-wide mb-3" style={{ color: EMAIL_TABLE_NAVY }}>Customer & Region</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-5">
+              <InfoTile label="Customer Name" value={order.customer} />
+              <InfoTile label="Customer #" value={info.customerNumber} />
+              <InfoTile label="Region" value={info.region} />
+              <InfoTile label="OU" value={order.ou} />
+              <InfoTile label="End Customer" value={info.endCustomer} />
+              <InfoTile label="Direct Inquiries To" value={info.directInquiriesTo} />
+            </div>
+          </div>
+
+          <div className="border-t border-[#F1F2F4] pt-5">
+            <h3 className="text-[11px] font-bold uppercase tracking-wide mb-3" style={{ color: EMAIL_TABLE_NAVY }}>Hold Details</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-5">
+              <InfoTile label="Hold Type" value={order.holdType} />
+              <InfoTile label="Hold Comment" value={info.holdComment} />
+              <InfoTile label="Hold Re-Trigger Reason" value={info.holdRetriggerReason} />
+              <InfoTile label="Hold Applied By" value={info.holdAppliedBy} />
+              <InfoTile label="Hold Applied Date" value={info.holdAppliedDate} />
+            </div>
+          </div>
+
+          <div className="border-t border-[#F1F2F4] pt-5">
+            <h3 className="text-[11px] font-bold uppercase tracking-wide mb-3" style={{ color: EMAIL_TABLE_NAVY }}>Ownership</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-5">
+              <InfoTile label="Credit Analyst" value={info.creditAnalyst} />
+              <InfoTile label="Sales Rep" value={info.salesRep} />
+              <InfoTile label="Sales Order Owner" value={info.salesOrderOwner} />
+            </div>
+          </div>
+
+          <div className="border-t border-[#F1F2F4] pt-5">
+            <h3 className="text-[11px] font-bold uppercase tracking-wide mb-3" style={{ color: EMAIL_TABLE_NAVY }}>Financials</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-5">
+              <InfoTile label="Order Value (USD)" value={money(info.orderValueUSD)} />
+              <InfoTile label="Order Currency" value={info.currency} />
+              <InfoTile label="Net Order Amount (TRX)" value={`${info.currency} ${info.netAmountTRX.toLocaleString()}`} />
+              <InfoTile label="Tax Amount (TRX)" value={`${info.currency} ${info.taxAmountTRX.toLocaleString()}`} />
+              <InfoTile label="Tax Amount (USD)" value={money(info.taxAmountUSD)} />
+              <InfoTile label="Total Amount with Tax (TRX)" value={`${info.currency} ${info.totalWithTaxTRX.toLocaleString()}`} />
+              <InfoTile label="Total Amount with Tax (USD)" value={money(info.totalWithTaxUSD)} />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end px-6 py-4 border-t border-[#DEDEDE] shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-[8px] border border-[#E2E6E9] text-[13px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const NOTE_COLLAPSE_LENGTH = 220;
 
 // One note as its own card rather than a bare timeline row — long entries (like the BIZ:SI note) stay
@@ -1003,6 +1102,7 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
     return () => clearTimeout(t);
   }, [noteHighlighted]);
   const [oracleNotesOpen, setOracleNotesOpen] = useState(false);
+  const [showMoreOrderInfoOpen, setShowMoreOrderInfoOpen] = useState(false);
   const [refExpanded, setRefExpanded] = useState(true);
 
   const [syncing, setSyncing] = useState(false);
@@ -1789,6 +1889,14 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
                   />
                   <div className="flex items-center gap-2 flex-wrap">
                     <h1 className="text-[18px] font-semibold text-[#262626] leading-tight">Order #{orderId}</h1>
+                    <button
+                      onClick={() => setShowMoreOrderInfoOpen(true)}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-[8px] border border-[#E2E6E9] text-[11.5px] font-semibold hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                      style={{ color: EMAIL_TABLE_NAVY }}
+                    >
+                      <Info size={12} />
+                      Full Order Details
+                    </button>
                     <StatusBadge status={order.status} />
                     <HoldGroupBadge {...holdGroup} />
                   </div>
@@ -2176,6 +2284,10 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
 
       {oracleNotesOpen && (
         <AdditionalOracleNotesModal orderId={orderId} onClose={() => setOracleNotesOpen(false)} />
+      )}
+
+      {showMoreOrderInfoOpen && (
+        <ShowMoreOrderInfoModal order={order} onClose={() => setShowMoreOrderInfoOpen(false)} />
       )}
 
       {applyHoldRows && (
