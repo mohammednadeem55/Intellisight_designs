@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText, History, Lightbulb, MessageSquare, Pencil, Sparkles, User, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
@@ -153,10 +153,6 @@ export function WorkflowPage({
   // Namespaced by email id so the same stage key across different emails doesn't collide, and so the
   // listing table's "Overall Audit" button (getAllAuditEntriesForEmail) can find every stage's entries.
   const currentStageKey = `${email.id}:${WORKFLOW_STAGES[currentStageIndex].key}`;
-  // AI Order Validation owns its own versioned data (see AiOrderValidationBody), so the footer's
-  // "Re-Validate" button reaches into it through a function handed up via onRevalidateReady rather than
-  // WorkflowPage holding the validation data itself.
-  const revalidateRef = useRef<(() => void) | null>(null);
 
   // CCC Creation — "Create CCC Req." only succeeds once the extraction review has nothing left missing;
   // otherwise it goes on hold and the same button stays available to retry after the data is fixed.
@@ -197,11 +193,15 @@ export function WorkflowPage({
       toast.success(`${email.id} workflow complete`);
     }
   };
-  const handleRevalidate = () => revalidateRef.current?.();
   const handleSendEmail = () => {
     auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, action: "Email Sent", icon: Check });
     toast.success(`${email.id} email sent`);
   };
+
+  // AISO-658 — AI Order Validation's own results own this state (see AiOrderValidationBody's onGateChange);
+  // WorkflowPage just needs it to know whether to disable the footer's Proceed button at that stage. Red
+  // Flag checks never affect this, only unresolved/un-bypassed Mandatory ones.
+  const [validationGate, setValidationGate] = useState<{ canProceed: boolean; blockingCount: number }>({ canProceed: true, blockingCount: 0 });
 
   // Quote Update (stage 3) and Order Creation (stage 4) are separate steps, but share this one piece of
   // state: Order Creation's Proceed only becomes available once Create Order has actually run — before
@@ -580,7 +580,8 @@ export function WorkflowPage({
         {currentStageIndex === 2 && (
           <AiOrderValidationBody
             emailId={email.id}
-            onRevalidateReady={(fn) => { revalidateRef.current = fn; }}
+            withPageLoader={withPageLoader}
+            onGateChange={setValidationGate}
             onAudit={(entry) => auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, ...entry })}
           />
         )}
@@ -818,16 +819,25 @@ export function WorkflowPage({
                 <Button variant="primary" onClick={() => withPageLoader("Creating order...", handleCreateOrder)}>Create Order</Button>
               ) : (
                 <>
-                  {currentStageIndex === 2 && (
-                    <Button variant="outline" accent="#E90029" onClick={() => withPageLoader("Re-validating...", handleRevalidate)}>Re-Validate</Button>
-                  )}
                   {currentStageIndex === 3 && (
                     <Button variant="outline" accent="#E90029" onClick={() => withPageLoader("Updating quote...", handleQuoteUpdate)}>Quote Update</Button>
                   )}
                   {currentStageIndex === 5 && (
                     <Button variant="outline" accent="#E90029" onClick={() => withPageLoader("Sending email...", handleSendEmail)}>Send Email</Button>
                   )}
-                  <Button variant="primary" onClick={() => withPageLoader("Proceeding...", handleProceed)}>
+                  {/* AISO-658 AC7/AC9-12 — Proceed stays disabled at AI Order Validation while any Mandatory
+                      check is still failed and un-bypassed; Red Flag checks never block this. */}
+                  {currentStageIndex === 2 && !validationGate.canProceed && (
+                    <span className="text-[11.5px] font-semibold" style={{ color: "#BA1C1C" }}>
+                      {validationGate.blockingCount} mandatory check{validationGate.blockingCount === 1 ? "" : "s"} need resolution or bypass
+                    </span>
+                  )}
+                  <Button
+                    variant="primary"
+                    disabled={currentStageIndex === 2 && !validationGate.canProceed}
+                    title={currentStageIndex === 2 && !validationGate.canProceed ? "Resolve or bypass (with reason) every failed Mandatory check before proceeding" : undefined}
+                    onClick={() => withPageLoader("Proceeding...", handleProceed)}
+                  >
                     {currentStageIndex < WORKFLOW_STAGES.length - 1 ? "Proceed" : "Complete"}
                   </Button>
                 </>
