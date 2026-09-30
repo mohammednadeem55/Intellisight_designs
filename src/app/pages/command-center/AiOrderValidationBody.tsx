@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Archive, ArrowRight, Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, Download, FileImage, FileSpreadsheet, FileText, Info, MapPin, RotateCcw, TriangleAlert, X, type LucideIcon } from "lucide-react";
+import { Archive, ArrowRight, Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, Download, FileImage, FileSpreadsheet, FileText, Info, MapPin, RotateCcw, ShieldOff, TriangleAlert, X, type LucideIcon } from "lucide-react";
 import { TextField } from "../../components/common/TextField";
 import { WaveLoader } from "../../components/common/Loader";
 import { Button } from "../../components/common/Button";
+import { EmailTableTooltip } from "../../components/common/EmailTable";
 import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
-import { useOrderValidation, regenerateValidation, type CheckStatus, type OrderValidationData, type ValidationCheck } from "./useOrderValidation";
+import { useOrderValidation, regenerateValidation, type CheckCategory, type OrderValidationData, type ValidationCheck } from "./useOrderValidation";
 
 export type ValidationAuditEntry = { action: string; icon?: LucideIcon; detail?: string };
 // A field change made while a given version was the active one — e.g. committing Freight Terms. Kept
@@ -13,6 +14,23 @@ export type ValidationAuditEntry = { action: string; icon?: LucideIcon; detail?:
 // checks looked like".
 type FieldChange = { label: string; icon?: LucideIcon; at: Date };
 type ValidationVersion = { version: number; at: Date; data: OrderValidationData; changes: FieldChange[] };
+
+// AISO-658 — the two check categories, each with its own accent color and vocabulary (a failed Mandatory
+// check is "Verification Required" since the workflow is blocked; a failed Red Flag check is "Review
+// Required" since it isn't).
+const CATEGORY_META: Record<CheckCategory, { tag: string; accent: string; failedLabel: string; passedLabel: string; blocking: boolean }> = {
+  mandatory: { tag: "Mandatory", accent: "#BA1C1C", failedLabel: "Verification Required", passedLabel: "Verified", blocking: true },
+  redFlag: { tag: "Red Flag", accent: "#E67919", failedLabel: "Review Required", passedLabel: "Passed", blocking: false },
+};
+
+// The Mandatory/Red Flag table only tells the app how each check *behaves* (does it block Proceed, can it
+// be bypassed) — the results themselves stay in one combined Failed/Passed layout rather than being split
+// into separate category sections, with this asterisk — colored by category, attached right at the end of
+// the name (not a separate pill off to the side) — as the only visual sign of which type a row is. A legend
+// under the results header (see LEGEND below) spells out what each color means.
+function CategoryMark({ category }: { category: CheckCategory }) {
+  return <span className="font-bold" style={{ color: CATEGORY_META[category].accent }} title={CATEGORY_META[category].tag}> *</span>;
+}
 
 function formatVersionDateTime(d: Date) {
   return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -96,35 +114,187 @@ function docMeta(name: string): { icon: typeof FileText; bg: string; fg: string 
   return { icon: FileText, bg: "#f3f4f6", fg: "#6b7280" };
 }
 
-const CHECK_META: Record<CheckStatus, { Icon: typeof CircleCheck; color: string; panelBg: string; reasonLabel: string }> = {
-  failed: { Icon: CircleX, color: "#BA1C1C", panelBg: "#FDECEA", reasonLabel: "Failed Reason" },
-  warning: { Icon: TriangleAlert, color: "#E67919", panelBg: "#FDF3E7", reasonLabel: "Needs Review Reason" },
-  passed: { Icon: CircleCheck, color: "#468657", panelBg: "#EFF6F1", reasonLabel: "Passed Reason" },
-};
+// AISO-603 — every rerun scope (All / Failed Only / Selected / Individual) reduces to "here's a list of check
+// ids to rerun", so one menu drives all of them instead of separate controls scattered around the page. A
+// menu rather than N separate buttons so the header row has room for more scopes later without growing again.
+function RerunSplitButton({ selectedCount, onSelect }: { selectedCount: number; onSelect: (targetIds: string[], label: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-// One check row — collapsed to icon + label by default, expands in place to show why it passed/failed and
-// (for failed/review checks) a recommended next step.
-function ValidationCheckItem({ check }: { check: ValidationCheck }) {
-  const [expanded, setExpanded] = useState(false);
-  const meta = CHECK_META[check.status];
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   return (
-    <div className="border-b border-[#f3f4f6] last:border-b-0">
+    <div className="relative" ref={ref}>
       <button
-        onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left cursor-pointer hover:bg-[#f8fafc] transition-colors"
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] border text-[11.5px] font-semibold cursor-pointer transition-colors shrink-0"
+        style={{ borderColor: "#E9002933", color: "#E90029" }}
       >
-        <meta.Icon size={15} className="shrink-0" style={{ color: meta.color }} />
-        <span className="flex-1 min-w-0 text-[12.5px] font-medium text-[#111827] truncate">{check.label}</span>
-        <ChevronDown size={13} className={`text-[#9ca3af] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`} />
+        <RotateCcw size={12} />
+        Rerun Validation
+        <ChevronDown size={11} className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
+      {open && (
+        <div className="absolute top-full right-0 mt-1 w-[240px] bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg py-1 z-20">
+          <button
+            onClick={(e) => { e.stopPropagation(); onSelect(["__all__"], "All Checks"); setOpen(false); }}
+            className="w-full text-left px-3.5 py-2 text-[12.5px] font-medium text-[#374151] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+          >
+            Rerun All Checks
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onSelect(["__failed__"], "Failed Checks Only"); setOpen(false); }}
+            className="w-full text-left px-3.5 py-2 text-[12.5px] font-medium text-[#374151] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+          >
+            Rerun Failed Checks Only
+          </button>
+          <button
+            disabled={selectedCount === 0}
+            onClick={(e) => { e.stopPropagation(); if (selectedCount === 0) return; onSelect(["__selected__"], "Selected Checks"); setOpen(false); }}
+            className="w-full text-left px-3.5 py-2 text-[12.5px] font-medium text-[#374151] hover:bg-[#F7F7F7] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          >
+            Rerun Selected {selectedCount > 0 ? `(${selectedCount})` : ""}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Small checkbox used for bulk-selecting failed checks to rerun — same square/check-glyph shape used
+// elsewhere in the app (e.g. Hold Management's group-member picker) rather than a native checkbox input.
+function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onChange(); }}
+      className={`flex items-center justify-center size-[16px] rounded-[4px] border-[1.5px] shrink-0 transition-colors cursor-pointer ${checked ? "border-transparent" : "border-[#B8BCC2] bg-white"}`}
+      style={checked ? { backgroundColor: "#30578D" } : undefined}
+    >
+      {checked && <Check size={11} className="text-white" strokeWidth={3.5} />}
+    </button>
+  );
+}
+
+// A failed/review check — the only rows that carry a checkbox (for bulk rerun), an individual rerun button,
+// and the bypass-with-reason flow (AISO-652). Mandatory vs Red Flag only changes color/vocabulary; the
+// mechanics (bypass requires a non-empty reason, both are audited) are identical for both categories.
+function FailedCheckRow({
+  check,
+  category,
+  selected,
+  onToggleSelect,
+  onRerunOne,
+  onBypass,
+}: {
+  check: ValidationCheck;
+  category: CheckCategory;
+  selected: boolean;
+  onToggleSelect: () => void;
+  onRerunOne: () => void;
+  onBypass: (reason: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [bypassFormOpen, setBypassFormOpen] = useState(false);
+  const [reasonDraft, setReasonDraft] = useState("");
+  const accent = CATEGORY_META[category].accent;
+
+  const submitBypass = () => {
+    const reason = reasonDraft.trim();
+    if (!reason) return; // no reason, no bypass — enforced here, not just via disabled state
+    onBypass(reason);
+    setBypassFormOpen(false);
+    setReasonDraft("");
+  };
+
+  // Same plain row shape as VerifiedCheckRow (not a separate card style) so Failed and Passed read as one
+  // consistent list, not two different components. Only Bypass sits outside the expand toggle — the reason/
+  // recommended-action detail goes back to being collapsed by default, same as everything else in this list.
+  return (
+    <div className="border-b border-[#f3f4f6] last:border-b-0">
+      <div className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-[#f8fafc] transition-colors">
+        <Checkbox checked={selected} onChange={onToggleSelect} />
+        <button onClick={() => setExpanded(v => !v)} className="flex-1 min-w-0 flex items-center gap-2.5 text-left cursor-pointer">
+          <span className="flex-1 min-w-0 text-[12.5px] font-semibold text-[#111827] truncate">{check.label}<CategoryMark category={category} /></span>
+        </button>
+        {!check.bypass && (
+          <EmailTableTooltip label="Bypass with Reason">
+            <button
+              onClick={(e) => { e.stopPropagation(); setBypassFormOpen(v => !v); }}
+              className="shrink-0 flex items-center justify-center size-[26px] rounded-[6px] text-[#9ca3af] hover:text-[#30578D] hover:bg-[#eef0f3] cursor-pointer transition-colors"
+            >
+              <ShieldOff size={12} />
+            </button>
+          </EmailTableTooltip>
+        )}
+        <EmailTableTooltip label="Rerun this check">
+          <button
+            onClick={(e) => { e.stopPropagation(); onRerunOne(); }}
+            className="shrink-0 flex items-center justify-center size-[26px] rounded-[6px] text-[#9ca3af] hover:text-[#111827] hover:bg-[#eef0f3] cursor-pointer transition-colors"
+          >
+            <RotateCcw size={12} />
+          </button>
+        </EmailTableTooltip>
+        <button onClick={() => setExpanded(v => !v)} className="shrink-0 cursor-pointer">
+          <ChevronDown size={13} className={`text-[#9ca3af] transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+        </button>
+      </div>
+
+      {/* Bypass state/form — always visible (not behind the expand toggle) once triggered from the icon
+          above, since it's the one action you might take without needing to read the full reason first. */}
+      {(check.bypass || bypassFormOpen) && (
+        <div className="px-4 pb-2.5">
+          {check.bypass ? (
+            <div className="flex items-start gap-2 rounded-[6px] px-2.5 py-2 border" style={{ backgroundColor: "#30578D1A", borderColor: "#30578D33" }}>
+              <ShieldOff size={12} className="shrink-0 mt-[1px]" style={{ color: "#30578D" }} />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11.5px] text-[#374151] leading-[1.4]"><span className="font-semibold" style={{ color: "#30578D" }}>Bypassed:</span> {check.bypass.reason}</p>
+                <p className="text-[10px] mt-0.5" style={{ color: "#30578DCC" }}>{check.bypass.by} · {check.bypass.at}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[6px] p-2.5 border border-[#E2E6E9] bg-[#F7F7F7] flex flex-col gap-2">
+              <textarea
+                autoFocus
+                value={reasonDraft}
+                onChange={(e) => setReasonDraft(e.target.value)}
+                placeholder="Reason for bypassing this check (required)..."
+                rows={2}
+                className="w-full px-2.5 py-2 rounded-[6px] border border-[#E2E6E9] bg-white text-[12px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors resize-none"
+              />
+              <div className="flex items-center gap-2 justify-end">
+                <button
+                  onClick={() => { setBypassFormOpen(false); setReasonDraft(""); }}
+                  className="px-3 py-1.5 rounded-[6px] text-[11.5px] font-semibold text-[#666666] hover:bg-[#EFEFEF] cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={!reasonDraft.trim()}
+                  onClick={submitBypass}
+                  className="px-3 py-1.5 rounded-[6px] text-[11.5px] font-semibold text-white cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: "#30578D" }}
+                >
+                  Confirm Bypass
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {expanded && (
-        <div className="px-4 pt-[10px] pb-3">
-          <div className="rounded-[8px] px-3.5 py-2.5" style={{ backgroundColor: meta.panelBg }}>
-            <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: meta.color }}>{meta.reasonLabel}</p>
+        <div className="px-4 pt-[2px] pb-3">
+          <div className="rounded-[8px] px-3.5 py-2.5" style={{ backgroundColor: `${accent}14` }}>
+            <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: accent }}>{CATEGORY_META[category].failedLabel} — Reason</p>
             <p className="text-[12px] text-[#374151] leading-[1.5]">{check.reason}</p>
             {check.recommendedAction && (
-              <p className="flex items-start gap-1.5 text-[11.5px] font-medium mt-2" style={{ color: meta.color }}>
+              <p className="flex items-start gap-1.5 text-[11.5px] font-medium mt-2" style={{ color: accent }}>
                 <ArrowRight size={11} className="shrink-0 mt-[2.5px]" />
                 <span>Recommended Action: {check.recommendedAction}</span>
               </p>
@@ -136,11 +306,91 @@ function ValidationCheckItem({ check }: { check: ValidationCheck }) {
   );
 }
 
-// One of the two columns (failed/review, or passed) — shows a handful by default with a "View More" to
-// reveal the rest, so a long passed-checks list doesn't dominate the page by default.
+// A verified/passed check — simple read-only row, no selection or bypass affordances since there's nothing
+// to act on.
+function VerifiedCheckRow({ check, category }: { check: ValidationCheck; category: CheckCategory }) {
+  const [expanded, setExpanded] = useState(false);
+  const meta = CATEGORY_META[category];
+  return (
+    <div className="border-b border-[#f3f4f6] last:border-b-0">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left cursor-pointer hover:bg-[#f8fafc] transition-colors"
+      >
+        <CircleCheck size={15} className="shrink-0 text-[#468657]" />
+        <span className="flex-1 min-w-0 text-[12.5px] font-medium text-[#111827] truncate">{check.label}<CategoryMark category={category} /></span>
+        <ChevronDown size={13} className={`text-[#9ca3af] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`} />
+      </button>
+      {expanded && (
+        <div className="px-4 pt-[2px] pb-3">
+          <div className="rounded-[8px] px-3.5 py-2.5" style={{ backgroundColor: "#EFF6F1" }}>
+            <p className="text-[10px] font-bold uppercase tracking-wide mb-1 text-[#468657]">{meta.passedLabel} Reason</p>
+            <p className="text-[12px] text-[#374151] leading-[1.5]">{check.reason}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const CHECK_COLUMN_THRESHOLD = 5;
 
-function CheckColumn({ title, accentColor, checks }: { title: string; accentColor: string; checks: ValidationCheck[] }) {
+// Left column — every failed check regardless of category (Mandatory and Red Flag mixed together, each row
+// tagged so you can still tell them apart), always fully shown since these need attention. A select-all
+// checkbox at the top drives the "Rerun Selected" action across both categories at once.
+function FailedCheckColumn({
+  checks,
+  selectedIds,
+  onToggleSelect,
+  onSelectAll,
+  onRerunOne,
+  onBypass,
+}: {
+  checks: ValidationCheck[];
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onSelectAll: (ids: string[], select: boolean) => void;
+  onRerunOne: (id: string) => void;
+  onBypass: (id: string, reason: string) => void;
+}) {
+  const ids = checks.map(c => c.id);
+  const allSelected = ids.length > 0 && ids.every(id => selectedIds.has(id));
+
+  return (
+    <div className="rounded-[8px] border border-[#ebebeb]">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[#f3f4f6]">
+        <span className="w-[3px] h-[14px] rounded-full shrink-0" style={{ backgroundColor: "#BA1C1C" }} />
+        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#BA1C1C" }}>Failed & Needs Attention ({checks.length})</p>
+      </div>
+      {checks.length === 0 ? (
+        <p className="text-[12px] text-[#9ca3af] text-center py-6">No failed checks.</p>
+      ) : (
+        <>
+          <div className="flex items-center gap-2 px-4 py-2 bg-[#fafafa] border-b border-[#f3f4f6]">
+            <Checkbox checked={allSelected} onChange={() => onSelectAll(ids, !allSelected)} />
+            <span className="text-[11px] font-medium text-[#6b7280]">Select all</span>
+          </div>
+          <div>
+            {checks.map(c => (
+              <FailedCheckRow
+                key={c.id}
+                check={c}
+                category={c.category}
+                selected={selectedIds.has(c.id)}
+                onToggleSelect={() => onToggleSelect(c.id)}
+                onRerunOne={() => onRerunOne(c.id)}
+                onBypass={(reason) => onBypass(c.id, reason)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Right column — every passed check, both categories mixed together (same "View More" pattern as before).
+function PassedCheckColumn({ checks }: { checks: ValidationCheck[] }) {
   const [showAll, setShowAll] = useState(false);
   const needsToggle = checks.length > CHECK_COLUMN_THRESHOLD;
   const visible = !needsToggle || showAll ? checks : checks.slice(0, CHECK_COLUMN_THRESHOLD);
@@ -149,12 +399,12 @@ function CheckColumn({ title, accentColor, checks }: { title: string; accentColo
   return (
     <div className="rounded-[8px] border border-[#ebebeb]">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-[#f3f4f6]">
-        <span className="w-[3px] h-[14px] rounded-full shrink-0" style={{ backgroundColor: accentColor }} />
-        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: accentColor }}>{title} ({checks.length})</p>
+        <span className="w-[3px] h-[14px] rounded-full shrink-0" style={{ backgroundColor: "#468657" }} />
+        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#468657" }}>Passed ({checks.length})</p>
       </div>
       <div>
-        {visible.map((c, i) => (
-          <ValidationCheckItem key={i} check={c} />
+        {visible.map(c => (
+          <VerifiedCheckRow key={c.id} check={c} category={c.category} />
         ))}
       </div>
       {needsToggle && (
@@ -186,11 +436,15 @@ function CollapsibleSection({ title, badge, children }: { title: string; badge?:
   );
 }
 
-export function AiOrderValidationBody({ emailId, onRevalidateReady, onAudit }: {
+export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, onAudit }: {
   emailId: string;
-  /** Hands the caller (WorkflowPage's footer "Re-Validate" button) a function to trigger revalidation from
-      outside this component, since the versioned data lives in here, not at the page level. */
-  onRevalidateReady?: (fn: () => void) => void;
+  /** Same page-level loading overlay WorkflowPage's footer actions (Save, Back, ...) use, passed down so
+      the in-section Rerun button gets the same loading UX instead of inventing its own. */
+  withPageLoader?: (label: string, action: () => void) => void;
+  /** AISO-658 AC7/AC9-12 — reports whether Proceed should be blocked: true whenever any Mandatory check is
+      failed and not bypassed. Red Flag checks never affect this. WorkflowPage owns the Proceed button, so it
+      needs this to disable it — the gating state itself lives here, next to the checks it's derived from. */
+  onGateChange?: (gate: { canProceed: boolean; blockingCount: number }) => void;
   onAudit?: (entry: ValidationAuditEntry) => void;
 }) {
   const { data: validation, loading, error, reload } = useOrderValidation(emailId);
@@ -214,31 +468,90 @@ export function AiOrderValidationBody({ emailId, onRevalidateReady, onAudit }: {
   const [currentVersionChanges, setCurrentVersionChanges] = useState<FieldChange[]>([]);
   const latestData = overrideData ?? validation;
 
+  // AISO-603/652 — checks currently ticked for a bulk rerun; always a subset of currently-failed ids.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   const logFieldChange = (label: string, icon: LucideIcon) => {
     setCurrentVersionChanges(prev => [...prev, { label, icon, at: new Date() }]);
   };
 
-  const revalidate = () => {
+  // Mutates a single check in place without touching versions/timestamps — bypassing is documentation, not a
+  // revalidation run (AISO-652 AC4: "Saving or updating a justification shall not trigger OA revalidation").
+  const updateCheck = (id: string, updater: (c: ValidationCheck) => ValidationCheck) => {
     if (!latestData) return;
+    setOverrideData({ ...latestData, checks: latestData.checks.map(c => (c.id === id ? updater(c) : c)) });
+  };
+
+  const handleBypass = (id: string, reason: string) => {
+    const check = latestData?.checks.find(c => c.id === id);
+    if (!check) return;
+    updateCheck(id, c => ({ ...c, bypass: { reason, by: "Jagdish K.", at: new Date().toLocaleString("en-US", { day: "2-digit", month: "short", hour: "numeric", minute: "2-digit", hour12: true }) } }));
+    onAudit?.({
+      action: check.category === "mandatory" ? "Mandatory Check Bypassed" : "Red Flag Check Bypassed",
+      icon: ShieldOff,
+      detail: `${check.label} — ${reason}`,
+    });
+    toast.success(`Bypassed "${check.label}"`);
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+  const selectAllFailed = (ids: string[], select: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => (select ? next.add(id) : next.delete(id)));
+      return next;
+    });
+  };
+
+  const revalidate = (targetIds: string[], label: string) => {
+    if (!latestData) return;
+    // Sentinels resolved here (rather than by the caller) since only this scope knows the current failed/
+    // selected sets — keeps RerunSplitButton itself free of any check-data knowledge.
+    const allFailedIds = latestData.checks.filter(c => c.status === "failed").map(c => c.id);
+    const resolvedIds =
+      targetIds[0] === "__all__" ? latestData.checks.map(c => c.id) :
+      targetIds[0] === "__failed__" ? allFailedIds :
+      targetIds[0] === "__selected__" ? Array.from(selectedIds) :
+      targetIds;
+    if (resolvedIds.length === 0) return;
+
     setVersions(prev => [...prev, { version: currentVersionNumber, at: currentVersionAt, data: latestData, changes: currentVersionChanges }]);
-    const next = regenerateValidation(latestData);
+    const next = regenerateValidation(latestData, resolvedIds);
     setOverrideData(next);
     setCurrentVersionNumber(n => n + 1);
     setCurrentVersionAt(new Date());
     setCurrentVersionChanges([]);
     setViewingVersion(null);
+    setSelectedIds(new Set());
+    const stillFailed = next.checks.filter(c => c.status === "failed").length;
     onAudit?.({
-      action: "Re-Validated",
+      action: `Re-Validated (${label})`,
       icon: RotateCcw,
-      detail: `Version ${currentVersionNumber + 1} generated — ${next.failedAndReviewChecks.length} check${next.failedAndReviewChecks.length === 1 ? "" : "s"} still outstanding`,
+      detail: `Version ${currentVersionNumber + 1} generated — ${resolvedIds.length} check${resolvedIds.length === 1 ? "" : "s"} targeted, ${stillFailed} still outstanding`,
     });
-    toast.success(`Re-validated — now viewing version ${currentVersionNumber + 1}`);
+    toast.success(`Re-validated ${label.toLowerCase()} — now viewing version ${currentVersionNumber + 1}`);
   };
 
+  const handleRerun = (targetIds: string[], label: string) => {
+    const loaderLabel = `Re-validating ${label.toLowerCase()}...`;
+    if (withPageLoader) withPageLoader(loaderLabel, () => revalidate(targetIds, label));
+    else revalidate(targetIds, label);
+  };
+
+  // AISO-658 gating — recomputed from `latestData` (the real current state), not whatever historical version
+  // is being browsed, since Proceed always acts on the latest state regardless of what's on screen.
   useEffect(() => {
-    onRevalidateReady?.(revalidate);
+    if (!latestData) return;
+    const blocking = latestData.checks.filter(c => c.category === "mandatory" && c.status === "failed" && !c.bypass);
+    onGateChange?.({ canProceed: blocking.length === 0, blockingCount: blocking.length });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latestData, currentVersionNumber, currentVersionAt, versions, currentVersionChanges]);
+  }, [latestData]);
 
   if (loading || error) {
     return (
@@ -260,9 +573,12 @@ export function AiOrderValidationBody({ emailId, onRevalidateReady, onAudit }: {
   const displayedData = viewingVersion !== null ? (versions.find(ver => ver.version === viewingVersion)?.data ?? latestData!) : latestData!;
   const v = displayedData;
   const isViewingHistory = viewingVersion !== null;
-  const totalChecks = v.failedAndReviewChecks.length + v.passedChecks.length;
-  const failedCount = v.failedAndReviewChecks.filter(c => c.status === "failed").length;
-  const reviewCount = v.failedAndReviewChecks.filter(c => c.status === "warning").length;
+  const totalChecks = v.checks.length;
+  const verifiedCount = v.checks.filter(c => c.status === "passed").length;
+  const mandatoryChecks = v.checks.filter(c => c.category === "mandatory");
+  const redFlagChecks = v.checks.filter(c => c.category === "redFlag");
+  const mandatoryRequiredCount = mandatoryChecks.filter(c => c.status === "failed").length;
+  const redFlagRequiredCount = redFlagChecks.filter(c => c.status === "failed").length;
 
   return (
     <>
@@ -303,12 +619,26 @@ export function AiOrderValidationBody({ emailId, onRevalidateReady, onAudit }: {
                 {isViewingHistory ? `Version ${viewingVersion}` : `Version ${currentVersionNumber} (Latest)`}
                 <ChevronDown size={11} />
               </button>
+              <RerunSplitButton selectedCount={selectedIds.size} onSelect={handleRerun} />
             </div>
           </div>
           {resultsOpen && (
-            <div className="px-5 py-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <CheckColumn title="Failed & Needs Attention" accentColor="#BA1C1C" checks={v.failedAndReviewChecks} />
-              <CheckColumn title="Passed" accentColor="#468657" checks={v.passedChecks} />
+            <div className="px-5 py-5 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+              <div className="flex flex-col gap-2">
+                <FailedCheckColumn
+                  checks={v.checks.filter(c => c.status === "failed")}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                  onSelectAll={selectAllFailed}
+                  onRerunOne={(id) => handleRerun([id], "Individual Check")}
+                  onBypass={handleBypass}
+                />
+                <p className="text-[11px] text-[#6b7280] px-1">
+                  <span className="font-bold" style={{ color: CATEGORY_META.mandatory.accent }}>(*)</span> Mandatory
+                  <span className="ml-3 font-bold" style={{ color: CATEGORY_META.redFlag.accent }}>(*)</span> Red Flag
+                </p>
+              </div>
+              <PassedCheckColumn checks={v.checks.filter(c => c.status === "passed")} />
             </div>
           )}
         </div>
@@ -360,28 +690,28 @@ export function AiOrderValidationBody({ emailId, onRevalidateReady, onAudit }: {
       <div className="flex flex-col gap-4">
         <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
           <h3 className="text-[14px] font-bold text-[#111827]">Validation Checks</h3>
-          <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">Overview of matched, review, and missing data.</p>
+          <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">Overview by category.</p>
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-[8px] bg-[#EFF6F1] px-2.5 py-3 flex flex-col items-center gap-1.5">
               <div className="flex items-center gap-1.5">
                 <CircleCheck size={18} className="text-[#468657] shrink-0" />
-                <span className="text-[20px] font-bold text-[#468657] leading-none">{v.passedChecks.length}/{totalChecks}</span>
+                <span className="text-[20px] font-bold text-[#468657] leading-none">{verifiedCount}/{totalChecks}</span>
               </div>
-              <span className="text-[10.5px] font-medium text-[#6b7280] text-center leading-tight">Checks Passed</span>
-            </div>
-            <div className="rounded-[8px] bg-[#FDF3E7] px-2.5 py-3 flex flex-col items-center gap-1.5">
-              <div className="flex items-center gap-1.5">
-                <TriangleAlert size={18} className="text-[#E67919] shrink-0" />
-                <span className="text-[20px] font-bold text-[#92600B] leading-none">{reviewCount}</span>
-              </div>
-              <span className="text-[10.5px] font-medium text-[#6b7280] text-center leading-tight">Needs Review</span>
+              <span className="text-[10.5px] font-medium text-[#6b7280] text-center leading-tight">Verified</span>
             </div>
             <div className="rounded-[8px] bg-[#FDECEA] px-2.5 py-3 flex flex-col items-center gap-1.5">
               <div className="flex items-center gap-1.5">
                 <CircleX size={18} className="text-[#BA1C1C] shrink-0" />
-                <span className="text-[20px] font-bold text-[#BA1C1C] leading-none">{failedCount}</span>
+                <span className="text-[20px] font-bold text-[#BA1C1C] leading-none">{mandatoryRequiredCount}</span>
               </div>
-              <span className="text-[10.5px] font-medium text-[#6b7280] text-center leading-tight">Failed</span>
+              <span className="text-[10.5px] font-medium text-[#6b7280] text-center leading-tight">Verification Required</span>
+            </div>
+            <div className="rounded-[8px] bg-[#FDF3E7] px-2.5 py-3 flex flex-col items-center gap-1.5">
+              <div className="flex items-center gap-1.5">
+                <TriangleAlert size={18} className="text-[#E67919] shrink-0" />
+                <span className="text-[20px] font-bold text-[#92600B] leading-none">{redFlagRequiredCount}</span>
+              </div>
+              <span className="text-[10.5px] font-medium text-[#6b7280] text-center leading-tight">Review Required</span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-[#f3f4f6]">
