@@ -127,6 +127,9 @@ export function TableToolbarMultiSelect({
   appliedCount,
   dirty,
   width = 220,
+  header,
+  searchable = false,
+  listMaxHeight,
 }: {
   label: string;
   options: string[];
@@ -140,7 +143,15 @@ export function TableToolbarMultiSelect({
   appliedCount: number;
   dirty: boolean;
   width?: number;
+  /** Optional row rendered above "Select all" — e.g. a Match any/all switch. */
+  header?: React.ReactNode;
+  /** Adds a filter box above the list for long option sets. */
+  searchable?: boolean;
+  /** Caps the option list's height (px) and makes it scroll — for long option sets. Select all / Clear stay put. */
+  listMaxHeight?: number;
 }) {
+  const [q, setQ] = useState("");
+  const visibleOptions = searchable && q.trim() ? options.filter((o) => o.toLowerCase().includes(q.trim().toLowerCase())) : options;
   const allSelected = pending.length === options.length && options.length > 0;
   const someSelected = pending.length > 0 && !allSelected;
 
@@ -163,6 +174,17 @@ export function TableToolbarMultiSelect({
       </button>
       {open && (
         <div className="absolute top-full left-0 mt-1 bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg z-40 py-1.5" style={{ width }}>
+          {header && <div className="px-3.5 pb-2 pt-0.5 mb-1 border-b border-[#E2E6E9]">{header}</div>}
+          {searchable && (
+            <div className="px-3 pb-1.5">
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Filter..."
+                className="w-full h-[32px] px-3 rounded-[8px] border border-[#E2E6E9] text-[12px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors"
+              />
+            </div>
+          )}
           <button
             onClick={onToggleAll}
             className="w-full flex items-center gap-2.5 text-left px-3.5 py-2 text-[12.5px] hover:bg-[#F7F7F7] cursor-pointer transition-colors border-b border-[#E2E6E9] mb-1"
@@ -176,7 +198,9 @@ export function TableToolbarMultiSelect({
             </span>
             <span className="font-semibold text-[#262626]">Select all</span>
           </button>
-          {options.map((opt) => {
+          <div className={listMaxHeight ? "overflow-y-auto" : undefined} style={listMaxHeight ? { maxHeight: listMaxHeight } : undefined}>
+          {searchable && visibleOptions.length === 0 && <p className="px-3.5 py-3 text-[12px] text-[#97999B]">No matches.</p>}
+          {visibleOptions.map((opt) => {
             const checked = pending.includes(opt);
             return (
               <button
@@ -194,6 +218,7 @@ export function TableToolbarMultiSelect({
               </button>
             );
           })}
+          </div>
           {pending.length > 0 && (
             <button onClick={onClear} className="w-full text-left px-3.5 pt-1.5 pb-0.5 text-[11.5px] font-medium text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors">
               Clear selection
@@ -249,5 +274,10 @@ export function useStagedMultiSelect(allOptions: string[]) {
   const clear = () => setPending([]);
   const apply = () => setApplied(pending);
   const reset = () => setPending(applied);
-  return { applied, pending, dirty, toggle, toggleAll, clear, apply, reset };
+  // Wipes both the staged picks and what's already applied — for a page-level "Clear filters" action, as
+  // opposed to `clear` (staged only, still needs Apply).
+  const clearAll = () => { setApplied([]); setPending([]); };
+  // Sets both staged and applied to an exact selection at once — e.g. applying a saved filter.
+  const setAll = (values: string[]) => { setApplied(values); setPending(values); };
+  return { applied, pending, dirty, toggle, toggleAll, clear, apply, reset, clearAll, setAll };
 }
