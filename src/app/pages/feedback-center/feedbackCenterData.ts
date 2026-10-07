@@ -230,6 +230,85 @@ export const QUEUE_BY_DOC_TYPE: Record<DocType, ReviewItem[]> = {
   som: SOM_QUEUE,
 };
 
+// Mock "already reviewed" transactions — so the Reviewed tab has something to show on first load instead of
+// an empty state. Bundles the transaction itself with the human verdicts/reasons/notes a reviewer would have
+// left on each check, plus when it was reviewed, since those live outside ReviewItem in the page's own state.
+export type ReviewedSeed = {
+  item: ReviewItem;
+  verdicts: Record<string, "pending" | "correct" | "incorrect">; // checkId -> human verdict
+  reasons?: Record<string, string>; // checkId -> reason, for any check marked "incorrect"
+  notes?: Record<string, string>; // checkId -> reviewer note
+  reviewedAt: string;
+};
+
+const TRADE_ORDER_REVIEWED: ReviewedSeed[] = [
+  (() => {
+    const id = "CCC-2808217";
+    const checks = canonicalChecks(id, {
+      "Ship-To and Bill-To Addresses": ["flag", "Ship-To postal code on PO (06234) differs from the address on file (06236) by one digit."],
+      "Payment Terms": ["flag", "PO payment term \"Net 45\" is non-standard for this account but matches an approved exception on file."],
+    });
+    return {
+      item: {
+        id,
+        version: 1,
+        company: "HP Printing Korea Co Ltd",
+        runBy: "AI Agent",
+        poNumber: "TM-33545791850-1",
+        quoteNumber: "QT-3354579",
+        requestor: "Min-jun Park",
+        timestamp: "Mon, 5/10, 2:40 PM",
+        checks,
+      },
+      // Both AI flags were reviewed and confirmed correct — nothing left unmarked.
+      verdicts: Object.fromEntries(checks.map((c) => [c.id, "correct" as const])),
+      reviewedAt: "Yesterday, 4:20 PM",
+    };
+  })(),
+  (() => {
+    const id = "CCC-2809552";
+    const checks = canonicalChecks(id, {
+      "Service Description, Pricing, Quantity, Discount": ["fail", "Unit price mismatch: PO USD 12,400.00 vs Quote USD 14,200.00 for line 2."],
+      "Customer Export Screening": ["flag", "Company: Meridian Optics Pte Ltd — no HRDP screening record found on file."],
+    });
+    const priceCheckId = checks.find((c) => c.name === "Service Description, Pricing, Quantity, Discount")!.id;
+    const exportCheckId = checks.find((c) => c.name === "Customer Export Screening")!.id;
+    return {
+      item: {
+        id,
+        version: 2,
+        company: "Meridian Optics Pte Ltd",
+        runBy: "AI Agent",
+        poNumber: "MO-POQ-9981203",
+        quoteNumber: "QT-9981203",
+        requestor: "Claire Dubois",
+        timestamp: "Mon, 5/10, 11:15 AM",
+        checks,
+      },
+      verdicts: {
+        ...Object.fromEntries(checks.map((c) => [c.id, "correct" as const])),
+        [priceCheckId]: "incorrect",
+        [exportCheckId]: "incorrect",
+      },
+      reasons: {
+        [priceCheckId]: "Outdated or superseded information",
+        [exportCheckId]: "Supporting document was not considered",
+      },
+      notes: {
+        [priceCheckId]: "Checked the latest quote revision (Rev 3) — pricing matches the PO.",
+        [exportCheckId]: "HRDP screening was completed and filed under the parent account, AI didn't look there.",
+      },
+      reviewedAt: "Yesterday, 2:05 PM",
+    };
+  })(),
+];
+
+export const REVIEWED_BY_DOC_TYPE: Record<DocType, ReviewedSeed[]> = {
+  "trade-order": TRADE_ORDER_REVIEWED,
+  "service-agreement": [],
+  som: [],
+};
+
 export function checkCounts(item: ReviewItem) {
   const total = item.checks.length;
   const passed = item.checks.filter((c) => c.status !== "fail").length; // AI flags still count as "passed" until a human disagrees
@@ -676,3 +755,143 @@ export const TRADE_ORDER_CHECK_GUIDE: CheckGuideEntry[] = [
 export const CHECK_GUIDE_BY_DOC_TYPE: Partial<Record<DocType, CheckGuideEntry[]>> = {
   "trade-order": TRADE_ORDER_CHECK_GUIDE,
 };
+
+// Mock data for the Analytics tab — accuracy/dispute/feedback-intake trends across every transaction the AI
+// has ever validated for this doc type, not just the handful sitting in the live Queue/Reviewed mock arrays
+// above. These are standalone illustrative numbers (the KPI cards' hover drill-downs included) rather than
+// something derived from TRADE_ORDER_QUEUE etc., the same way a real analytics backend would aggregate over
+// a much larger history than what's currently in the reviewer's queue.
+export type AnalyticsFeedbackRow = {
+  check: string;
+  correctPct: number; // "Accurate / Rest Correct"
+  missingDocPct: number;
+  outdatedPct: number;
+  noFeedbackPct: number; // these four sum to 100
+  totalFeedback: number;
+};
+
+export type AnalyticsFailureRow = {
+  check: string;
+  correctPct: number;
+  incorrectPct: number;
+  noFeedbackPct: number; // these three sum to 100
+  totalReviewed: number;
+};
+
+export type AnalyticsSummary = {
+  totalTransactionsValidated: number;
+  transactionsWithFeedback: number;
+  positiveFeedbackPct: number;
+  negativeFeedbackPct: number;
+  overallOaAccuracyPct: number;
+  checksExecuted: number;
+  checksDisputed: number;
+  detail: {
+    totalValidated: { withFeedback: number; awaitingFeedback: number };
+    withFeedback: { pctOfValidated: number; checkResponses: number };
+    positive: { transactions: string; note: string };
+    negative: { transactions: string; note: string };
+    accuracy: { fraction: string; formula: string };
+    checksExecuted: { validated: number; awaiting: number };
+    disputed: { markedCorrect: number; markedWrong: number };
+  };
+  accuracyBreakdown: {
+    passRatePct: number;
+    passedEveryCheck: number; // out of totalTransactionsValidated — the AI's own call, not reviewer-verified
+    flaggedTransactions: number;
+    flaggedChecks: number;
+  };
+  // Every validated transaction lands in exactly one bucket, so these always sum to totalTransactionsValidated:
+  // correct + flagged = transactionsWithFeedback, escalated is a formal escalation on top of a verdict, and
+  // pending is everything no reviewer has looked at yet.
+  statusSplit: { correct: number; flagged: number; escalated: number; pending: number };
+  accuracyTrend: { week: string; pct: number }[]; // reviewer-verified accuracy, oldest → newest
+  feedbackRows: AnalyticsFeedbackRow[];
+  failureRows: AnalyticsFailureRow[];
+};
+
+function buildAnalytics(scale: number, checks: readonly string[]): AnalyticsSummary {
+  const totalTransactionsValidated = Math.max(4, Math.round(502 * scale));
+  const transactionsWithFeedback = Math.max(1, Math.round(2 * scale));
+  const correct = Math.ceil(transactionsWithFeedback / 2);
+  const flagged = transactionsWithFeedback - correct;
+  const escalated = 0;
+  const accuracy = Math.round((correct / transactionsWithFeedback) * 1000) / 10;
+  const checksExecuted = Math.max(transactionsWithFeedback * 18, Math.round(11037 * scale));
+  const checksValidated = transactionsWithFeedback * 22;
+  const checksDisputed = Math.max(1, Math.round(2 * scale));
+  const disputedUpheld = Math.ceil(checksDisputed / 2); // AI's original fail/flag call held up
+  const disputedOverturned = checksDisputed - disputedUpheld; // dispute found the AI was actually right
+  const passedEveryCheck = Math.max(1, Math.round(totalTransactionsValidated * 0.22));
+  const trendOffsets = [-12, -8, -10, -5, -6, -2, -3, 0];
+  return {
+    totalTransactionsValidated,
+    transactionsWithFeedback,
+    positiveFeedbackPct: accuracy,
+    negativeFeedbackPct: Math.round((100 - accuracy) * 10) / 10,
+    overallOaAccuracyPct: accuracy,
+    checksExecuted,
+    checksDisputed,
+    detail: {
+      totalValidated: { withFeedback: transactionsWithFeedback, awaitingFeedback: totalTransactionsValidated - transactionsWithFeedback },
+      withFeedback: { pctOfValidated: Math.round((transactionsWithFeedback / totalTransactionsValidated) * 1000) / 10, checkResponses: checksValidated },
+      positive: { transactions: `${correct} of ${transactionsWithFeedback}`, note: "Every validation check marked correct" },
+      negative: { transactions: `${flagged} of ${transactionsWithFeedback}`, note: "One or more checks marked incorrect" },
+      accuracy: { fraction: `${correct} / ${transactionsWithFeedback} transactions with feedback`, formula: "Positive feedback ÷ transactions with feedback" },
+      checksExecuted: { validated: checksValidated, awaiting: checksExecuted - checksValidated },
+      disputed: { markedCorrect: disputedOverturned, markedWrong: disputedUpheld },
+    },
+    accuracyBreakdown: {
+      passRatePct: 78,
+      passedEveryCheck,
+      flaggedTransactions: totalTransactionsValidated - passedEveryCheck,
+      flaggedChecks: Math.round(checksExecuted * 0.22),
+    },
+    statusSplit: { correct, flagged, escalated, pending: totalTransactionsValidated - transactionsWithFeedback },
+    accuracyTrend: trendOffsets.map((o, i) => ({ week: `W${i + 1}`, pct: Math.min(100, Math.max(0, accuracy + o)) })),
+    feedbackRows: checks.slice(0, 8).map((check, i) =>
+      i === 3
+        ? { check, correctPct: 50, missingDocPct: 50, outdatedPct: 0, noFeedbackPct: 0, totalFeedback: transactionsWithFeedback }
+        : { check, correctPct: 100, missingDocPct: 0, outdatedPct: 0, noFeedbackPct: 0, totalFeedback: transactionsWithFeedback }
+    ),
+    failureRows: [
+      { check: checks[0] ?? "Check", correctPct: 50, incorrectPct: 50, noFeedbackPct: 0, totalReviewed: transactionsWithFeedback },
+      { check: checks[1] ?? "Check", correctPct: 50, incorrectPct: 50, noFeedbackPct: 0, totalReviewed: transactionsWithFeedback },
+      { check: checks[2] ?? "Check", correctPct: 0, incorrectPct: 0, noFeedbackPct: 100, totalReviewed: 0 },
+      ...checks.slice(3, 7).map((check) => ({ check, correctPct: 100, incorrectPct: 0, noFeedbackPct: 0, totalReviewed: transactionsWithFeedback })),
+      { check: checks[7] ?? "Check", correctPct: 0, incorrectPct: 0, noFeedbackPct: 100, totalReviewed: 0 },
+    ],
+  };
+}
+
+const ANALYTICS_CONFIG: Record<DocType, { scale: number; checks: readonly string[] }> = {
+  "trade-order": {
+    scale: 1,
+    checks: [
+      "Clear Bill To/ Ship To Address",
+      "Compare Quote to and Bill to Customer Name",
+      "Country Comparison Purchase Order Vs Quote",
+      "Customer Export Screening",
+      "Customer Name Purchase Order Vs Quote",
+      "Customer Requested Date (CRD)",
+      "Egregious/boycott Language",
+      "Product, Pricing, Quantity, Discount",
+    ],
+  },
+  "service-agreement": { scale: 0.08, checks: [...FEEDBACK_CHECK_NAMES].slice(0, 8) },
+  som: { scale: 0.03, checks: [...FEEDBACK_CHECK_NAMES].slice(0, 8) },
+};
+
+export const ANALYTICS_CHECKS_BY_DOC_TYPE: Record<DocType, readonly string[]> = {
+  "trade-order": ANALYTICS_CONFIG["trade-order"].checks,
+  "service-agreement": ANALYTICS_CONFIG["service-agreement"].checks,
+  som: ANALYTICS_CONFIG.som.checks,
+};
+
+// `share` is the fraction of the full history the active filters cover (1 = no filters). Mock data has no
+// real per-date/per-version records, so narrowing a filter shrinks the volumes proportionally — enough for
+// the page to visibly respond to a filter instead of silently ignoring it.
+export function getAnalytics(docType: DocType, share = 1): AnalyticsSummary {
+  const cfg = ANALYTICS_CONFIG[docType];
+  return buildAnalytics(cfg.scale * share, cfg.checks);
+}

@@ -6,7 +6,8 @@ import { AppHeader } from "../../components/common/AppHeader";
 import { EMAIL_TABLE_NAVY } from "../../components/common/EmailTable";
 import { TableToolbarMultiSelect, TableToolbarSearch, useExclusiveOpen } from "../../components/common/TableToolbar";
 import { EMPTY_PANEL_FILTERS, loadSavedFeedbackFilters, saveSavedFeedbackFilters, type AiResultFilter, type PanelFilters, type SavedFeedbackFilter } from "./feedbackCenterSavedFilters";
-import { CHECK_GUIDE_BY_DOC_TYPE, DOC_TYPE_LABELS, FEEDBACK_CHECK_NAMES, QUEUE_BY_DOC_TYPE, checkCounts, type CheckGuideEntry, type DocType, type ReviewItem, type ReviewCheck, type CheckStatus } from "./feedbackCenterData";
+import { CHECK_GUIDE_BY_DOC_TYPE, DOC_TYPE_LABELS, FEEDBACK_CHECK_NAMES, QUEUE_BY_DOC_TYPE, REVIEWED_BY_DOC_TYPE, checkCounts, type CheckGuideEntry, type DocType, type ReviewItem, type ReviewCheck, type CheckStatus } from "./feedbackCenterData";
+import { FeedbackAnalyticsPanel } from "./FeedbackAnalyticsPanel";
 
 // Feedback Center uses the app's brand red (matches AppHeader's active-nav color) as its own accent instead
 // of the navy used everywhere else — this section is deliberately visually distinct since it's an
@@ -305,6 +306,7 @@ function CheckRow({
   onToggleExpand,
   onVerdict,
   onNote,
+  locked = false,
 }: {
   check: ReviewCheck;
   verdict: CheckVerdict;
@@ -315,16 +317,21 @@ function CheckRow({
   onToggleExpand: () => void;
   onVerdict: (v: CheckVerdict) => void;
   onNote: (v: string) => void;
+  /** Read-only display for an already-submitted review — verdict/reason/note are shown but can't be changed. */
+  locked?: boolean;
 }) {
   const pill = statusPill(check.status);
-  const verdictStyle = verdict === "correct" ? "#468657" : verdict === "incorrect" ? "#BA1C1C" : "#97999B";
+  // Once a review is submitted, an un-thumbed check was implicitly confirmed correct (that's the submit rule),
+  // so the read-only Reviewed tab displays "pending" the same as "correct" instead of the neutral/white state.
+  const displayVerdict = locked && verdict === "pending" ? "correct" : verdict;
+  const verdictStyle = displayVerdict === "correct" ? "#468657" : displayVerdict === "incorrect" ? "#BA1C1C" : "#97999B";
   return (
     <div
       className="border rounded-[8px] overflow-hidden transition-colors"
       style={
-        verdict === "incorrect"
+        displayVerdict === "incorrect"
           ? { borderColor: "#BA1C1C", backgroundColor: "#FDECEA" }
-          : verdict === "correct"
+          : displayVerdict === "correct"
           ? { borderColor: "#468657", backgroundColor: "#EFF6F1" }
           : { borderColor: "#E2E6E9", backgroundColor: "#FFFFFF" }
       }
@@ -349,32 +356,41 @@ function CheckRow({
         </span>
         <p className="flex-1 min-w-[200px] text-[12px] text-[#4D4D4D] truncate">{check.description}</p>
         <div className="flex items-center gap-2.5 shrink-0 ml-auto" onClick={(e) => e.stopPropagation()}>
-          <span className="text-[11px] font-medium whitespace-nowrap" style={{ color: verdictStyle }}>
-            {verdict === "correct" ? "Correct" : verdict === "incorrect" ? "Incorrect" : "Pending"}
-          </span>
-          <button
-            onClick={() => onVerdict(verdict === "correct" ? "pending" : "correct")}
-            title="Mark correct"
-            className="flex items-center justify-center size-[26px] rounded-[6px] border cursor-pointer transition-colors"
-            style={verdict === "correct" ? { borderColor: "#468657", backgroundColor: "#EFF6F1", color: "#468657" } : { borderColor: "#E2E6E9", color: "#666666" }}
-          >
-            <ThumbsUp size={13} fill={verdict === "correct" ? "#468657" : "none"} />
-          </button>
-          <button
-            onClick={() => onVerdict(verdict === "incorrect" ? "pending" : "incorrect")}
-            title="Mark incorrect"
-            className="flex items-center justify-center size-[26px] rounded-[6px] border cursor-pointer transition-colors"
-            style={verdict === "incorrect" ? { borderColor: "#BA1C1C", backgroundColor: "#FDECEA", color: "#BA1C1C" } : { borderColor: "#E2E6E9", color: "#666666" }}
-          >
-            <ThumbsDown size={13} fill={verdict === "incorrect" ? "#BA1C1C" : "none"} />
-          </button>
+          <div className="text-right max-w-[160px]">
+            <p className="text-[11px] font-medium whitespace-nowrap" style={{ color: verdictStyle }}>
+              {displayVerdict === "correct" ? "Correct" : displayVerdict === "incorrect" ? "Incorrect" : "Pending"}
+            </p>
+            {displayVerdict === "incorrect" && reason && <p className="text-[10.5px] text-[#9ca3af] truncate">{reason}</p>}
+          </div>
+          {displayVerdict !== "incorrect" && (
+            <button
+              onClick={() => !locked && onVerdict(verdict === "correct" ? "pending" : "correct")}
+              title="Mark correct"
+              disabled={locked}
+              className={`flex items-center justify-center size-[26px] rounded-[6px] border transition-colors ${locked ? "cursor-default" : "cursor-pointer"}`}
+              style={displayVerdict === "correct" ? { borderColor: "#468657", backgroundColor: "#EFF6F1", color: "#468657" } : { borderColor: "#E2E6E9", color: "#666666" }}
+            >
+              <ThumbsUp size={13} fill={displayVerdict === "correct" ? "#468657" : "none"} />
+            </button>
+          )}
+          {displayVerdict !== "correct" && (
+            <button
+              onClick={() => !locked && onVerdict(verdict === "incorrect" ? "pending" : "incorrect")}
+              title="Mark incorrect"
+              disabled={locked}
+              className={`flex items-center justify-center size-[26px] rounded-[6px] border transition-colors ${locked ? "cursor-default" : "cursor-pointer"}`}
+              style={displayVerdict === "incorrect" ? { borderColor: "#BA1C1C", backgroundColor: "#FDECEA", color: "#BA1C1C" } : { borderColor: "#E2E6E9", color: "#666666" }}
+            >
+              <ThumbsDown size={13} fill={displayVerdict === "incorrect" ? "#BA1C1C" : "none"} />
+            </button>
+          )}
         </div>
       </div>
 
       {expanded && (
         <div
           className="border-t px-4 py-4 flex flex-col gap-4"
-          style={{ borderColor: verdict === "incorrect" ? "#F3C6C6" : verdict === "correct" ? "#C9E2D1" : "#E2E6E9" }}
+          style={{ borderColor: displayVerdict === "incorrect" ? "#F3C6C6" : displayVerdict === "correct" ? "#C9E2D1" : "#E2E6E9" }}
         >
           <div>
             <p className="text-[10.5px] font-bold uppercase tracking-wide text-[#97999B]">AI reasoning &amp; evidence</p>
@@ -383,29 +399,41 @@ function CheckRow({
           {verdict === "incorrect" && (
             <div>
               <label className="text-[10.5px] font-bold uppercase tracking-wide text-[#97999B]">
-                What did the AI get wrong? <span className="text-[#BA1C1C]">(required)</span>
+                What did the AI get wrong? {!locked && <span className="text-[#BA1C1C]">(required)</span>}
               </label>
-              <ReasonSelect value={reason} onChange={onReason} options={WRONG_REASON_OPTIONS} invalid={!reason} />
+              {locked ? (
+                <p className="mt-1.5 text-[12.5px] text-[#262626]">{reason || "—"}</p>
+              ) : (
+                <ReasonSelect value={reason} onChange={onReason} options={WRONG_REASON_OPTIONS} invalid={!reason} />
+              )}
             </div>
           )}
-          <div>
-            <label className="text-[10.5px] font-bold uppercase tracking-wide text-[#97999B]">
-              {verdict === "incorrect" && reason === OTHER_REASON ? (
-                <>
-                  Your note <span className="text-[#BA1C1C]">(required for "{OTHER_REASON}")</span>
-                </>
+          {(!locked || note.trim()) && (
+            <div>
+              <label className="text-[10.5px] font-bold uppercase tracking-wide text-[#97999B]">
+                {locked
+                  ? "Reviewer note"
+                  : verdict === "incorrect" && reason === OTHER_REASON
+                  ? (
+                    <>
+                      Your note <span className="text-[#BA1C1C]">(required for "{OTHER_REASON}")</span>
+                    </>
+                  )
+                  : "Your note (optional)"}
+              </label>
+              {locked ? (
+                <p className="mt-1.5 text-[12.5px] text-[#262626] leading-[1.5] whitespace-pre-wrap">{note}</p>
               ) : (
-                "Your note (optional)"
+                <textarea
+                  value={note}
+                  onChange={(e) => onNote(e.target.value)}
+                  rows={3}
+                  className="mt-1.5 w-full px-3 py-2 rounded-[8px] border bg-[#F7F7F8] text-[12.5px] text-[#262626] outline-none focus:border-[#30578D] focus:bg-white transition-colors resize-y"
+                  style={{ borderColor: verdict === "incorrect" && reason === OTHER_REASON && !note.trim() ? "#BA1C1C" : "#E2E6E9" }}
+                />
               )}
-            </label>
-            <textarea
-              value={note}
-              onChange={(e) => onNote(e.target.value)}
-              rows={3}
-              className="mt-1.5 w-full px-3 py-2 rounded-[8px] border bg-[#F7F7F8] text-[12.5px] text-[#262626] outline-none focus:border-[#30578D] focus:bg-white transition-colors resize-y"
-              style={{ borderColor: verdict === "incorrect" && reason === OTHER_REASON && !note.trim() ? "#BA1C1C" : "#E2E6E9" }}
-            />
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -540,7 +568,14 @@ export function FeedbackCenterPage({
 }) {
   const docLabel = DOC_TYPE_LABELS[docType];
   const [queue, setQueue] = useState<ReviewItem[]>(() => QUEUE_BY_DOC_TYPE[docType]);
-  const [reviewed, setReviewed] = useState<ReviewItem[]>([]);
+  const [reviewed, setReviewed] = useState<ReviewItem[]>(() => REVIEWED_BY_DOC_TYPE[docType].map((s) => s.item));
+  const [reviewedAt, setReviewedAt] = useState<Record<string, string>>(() =>
+    Object.fromEntries(REVIEWED_BY_DOC_TYPE[docType].map((s) => [s.item.id, s.reviewedAt]))
+  );
+  const [expandedReviewedId, setExpandedReviewedId] = useState<string | null>(null);
+  // Separate from the Queue's expandedCheckIds — a check that got auto-expanded while being reviewed
+  // shouldn't still be open when the same transaction is later viewed, read-only, in the Reviewed tab.
+  const [expandedReviewedCheckIds, setExpandedReviewedCheckIds] = useState<Set<string>>(new Set());
   const checkGuide = CHECK_GUIDE_BY_DOC_TYPE[docType];
   const [checkGuideOpen, setCheckGuideOpen] = useState(false);
   const [confirmCorrectItem, setConfirmCorrectItem] = useState<ReviewItem | null>(null);
@@ -564,10 +599,16 @@ export function FeedbackCenterPage({
 
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [verdicts, setVerdicts] = useState<Record<string, Record<string, CheckVerdict>>>({});
+  const [verdicts, setVerdicts] = useState<Record<string, Record<string, CheckVerdict>>>(() =>
+    Object.fromEntries(REVIEWED_BY_DOC_TYPE[docType].map((s) => [s.item.id, s.verdicts]))
+  );
   const [expandedCheckIds, setExpandedCheckIds] = useState<Set<string>>(new Set());
-  const [notes, setNotes] = useState<Record<string, string>>({});
-  const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState<Record<string, string>>(() =>
+    Object.assign({}, ...REVIEWED_BY_DOC_TYPE[docType].map((s) => s.notes ?? {}))
+  );
+  const [reasons, setReasons] = useState<Record<string, string>>(() =>
+    Object.assign({}, ...REVIEWED_BY_DOC_TYPE[docType].map((s) => s.reasons ?? {}))
+  );
 
   const checkNameOptions: string[] = [...FEEDBACK_CHECK_NAMES];
 
@@ -616,6 +657,7 @@ export function FeedbackCenterPage({
   const quickApprove = (item: ReviewItem) => {
     setQueue((prev) => prev.filter((x) => x.id !== item.id));
     setReviewed((prev) => [item, ...prev]);
+    setReviewedAt((prev) => ({ ...prev, [item.id]: "Just now" }));
     if (expandedItemId === item.id) setExpandedItemId(null);
     toast.success(`${item.id} marked correct and moved to Reviewed`);
   };
@@ -635,6 +677,7 @@ export function FeedbackCenterPage({
     const flaggedCount = item.checks.filter((c) => itemVerdicts[c.id] === "incorrect").length;
     setQueue((prev) => prev.filter((x) => x.id !== item.id));
     setReviewed((prev) => [item, ...prev]);
+    setReviewedAt((prev) => ({ ...prev, [item.id]: "Just now" }));
     setExpandedItemId(null);
     toast.success(flaggedCount > 0 ? `${item.id} submitted — ${flaggedCount} check${flaggedCount > 1 ? "s" : ""} flagged as incorrect` : `${item.id} submitted — all checks confirmed correct`);
   };
@@ -991,7 +1034,7 @@ export function FeedbackCenterPage({
                             return (
                               <div key={item.id} className="bg-white rounded-[8px] border border-[#E2E6E9]">
                                 <div
-                                  className="flex items-center justify-between gap-3 px-5 py-4 flex-wrap cursor-pointer"
+                                  className={`flex items-center justify-between gap-3 px-5 py-4 flex-wrap cursor-pointer rounded-t-[8px] transition-colors hover:bg-[#F7F7F8] ${isExpanded ? "bg-[#F7F7F8]" : ""}`}
                                   onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
                                 >
                                   <div className="flex items-center gap-3 min-w-0">
@@ -1105,7 +1148,7 @@ export function FeedbackCenterPage({
                                       ))}
                                     </div>
 
-                                    <div className="sticky bottom-0 z-10 bg-white flex items-center justify-between gap-3 flex-wrap mt-4 pt-4 pb-1 border-t border-[#E2E6E9]">
+                                    <div className="sticky bottom-0 z-10 bg-white shadow-[0_-2px_6px_rgba(0,0,0,0.04)] flex items-center justify-between gap-3 flex-wrap mt-4 px-1 pt-4 pb-4 border-t border-[#E2E6E9]">
                                       {missingReasonCount(item) > 0 ? (
                                         <p className="flex items-center gap-1.5 text-[12px] text-[#BA1C1C]">
                                           <AlertCircle size={14} className="shrink-0" />
@@ -1137,35 +1180,137 @@ export function FeedbackCenterPage({
             )}
 
             {activeTab === "reviewed" && (
-              <div className="bg-white rounded-[8px] border border-[#E2E6E9] py-16 text-center min-h-0 overflow-auto">
+              <div className="flex-1 min-h-[420px] bg-white rounded-[8px] border border-[#E2E6E9] flex flex-col">
                 {reviewed.length === 0 ? (
-                  <>
+                  <div className="py-16 text-center">
                     <CheckCircle2 size={28} className="mx-auto text-[#D9D9D6]" />
                     <p className="text-[13px] text-[#97999B] mt-3">No transactions reviewed yet</p>
-                  </>
+                  </div>
                 ) : (
-                  <div className="text-left px-5 flex flex-col gap-2.5">
-                    {reviewed.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-3 rounded-[8px] border border-[#E2E6E9]">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <CheckCircle2 size={15} className="text-[#468657] shrink-0" />
-                          <span className="text-[13px] font-semibold text-[#262626] whitespace-nowrap">{item.id}</span>
-                          <span className="text-[12.5px] text-[#666666] truncate">{item.company}</span>
+                  <div className="p-4 flex flex-col gap-3">
+                    <p className="text-[13.5px] font-bold text-[#111827] px-1">Reviewed by you</p>
+                    {reviewed.map((item) => {
+                      const { total, passed, aiFlags } = checkCounts(item);
+                      const itemVerdicts = verdicts[item.id] ?? {};
+                      const incorrectCount = item.checks.filter((c) => itemVerdicts[c.id] === "incorrect").length;
+                      const isExpanded = expandedReviewedId === item.id;
+                      return (
+                        <div key={item.id} className="bg-white rounded-[8px] border border-[#E2E6E9]">
+                          <div
+                            className={`flex items-center justify-between gap-3 px-5 py-4 flex-wrap cursor-pointer rounded-t-[8px] transition-colors hover:bg-[#F7F7F8] ${isExpanded ? "bg-[#F7F7F8]" : ""}`}
+                            onClick={() => setExpandedReviewedId(isExpanded ? null : item.id)}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <ChevronDown size={16} className={`shrink-0 text-[#6b7280] transition-transform duration-200 ${isExpanded ? "" : "-rotate-90"}`} />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[14px] font-bold underline decoration-dotted underline-offset-4 whitespace-nowrap" style={{ color: ACCENT }}>
+                                    {item.id}
+                                  </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      copyId(item.id);
+                                    }}
+                                    title={copiedId === item.id ? "Copied" : "Copy ID"}
+                                    className="flex items-center gap-1 cursor-pointer transition-colors"
+                                    style={{ color: copiedId === item.id ? "#468657" : "#9ca3af" }}
+                                  >
+                                    {copiedId === item.id ? <Check size={13} /> : <Copy size={13} />}
+                                    {copiedId === item.id && <span className="text-[11px] font-semibold">Copied</span>}
+                                  </button>
+                                  <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#F1F2F4] text-[#4D4D4D] whitespace-nowrap">
+                                    VERSION {item.version}
+                                  </span>
+                                  <span className="text-[13px] font-medium text-[#374151] truncate">{item.company}</span>
+                                </div>
+                                <p className="text-[11.5px] text-[#9ca3af] mt-1">
+                                  {incorrectCount} check{incorrectCount === 1 ? "" : "s"} marked incorrect · PO {item.poNumber}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11.5px] font-semibold bg-[#F1F2F4] text-[#4D4D4D] whitespace-nowrap">
+                                <Check size={11} /> {passed}/{total} PASSED
+                              </span>
+                              {aiFlags > 0 && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11.5px] font-semibold bg-[#FDF3E7] text-[#92600B] whitespace-nowrap">
+                                  <Flag size={11} /> {aiFlags} AI FLAGS
+                                </span>
+                              )}
+                              <div className="w-px h-5 bg-[#E2E6E9]" />
+                              <span className="text-[11.5px] text-[#9ca3af] whitespace-nowrap">{reviewedAt[item.id] ?? item.timestamp}</span>
+                              <span
+                                className="inline-flex items-center gap-1.5 shrink-0 px-2.5 h-[26px] rounded-full border text-[11.5px] font-semibold whitespace-nowrap"
+                                style={{ borderColor: "#468657", color: "#468657", backgroundColor: "#EFF6F1" }}
+                              >
+                                <ThumbsUp size={11} /> Correct
+                              </span>
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="border-t border-[#E2E6E9] px-5 py-4 bg-white rounded-b-[8px]">
+                              <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+                                <p className="text-[13.5px] font-bold text-[#111827]">
+                                  Validate each check <span className="font-normal text-[#9ca3af]">{item.checks.length} / {item.checks.length}</span>
+                                </p>
+                                <button
+                                  onClick={() =>
+                                    setExpandedReviewedCheckIds((prev) => {
+                                      const allOpen = item.checks.every((c) => prev.has(c.id));
+                                      const next = new Set(prev);
+                                      item.checks.forEach((c) => (allOpen ? next.delete(c.id) : next.add(c.id)));
+                                      return next;
+                                    })
+                                  }
+                                  className="text-[12px] font-semibold hover:underline cursor-pointer"
+                                  style={{ color: EMAIL_TABLE_NAVY }}
+                                >
+                                  Expand all
+                                </button>
+                              </div>
+                              <div className="flex flex-col gap-2.5">
+                                {item.checks.map((check) => (
+                                  <CheckRow
+                                    key={check.id}
+                                    check={check}
+                                    verdict={getVerdict(item.id, check.id)}
+                                    expanded={expandedReviewedCheckIds.has(check.id)}
+                                    note={notes[check.id] ?? ""}
+                                    reason={reasons[check.id] ?? ""}
+                                    onReason={() => {}}
+                                    onNote={() => {}}
+                                    onToggleExpand={() =>
+                                      setExpandedReviewedCheckIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.has(check.id) ? next.delete(check.id) : next.add(check.id);
+                                        return next;
+                                      })
+                                    }
+                                    onVerdict={() => {}}
+                                    locked
+                                  />
+                                ))}
+                              </div>
+
+                              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[#E2E6E9] text-[12.5px] font-medium" style={{ color: "#468657" }}>
+                                <Check size={14} className="shrink-0" />
+                                {incorrectCount > 0
+                                  ? `Reviewed — ${incorrectCount} check${incorrectCount === 1 ? "" : "s"} flagged as incorrect · closed out.`
+                                  : "Marked correct — this transaction is closed out."}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <span className="text-[11.5px] text-[#9ca3af] whitespace-nowrap">PO {item.poNumber}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
             )}
 
-            {activeTab === "analytics" && (
-              <div className="bg-white rounded-[8px] border border-[#E2E6E9] py-16 text-center min-h-0 overflow-auto">
-                <p className="text-[14px] font-semibold text-[#374151]">Analytics</p>
-                <p className="text-[12.5px] text-[#97999B] mt-1.5">Review-quality trends and AI accuracy metrics — coming soon.</p>
-              </div>
-            )}
+            {activeTab === "analytics" && <FeedbackAnalyticsPanel docType={docType} />}
           </div>
         </main>
       </div>
