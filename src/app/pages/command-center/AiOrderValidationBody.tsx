@@ -114,7 +114,7 @@ function docMeta(name: string): { icon: typeof FileText; bg: string; fg: string 
   return { icon: FileText, bg: "#f3f4f6", fg: "#6b7280" };
 }
 
-// AISO-603 — every rerun scope (All / Failed Only / Selected / Individual) reduces to "here's a list of check
+// AISO-603 — every rerun scope (All / Failed Only / Selected — tick one row to rerun just that check) reduces to "here's a list of check
 // ids to rerun", so one menu drives all of them instead of separate controls scattered around the page. A
 // menu rather than N separate buttons so the header row has room for more scopes later without growing again.
 function RerunSplitButton({ selectedCount, onSelect }: { selectedCount: number; onSelect: (targetIds: string[], label: string) => void }) {
@@ -181,22 +181,20 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
   );
 }
 
-// A failed/review check — the only rows that carry a checkbox (for bulk rerun), an individual rerun button,
-// and the bypass-with-reason flow (AISO-652). Mandatory vs Red Flag only changes color/vocabulary; the
+// A failed/review check — the only rows that carry a checkbox (tick it, then "Rerun Selected" from the
+// Rerun Validation menu — no separate per-row rerun button) and the bypass-with-reason flow (AISO-652). Mandatory vs Red Flag only changes color/vocabulary; the
 // mechanics (bypass requires a non-empty reason, both are audited) are identical for both categories.
 function FailedCheckRow({
   check,
   category,
   selected,
   onToggleSelect,
-  onRerunOne,
   onBypass,
 }: {
   check: ValidationCheck;
   category: CheckCategory;
   selected: boolean;
   onToggleSelect: () => void;
-  onRerunOne: () => void;
   onBypass: (reason: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -232,14 +230,6 @@ function FailedCheckRow({
             </button>
           </EmailTableTooltip>
         )}
-        <EmailTableTooltip label="Rerun this check">
-          <button
-            onClick={(e) => { e.stopPropagation(); onRerunOne(); }}
-            className="shrink-0 flex items-center justify-center size-[26px] rounded-[6px] text-[#9ca3af] hover:text-[#111827] hover:bg-[#eef0f3] cursor-pointer transition-colors"
-          >
-            <RotateCcw size={12} />
-          </button>
-        </EmailTableTooltip>
         <button onClick={() => setExpanded(v => !v)} className="shrink-0 cursor-pointer">
           <ChevronDown size={13} className={`text-[#9ca3af] transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
         </button>
@@ -343,18 +333,30 @@ function FailedCheckColumn({
   selectedIds,
   onToggleSelect,
   onSelectAll,
-  onRerunOne,
   onBypass,
+  onBypassAll,
 }: {
   checks: ValidationCheck[];
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
   onSelectAll: (ids: string[], select: boolean) => void;
-  onRerunOne: (id: string) => void;
   onBypass: (id: string, reason: string) => void;
+  onBypassAll: (ids: string[], reason: string) => void;
 }) {
   const ids = checks.map(c => c.id);
   const allSelected = ids.length > 0 && ids.every(id => selectedIds.has(id));
+  // "Bypass all" only ever touches checks that aren't bypassed yet — an existing per-check reason is never
+  // overwritten by the shared one.
+  const unbypassedIds = checks.filter(c => !c.bypass).map(c => c.id);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkReason, setBulkReason] = useState("");
+  const submitBulk = () => {
+    const reason = bulkReason.trim();
+    if (!reason || unbypassedIds.length === 0) return;
+    onBypassAll(unbypassedIds, reason);
+    setBulkOpen(false);
+    setBulkReason("");
+  };
 
   return (
     <div className="rounded-[8px] border border-[#ebebeb]">
@@ -369,7 +371,50 @@ function FailedCheckColumn({
           <div className="flex items-center gap-2 px-4 py-2 bg-[#fafafa] border-b border-[#f3f4f6]">
             <Checkbox checked={allSelected} onChange={() => onSelectAll(ids, !allSelected)} />
             <span className="text-[11px] font-medium text-[#6b7280]">Select all</span>
+            {unbypassedIds.length > 0 && (
+              <button
+                onClick={() => setBulkOpen(v => !v)}
+                className="ml-auto flex items-center gap-1.5 px-2 py-1 rounded-[6px] text-[11px] font-semibold cursor-pointer transition-colors hover:bg-[#eef0f3]"
+                style={{ color: "#30578D" }}
+              >
+                <ShieldOff size={12} />
+                Bypass all with reason
+              </button>
+            )}
           </div>
+          {bulkOpen && unbypassedIds.length > 0 && (
+            <div className="px-4 py-2.5 border-b border-[#f3f4f6]">
+              <div className="rounded-[6px] p-2.5 border border-[#E2E6E9] bg-[#F7F7F7] flex flex-col gap-2">
+                <p className="text-[11px] text-[#6b7280]">
+                  One reason will be recorded against all {unbypassedIds.length} failed check{unbypassedIds.length === 1 ? "" : "s"} not yet bypassed. Each one is audited individually.
+                </p>
+                <textarea
+                  autoFocus
+                  value={bulkReason}
+                  onChange={(e) => setBulkReason(e.target.value)}
+                  placeholder="Reason for bypassing these checks (required)..."
+                  rows={2}
+                  className="w-full px-2.5 py-2 rounded-[6px] border border-[#E2E6E9] bg-white text-[12px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors resize-none"
+                />
+                <div className="flex items-center gap-2 justify-end">
+                  <button
+                    onClick={() => { setBulkOpen(false); setBulkReason(""); }}
+                    className="px-3 py-1.5 rounded-[6px] text-[11.5px] font-semibold text-[#666666] hover:bg-[#EFEFEF] cursor-pointer transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={!bulkReason.trim()}
+                    onClick={submitBulk}
+                    className="px-3 py-1.5 rounded-[6px] text-[11.5px] font-semibold text-white cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: "#30578D" }}
+                  >
+                    Bypass {unbypassedIds.length} check{unbypassedIds.length === 1 ? "" : "s"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <div>
             {checks.map(c => (
               <FailedCheckRow
@@ -378,7 +423,6 @@ function FailedCheckColumn({
                 category={c.category}
                 selected={selectedIds.has(c.id)}
                 onToggleSelect={() => onToggleSelect(c.id)}
-                onRerunOne={() => onRerunOne(c.id)}
                 onBypass={(reason) => onBypass(c.id, reason)}
               />
             ))}
@@ -492,6 +536,28 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
       detail: `${check.label} — ${reason}`,
     });
     toast.success(`Bypassed "${check.label}"`);
+  };
+
+  // Same rules as a single bypass (non-empty reason, no revalidation, audited), applied in one state update.
+  // Each check still gets its own audit entry so the trail shows exactly which checks were bypassed.
+  const handleBypassAll = (ids: string[], reason: string) => {
+    if (!latestData) return;
+    const targets = latestData.checks.filter(c => ids.includes(c.id) && !c.bypass);
+    if (targets.length === 0) return;
+    const at = new Date().toLocaleString("en-US", { day: "2-digit", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+    const targetIds = new Set(targets.map(c => c.id));
+    setOverrideData({
+      ...latestData,
+      checks: latestData.checks.map(c => (targetIds.has(c.id) ? { ...c, bypass: { reason, by: "Jagdish K.", at } } : c)),
+    });
+    targets.forEach(check =>
+      onAudit?.({
+        action: check.category === "mandatory" ? "Mandatory Check Bypassed" : "Red Flag Check Bypassed",
+        icon: ShieldOff,
+        detail: `${check.label} — ${reason} (bulk bypass)`,
+      })
+    );
+    toast.success(`Bypassed ${targets.length} check${targets.length === 1 ? "" : "s"}`);
   };
 
   const toggleSelect = (id: string) => {
@@ -630,8 +696,8 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
                   selectedIds={selectedIds}
                   onToggleSelect={toggleSelect}
                   onSelectAll={selectAllFailed}
-                  onRerunOne={(id) => handleRerun([id], "Individual Check")}
                   onBypass={handleBypass}
+                  onBypassAll={handleBypassAll}
                 />
                 <p className="text-[11px] text-[#6b7280] px-1">
                   <span className="font-bold" style={{ color: CATEGORY_META.mandatory.accent }}>(*)</span> Mandatory

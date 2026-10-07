@@ -756,7 +756,7 @@ export const CHECK_GUIDE_BY_DOC_TYPE: Partial<Record<DocType, CheckGuideEntry[]>
   "trade-order": TRADE_ORDER_CHECK_GUIDE,
 };
 
-// Mock data for the Analytics tab — accuracy/dispute/feedback-intake trends across every transaction the AI
+// Mock data for the Analytics tab — accuracy/correction/feedback-intake trends across every transaction the AI
 // has ever validated for this doc type, not just the handful sitting in the live Queue/Reviewed mock arrays
 // above. These are standalone illustrative numbers (the KPI cards' hover drill-downs included) rather than
 // something derived from TRADE_ORDER_QUEUE etc., the same way a real analytics backend would aggregate over
@@ -785,7 +785,9 @@ export type AnalyticsSummary = {
   negativeFeedbackPct: number;
   overallOaAccuracyPct: number;
   checksExecuted: number;
-  checksDisputed: number;
+  // Checks a reviewer thumbed down — the only "disagreement" Feedback Center records (there's no separate
+  // dispute or escalation step). Split by what the AI had said about the check.
+  checksMarkedIncorrect: number;
   detail: {
     totalValidated: { withFeedback: number; awaitingFeedback: number };
     withFeedback: { pctOfValidated: number; checkResponses: number };
@@ -793,7 +795,10 @@ export type AnalyticsSummary = {
     negative: { transactions: string; note: string };
     accuracy: { fraction: string; formula: string };
     checksExecuted: { validated: number; awaiting: number };
-    disputed: { markedCorrect: number; markedWrong: number };
+    incorrect: {
+      falseFlags: number; // AI flagged/failed the check, reviewer said it was actually fine
+      missedIssues: number; // AI passed the check, reviewer said there was a real problem
+    };
   };
   accuracyBreakdown: {
     passRatePct: number;
@@ -802,9 +807,9 @@ export type AnalyticsSummary = {
     flaggedChecks: number;
   };
   // Every validated transaction lands in exactly one bucket, so these always sum to totalTransactionsValidated:
-  // correct + flagged = transactionsWithFeedback, escalated is a formal escalation on top of a verdict, and
-  // pending is everything no reviewer has looked at yet.
-  statusSplit: { correct: number; flagged: number; escalated: number; pending: number };
+  // confirmedCorrect + hasCorrections = transactionsWithFeedback (reviewer agreed with every check vs. thumbed
+  // down at least one), and pending is everything no reviewer has looked at yet.
+  statusSplit: { confirmedCorrect: number; hasCorrections: number; pending: number };
   accuracyTrend: { week: string; pct: number }[]; // reviewer-verified accuracy, oldest → newest
   feedbackRows: AnalyticsFeedbackRow[];
   failureRows: AnalyticsFailureRow[];
@@ -815,13 +820,12 @@ function buildAnalytics(scale: number, checks: readonly string[]): AnalyticsSumm
   const transactionsWithFeedback = Math.max(1, Math.round(2 * scale));
   const correct = Math.ceil(transactionsWithFeedback / 2);
   const flagged = transactionsWithFeedback - correct;
-  const escalated = 0;
   const accuracy = Math.round((correct / transactionsWithFeedback) * 1000) / 10;
   const checksExecuted = Math.max(transactionsWithFeedback * 18, Math.round(11037 * scale));
   const checksValidated = transactionsWithFeedback * 22;
-  const checksDisputed = Math.max(1, Math.round(2 * scale));
-  const disputedUpheld = Math.ceil(checksDisputed / 2); // AI's original fail/flag call held up
-  const disputedOverturned = checksDisputed - disputedUpheld; // dispute found the AI was actually right
+  const checksMarkedIncorrect = Math.max(1, Math.round(2 * scale));
+  const falseFlags = Math.ceil(checksMarkedIncorrect / 2);
+  const missedIssues = checksMarkedIncorrect - falseFlags;
   const passedEveryCheck = Math.max(1, Math.round(totalTransactionsValidated * 0.22));
   const trendOffsets = [-12, -8, -10, -5, -6, -2, -3, 0];
   return {
@@ -831,7 +835,7 @@ function buildAnalytics(scale: number, checks: readonly string[]): AnalyticsSumm
     negativeFeedbackPct: Math.round((100 - accuracy) * 10) / 10,
     overallOaAccuracyPct: accuracy,
     checksExecuted,
-    checksDisputed,
+    checksMarkedIncorrect,
     detail: {
       totalValidated: { withFeedback: transactionsWithFeedback, awaitingFeedback: totalTransactionsValidated - transactionsWithFeedback },
       withFeedback: { pctOfValidated: Math.round((transactionsWithFeedback / totalTransactionsValidated) * 1000) / 10, checkResponses: checksValidated },
@@ -839,7 +843,7 @@ function buildAnalytics(scale: number, checks: readonly string[]): AnalyticsSumm
       negative: { transactions: `${flagged} of ${transactionsWithFeedback}`, note: "One or more checks marked incorrect" },
       accuracy: { fraction: `${correct} / ${transactionsWithFeedback} transactions with feedback`, formula: "Positive feedback ÷ transactions with feedback" },
       checksExecuted: { validated: checksValidated, awaiting: checksExecuted - checksValidated },
-      disputed: { markedCorrect: disputedOverturned, markedWrong: disputedUpheld },
+      incorrect: { falseFlags, missedIssues },
     },
     accuracyBreakdown: {
       passRatePct: 78,
@@ -847,7 +851,7 @@ function buildAnalytics(scale: number, checks: readonly string[]): AnalyticsSumm
       flaggedTransactions: totalTransactionsValidated - passedEveryCheck,
       flaggedChecks: Math.round(checksExecuted * 0.22),
     },
-    statusSplit: { correct, flagged, escalated, pending: totalTransactionsValidated - transactionsWithFeedback },
+    statusSplit: { confirmedCorrect: correct, hasCorrections: flagged, pending: totalTransactionsValidated - transactionsWithFeedback },
     accuracyTrend: trendOffsets.map((o, i) => ({ week: `W${i + 1}`, pct: Math.min(100, Math.max(0, accuracy + o)) })),
     feedbackRows: checks.slice(0, 8).map((check, i) =>
       i === 3
