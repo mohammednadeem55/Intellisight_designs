@@ -463,9 +463,8 @@ export function FeedbackAnalyticsPanel({ docType }: { docType: DocType }) {
   // Every validated transaction sits in exactly one status, so the donut always totals the same number as
   // "Transactions validated", and Correct + Flagged always equals "Transactions with feedback".
   const statusRows: { label: string; value: number; color: string; drill?: () => void }[] = [
-    { label: "Correct", value: data.statusSplit.correct, color: GREEN, drill: () => drill("Failure rate", "Total reviewed (high to low)") },
-    { label: "Flagged", value: data.statusSplit.flagged, color: RED, drill: () => drill("Failure rate", "Highest incorrect %") },
-    { label: "Escalated", value: data.statusSplit.escalated, color: AMBER, drill: () => drill("Feedback mix", "Highest negative feedback") },
+    { label: "Confirmed correct", value: data.statusSplit.confirmedCorrect, color: GREEN, drill: () => drill("Failure rate", "Total reviewed (high to low)") },
+    { label: "Has corrections", value: data.statusSplit.hasCorrections, color: RED, drill: () => drill("Failure rate", "Highest incorrect %") },
     { label: "Pending", value: data.statusSplit.pending, color: EMAIL_TABLE_NAVY },
   ];
   // Percentages on a handful of reviewed transactions swing wildly, so call that out instead of letting
@@ -543,7 +542,7 @@ export function FeedbackAnalyticsPanel({ docType }: { docType: DocType }) {
                   <FilterSelect label="Date range" value={dateRange} options={["All dates", "Today", "This week", "This month"]} onChange={setDateRange} />
                   <FilterSelect label="OA version" value={oaVersion} options={["All versions", "Version 1", "Version 2"]} onChange={setOaVersion} />
                   <FilterSelect label="Check name" value={checkName} options={["All checks", ...checkOptions]} onChange={setCheckName} />
-                  <FilterSelect label="Feedback status" value={feedbackStatus} options={["All statuses", "Correct", "Flagged", "Escalated", "Pending"]} onChange={setFeedbackStatus} />
+                  <FilterSelect label="Feedback status" value={feedbackStatus} options={["All statuses", "Confirmed correct", "Has corrections", "Pending"]} onChange={setFeedbackStatus} />
                   <FilterSelect label="Pass/Fail" value={passFail} options={["All results", "Passed", "Failed"]} onChange={setPassFail} />
                 </div>
                 {filtersApplied && (
@@ -577,10 +576,10 @@ export function FeedbackAnalyticsPanel({ docType }: { docType: DocType }) {
           {
             icon: AlertTriangle,
             accent: AMBER,
-            value: data.checksDisputed.toLocaleString(),
-            label: `checks disputed (${data.detail.disputed.markedWrong} upheld · ${data.detail.disputed.markedCorrect} overturned)`,
+            value: data.checksMarkedIncorrect.toLocaleString(),
+            label: `checks marked incorrect (${data.detail.incorrect.falseFlags} false flag${data.detail.incorrect.falseFlags === 1 ? "" : "s"} · ${data.detail.incorrect.missedIssues} missed issue${data.detail.incorrect.missedIssues === 1 ? "" : "s"})`,
             onClick: () => drill("Feedback mix", "Highest negative feedback"),
-            hint: "See which checks drew the most pushback",
+            hint: "See which checks reviewers marked incorrect most often",
           },
         ].map((item, i) => {
           const Icon = item.icon;
@@ -676,7 +675,7 @@ export function FeedbackAnalyticsPanel({ docType }: { docType: DocType }) {
                     {data.negativeFeedbackPct.toFixed(0)}%
                   </p>
                 </div>
-                <p className="text-[11px] text-[#97999B] mt-1.5 max-w-[95px] group-hover:underline underline-offset-2">had something flagged</p>
+                <p className="text-[11px] text-[#97999B] mt-1.5 max-w-[95px] group-hover:underline underline-offset-2">had corrections</p>
               </button>
             </div>
             {/* Same shape as the AI card's progress bar, so the two numbers above visibly read as two parts
@@ -741,7 +740,7 @@ export function FeedbackAnalyticsPanel({ docType }: { docType: DocType }) {
                     style={{ opacity: highlighted && !isOn ? 0.4 : 1 }}
                   >
                     <span className="size-[8px] rounded-full shrink-0" style={{ backgroundColor: r.color }} />
-                    <span className="text-[#666666] w-[62px] text-left">{r.label}</span>
+                    <span className="text-[#666666] w-[112px] text-left">{r.label}</span>
                     <span className="font-semibold text-[#111827]">{r.value.toLocaleString()}</span>
                     <span className="text-[#97999B]">({pct(r.value)}%)</span>
                   </button>
