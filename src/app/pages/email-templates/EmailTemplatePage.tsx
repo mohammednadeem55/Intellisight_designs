@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronsUpDown, Copy, Plus, SquarePen, Trash2, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
+import { ColumnResizeHandle, useResizableColumns } from "../../components/common/ResizableColumns";
 import { EMAIL_TABLE_NAVY, EMPTY_SET, EmailTableColumnFilterButton, EmailTableTooltip, TruncateTooltip } from "../../components/common/EmailTable";
 import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch, useExclusiveOpen } from "../../components/common/TableToolbar";
 import { TablePagination, type RowDensity } from "../../components/common/TablePagination";
@@ -487,6 +488,9 @@ export function EmailTemplatePage({
   onNavigateCreateException?: () => void;
   onNavigateEditException?: (exception: TemplateException) => void;
 }) {
+  const rcTemplates = useResizableColumns("emailTemplates.templates", COLUMNS.map((c) => c.key).join("|"));
+  const rcExceptions = useResizableColumns("emailTemplates.exceptions");
+  const rcMappings = useResizableColumns("emailTemplates.mappings", MAPPING_COLUMNS.map((c) => c.key).join("|"));
   // Which tab to land on — read once from ?tab= so navigating back from the (now full-page) Exception
   // editor returns to the Exceptions tab instead of resetting to Templates.
   const [searchParams] = useSearchParams();
@@ -869,7 +873,8 @@ export function EmailTemplatePage({
             </div>
 
             <div className="flex-1 min-h-0 overflow-auto">
-              <table className="w-full min-w-[980px] border-separate border-spacing-0">
+              <table className={`w-full min-w-[980px] border-separate border-spacing-0 ${rcTemplates.tableClass}`} style={rcTemplates.tableStyle}>
+                {rcTemplates.colgroup}
                 <thead>
                   <tr className="bg-[#F7F7F7]">
                     {COLUMNS.map((col) => {
@@ -896,7 +901,8 @@ export function EmailTemplatePage({
                               />
                             )}
                           </div>
-                        </th>
+                        <ColumnResizeHandle rc={rcTemplates} label={col.label} />
+</th>
                       );
                     })}
                     <th className="sticky top-0 z-10 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
@@ -1052,7 +1058,8 @@ export function EmailTemplatePage({
             </div>
 
             <div className="flex-1 min-h-0 overflow-auto">
-              <table className="w-full min-w-[1150px] border-separate border-spacing-0">
+              <table className={`w-full min-w-[1150px] border-separate border-spacing-0 ${rcMappings.tableClass}`} style={rcMappings.tableStyle}>
+                {rcMappings.colgroup}
                 <thead>
                   <tr className="bg-[#F7F7F7]">
                     {MAPPING_COLUMNS.map((col) => {
@@ -1079,7 +1086,8 @@ export function EmailTemplatePage({
                               />
                             )}
                           </div>
-                        </th>
+                        <ColumnResizeHandle rc={rcMappings} label={col.label} />
+</th>
                       );
                     })}
                     <th className="sticky top-0 z-10 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
@@ -1199,12 +1207,14 @@ export function EmailTemplatePage({
               </div>
             ) : (
               <div className="flex-1 min-h-0 overflow-auto">
-                <table className="w-full min-w-[1150px] border-separate border-spacing-0">
+                <table className={`w-full min-w-[1150px] border-separate border-spacing-0 ${rcExceptions.tableClass}`} style={rcExceptions.tableStyle}>
+                  {rcExceptions.colgroup}
                   <thead>
                     <tr className="bg-[#F7F7F7]">
                       {["Priority", "Name", "Workflow Category", "Step", "Conditions", "If Match", "If No Match", "Actions"].map((label) => (
                         <th key={label} className="sticky top-0 z-10 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
                           <span className="text-[12px] font-semibold text-[#4D4D4D]">{label}</span>
+                          <ColumnResizeHandle rc={rcExceptions} label={label} />
                         </th>
                       ))}
                     </tr>

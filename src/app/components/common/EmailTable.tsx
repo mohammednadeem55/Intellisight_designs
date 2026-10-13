@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ColumnResizeHandle, useResizableColumns } from "./ResizableColumns";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
@@ -1318,15 +1319,20 @@ export function EmailTable({
   const [reviewsModalRow, setReviewsModalRow] = useState<Email | null>(null);
   const [auditModalRow, setAuditModalRow] = useState<Email | null>(null);
   const colCount = additionalColumns.length + 3; // chevron + subject + action, minus the +1 below for the no-results colspan
+  const rc = useResizableColumns("commandCenter.emailList", [subjectColumnLabel, ...additionalColumns].join("|"));
 
   return (
     <>
     <div className="h-full overflow-auto">
-      <table className="w-full min-w-[980px] border-separate border-spacing-0">
+      <table className={`w-full min-w-[980px] border-separate border-spacing-0 ${rc.tableClass}`} style={rc.tableStyle}>
+        {rc.colgroup}
         <thead>
           <tr className="bg-[#F7F7F7]">
             <th className="sticky top-0 left-0 z-30 bg-[#F7F7F7] w-[40px] h-[42px] border-b border-[#DEDEDE]" />
-            <th className="group sticky top-0 left-[40px] z-30 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.15)]">
+            <th
+              className="group sticky top-0 left-[40px] z-30 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.15)]"
+             
+            >
               <div className="flex items-center gap-1.5">
                 {onSort ? (
                   <button onClick={() => onSort(subjectSortKey)} className="flex items-center gap-1 cursor-pointer">
@@ -1353,6 +1359,7 @@ export function EmailTable({
                   onClear={() => onClearColumnFilter("sender")}
                 />
               </div>
+              <ColumnResizeHandle rc={rc} label={subjectColumnLabel} />
             </th>
             {additionalColumns.map((key) => {
               const active = sortKey === key;
@@ -1382,6 +1389,7 @@ export function EmailTable({
                       onClear={() => onClearColumnFilter(key)}
                     />
                   </div>
+                  <ColumnResizeHandle rc={rc} label={EMAIL_TABLE_ADDITIONAL_COLUMN_LABELS[key] ?? key} />
                 </th>
               );
             })}
