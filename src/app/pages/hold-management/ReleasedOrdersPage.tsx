@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
+import { ColumnResizeHandle, useResizableColumns } from "../../components/common/ResizableColumns";
 import { EMAIL_TABLE_NAVY, EMPTY_SET, EmailTableColumnFilterButton, TruncateTooltip } from "../../components/common/EmailTable";
 import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch, useExclusiveOpen, useStagedMultiSelect } from "../../components/common/TableToolbar";
 import { TableFilterPanel, TableFilterTrigger } from "../../components/common/TableFilterPanel";
@@ -104,6 +105,7 @@ export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigat
 
   const [colOrder, setColOrder] = useState<ColumnKey[]>(COLUMNS.map((c) => c.key));
   const visibleColumnList = colOrder.map((key) => COLUMNS.find((c) => c.key === key)).filter((c): c is { key: ColumnKey; label: string } => Boolean(c));
+  const rc = useResizableColumns("hold.releasedOrders", visibleColumnList.map((c) => c.key).join("|"));
 
   const [rowDensity, setRowDensity] = useState<RowDensity>("large");
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -240,7 +242,8 @@ export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigat
             {/* View body — Filter and Column Mgmt slide-in panels overlay this area only */}
             <div className="flex-1 min-h-0 relative overflow-hidden">
               <div className="h-full min-h-0 overflow-auto">
-                <table className="w-full min-w-[1100px] border-separate border-spacing-0">
+                <table className={`w-full min-w-[1100px] border-separate border-spacing-0 ${rc.tableClass}`} style={rc.tableStyle}>
+                {rc.colgroup}
                   <thead>
                     <tr className="bg-[#F7F7F7]">
                       {visibleColumnList.map((col) => {
@@ -265,7 +268,8 @@ export function ReleasedOrdersPage({ onLogout, onViewAllNotifications, onNavigat
                                 onClear={() => clearColumnFilter(col.key)}
                               />
                             </div>
-                          </th>
+                          <ColumnResizeHandle rc={rc} label={col.label} />
+</th>
                         );
                       })}
                     </tr>

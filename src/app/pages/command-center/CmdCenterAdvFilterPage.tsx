@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Mail, Plus, SquarePen, Trash2, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
+import { ColumnResizeHandle, useResizableColumns } from "../../components/common/ResizableColumns";
 import { EMAIL_TABLE_NAVY, EmailTableTooltip, TruncateTooltip } from "../../components/common/EmailTable";
 import { MailboxPickerModal } from "../../components/common/MailboxPickerModal";
 import { TableToolbarSearch } from "../../components/common/TableToolbar";
@@ -138,6 +139,7 @@ export function CmdCenterAdvFilterPage({
   onNavigateCreateCmdCenterFilter?: () => void;
   onNavigateEditCmdCenterFilter?: (filter: CmdCenterAdvFilter) => void;
 }) {
+  const rc = useResizableColumns("commandCenter.advFilters");
   const [filters, setFilters] = useState<CmdCenterAdvFilter[]>(() => loadCmdCenterAdvFilters(INITIAL_CMD_CENTER_FILTERS));
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<CmdCenterAdvFilter | null>(null);
@@ -221,12 +223,14 @@ export function CmdCenterAdvFilterPage({
                 </div>
               ) : (
                 <div className="flex-1 min-h-0 overflow-auto">
-                  <table className="w-full min-w-[720px] border-separate border-spacing-0">
+                  <table className={`w-full min-w-[720px] border-separate border-spacing-0 ${rc.tableClass}`} style={rc.tableStyle}>
+                    {rc.colgroup}
                     <thead>
                       <tr className="bg-[#F7F7F7]">
                         {["Priority", "Name", "Mailboxes", "Conditions", "Actions"].map((label) => (
                           <th key={label} className="sticky top-0 z-10 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE]">
                             <span className="text-[12px] font-semibold text-[#4D4D4D]">{label}</span>
+                            <ColumnResizeHandle rc={rc} label={label} />
                           </th>
                         ))}
                       </tr>

@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
+import { ColumnResizeHandle, useResizableColumns } from "../../components/common/ResizableColumns";
 import { EMAIL_TABLE_NAVY, EMPTY_SET, EmailTableColumnFilterButton, InfoTile, TruncateTooltip } from "../../components/common/EmailTable";
 import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch, useExclusiveOpen, useStagedMultiSelect } from "../../components/common/TableToolbar";
 import { TableFilterPanel, TableFilterTrigger, type TableColumnDef } from "../../components/common/TableFilterPanel";
@@ -1182,6 +1183,7 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
 
   const [lineColOrder, setLineColOrder] = useState<LineColumnKey[]>(LINE_COLUMNS.map((c) => c.key));
   const lineVisibleColumnList = lineColOrder.map((key) => LINE_COLUMNS.find((c) => c.key === key)).filter((c): c is { key: LineColumnKey; label: string } => Boolean(c));
+  const rcLines = useResizableColumns("hold.orderDetails.lines", lineVisibleColumnList.map((c) => c.key).join("|"));
 
   const [lineRowDensity, setLineRowDensity] = useState<RowDensity>("large");
   const [lineRowsPerPage, setLineRowsPerPage] = useState(10);
@@ -1309,6 +1311,7 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
 
   const [colOrder, setColOrder] = useState<ColumnKey[]>(COLUMNS.map((c) => c.key));
   const visibleColumnList = colOrder.map((key) => COLUMNS.find((c) => c.key === key)).filter((c): c is { key: ColumnKey; label: string } => Boolean(c));
+  const rcHolds = useResizableColumns("hold.orderDetails.holds", visibleColumnList.map((c) => c.key).join("|"));
 
   const [rowDensity, setRowDensity] = useState<RowDensity>("large");
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -1476,7 +1479,8 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
       {/* Table body — Filter and Column Mgmt slide-in panels overlay this area only */}
       <div className="relative overflow-hidden">
         <div className="overflow-auto" style={{ minHeight: 240, maxHeight: 360 }}>
-          <table className="w-full min-w-[1000px] border-separate border-spacing-0">
+          <table className={`w-full min-w-[1000px] border-separate border-spacing-0 ${rcHolds.tableClass}`} style={rcHolds.tableStyle}>
+                {rcHolds.colgroup}
             <thead>
               <tr className="bg-[#F7F7F7]">
                 <th className="sticky top-0 z-10 bg-[#F7F7F7] w-[42px] px-4 h-[42px] border-b border-[#DEDEDE]">
@@ -1520,7 +1524,8 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
                           />
                         )}
                       </div>
-                    </th>
+                    <ColumnResizeHandle rc={rcHolds} label={col.label} />
+</th>
                   );
                 })}
                 <th className="sticky top-0 right-0 z-30 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
@@ -1717,7 +1722,8 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
       {/* Table body — Filter and Column Mgmt slide-in panels overlay this area only */}
       <div className="relative overflow-hidden">
         <div className="overflow-auto" style={{ minHeight: 240, maxHeight: 360 }}>
-          <table className="w-full min-w-[1080px] border-separate border-spacing-0">
+          <table className={`w-full min-w-[1080px] border-separate border-spacing-0 ${rcLines.tableClass}`} style={rcLines.tableStyle}>
+                {rcLines.colgroup}
             <thead>
               <tr className="bg-[#F7F7F7]">
                 <th className="sticky top-0 z-10 bg-[#F7F7F7] w-[42px] px-4 h-[42px] border-b border-[#DEDEDE]">
@@ -1761,7 +1767,8 @@ export function OrderDetailsPage({ orderId, view, entrySource, onLogout, onViewA
                           />
                         )}
                       </div>
-                    </th>
+                    <ColumnResizeHandle rc={rcLines} label={col.label} />
+</th>
                   );
                 })}
                 <th className="sticky top-0 right-0 z-30 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">

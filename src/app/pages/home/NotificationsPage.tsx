@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ColumnResizeHandle, useResizableColumns } from "../../components/common/ResizableColumns";
 import notifSvg from "@/imports/Notification/svg-ysaztztd8j";
 import { AppHeader } from "../../components/common/AppHeader";
 
@@ -61,6 +62,7 @@ export function NotificationsPage({
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
   onNavigateEmailWorkflow?: () => void;
 }) {
+  const rc = useResizableColumns("home.notifications.affectedRecords");
   const [activeTab, setActiveTab] = useState("All");
   const [selectedId, setSelectedId] = useState(1);
   const [dismissed, setDismissed] = useState<number[]>([]);
@@ -300,12 +302,13 @@ export function NotificationsPage({
               <div className="px-7 py-5 border-b border-[#f3f4f6]">
                 <h3 className="text-[11px] font-bold text-[#9ca3af] uppercase tracking-widest">Affected Records</h3>
               </div>
-              <table className="w-full">
+              <table className={`w-full ${rc.tableClass}`} style={rc.tableStyle}>
+                {rc.colgroup}
                 <thead className="bg-[#fafafa]">
                   <tr>
-                    <th className="text-left px-7 py-3 text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wider">Record ID</th>
-                    <th className="text-right px-7 py-3 text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wider">Amount</th>
-                    <th className="text-right px-7 py-3 text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wider">Status</th>
+                    <th className="text-left px-7 py-3 text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wider relative">Record ID<ColumnResizeHandle rc={rc} label="Record ID" /></th>
+                    <th className="text-right px-7 py-3 text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wider relative">Amount<ColumnResizeHandle rc={rc} label="Amount" /></th>
+                    <th className="text-right px-7 py-3 text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wider relative">Status<ColumnResizeHandle rc={rc} label="Status" /></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f3f4f6]">
