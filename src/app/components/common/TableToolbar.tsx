@@ -34,13 +34,17 @@ export function TableToolbarSearch({
   onCommit,
   placeholder = "Search...",
   debounceMs = 0,
+  alwaysOpen = false,
 }: {
   value: string;
   onCommit: (v: string) => void;
   placeholder?: string;
   debounceMs?: number;
+  /** Start expanded and stay expanded — no icon-to-input collapse (clicking away or Esc only clears/blurs). */
+  alwaysOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(alwaysOpen);
+  const setOpen = (v: boolean) => setOpenState(alwaysOpen ? true : v);
   const [draft, setDraft] = useState(value);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -73,10 +77,10 @@ export function TableToolbarSearch({
   return (
     <div className="relative shrink-0" ref={ref}>
       {open ? (
-        <div className="flex items-center gap-1.5 h-[36px] pl-[10px] pr-[8px] rounded-[8px] border border-[#30578D] bg-white w-[260px]">
+        <div className={`flex items-center gap-1.5 h-[36px] pl-[10px] pr-[8px] rounded-[8px] border bg-white w-[260px] transition-colors ${alwaysOpen ? "border-[#E2E6E9] focus-within:border-[#30578D]" : "border-[#30578D]"}`}>
           <Search size={14} className="shrink-0 text-[#666666]" />
           <input
-            autoFocus
+            autoFocus={!alwaysOpen}
             value={draft}
             onChange={(e) => {
               const v = e.target.value;

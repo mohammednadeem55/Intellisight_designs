@@ -36,6 +36,8 @@ function attachmentMeta(name: string): { icon: typeof FileText; bg: string; fg: 
   return { icon: FileText, bg: "#f3f4f6", fg: "#6b7280" };
 }
 
+// Outlook-style compact chip: icon + name + size on one 28px line. The download button only shows on
+// hover so a row of several attachments stays quiet.
 function AttachmentChip({ attachment }: { attachment: { name: string; size: string } }) {
   const meta = attachmentMeta(attachment.name);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -43,18 +45,17 @@ function AttachmentChip({ attachment }: { attachment: { name: string; size: stri
     <>
       <button
         onClick={() => setPreviewOpen(true)}
-        className="group flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] border border-[#ebebeb] w-[200px] hover:border-[#d1d5db] hover:bg-[#f8fafc] cursor-pointer transition-colors text-left"
+        title={`${attachment.name} · ${attachment.size} · ${attachmentTypeLabel(attachment.name)}`}
+        className="group flex items-center gap-1.5 h-[28px] pl-1.5 pr-2 rounded-[6px] border border-[#e5e7eb] bg-white max-w-[220px] hover:border-[#d1d5db] hover:bg-[#f8fafc] cursor-pointer transition-colors text-left"
       >
-        <div className="size-[26px] rounded-[6px] flex items-center justify-center shrink-0" style={{ backgroundColor: meta.bg }}>
-          <meta.icon size={13} style={{ color: meta.fg }} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[12px] font-medium text-[#111827] truncate">{attachment.name}</p>
-          <p className="text-[10.5px] text-[#9ca3af]">{attachment.size} · {attachmentTypeLabel(attachment.name)}</p>
-        </div>
+        <span className="size-[18px] rounded-[4px] flex items-center justify-center shrink-0" style={{ backgroundColor: meta.bg }}>
+          <meta.icon size={11} style={{ color: meta.fg }} />
+        </span>
+        <span className="text-[11.5px] font-medium text-[#111827] truncate">{attachment.name}</span>
+        <span className="text-[10.5px] text-[#9ca3af] shrink-0">{attachment.size}</span>
         <Download
-          size={13}
-          className="text-[#9ca3af] hover:text-[#111827] cursor-pointer transition-colors shrink-0"
+          size={12}
+          className="hidden group-hover:block text-[#9ca3af] hover:text-[#111827] transition-colors shrink-0"
           onClick={(e) => { e.stopPropagation(); toast.info(`Downloading ${attachment.name}`); }}
         />
       </button>
@@ -63,9 +64,48 @@ function AttachmentChip({ attachment }: { attachment: { name: string; size: stri
   );
 }
 
-// Shared by the latest message and each (expanded) history item: external-sender warning, subject + body,
-// attachments. Kept separate so the two message treatments below don't duplicate this rendering.
-function MessageBody({ message }: { message: Email }) {
+// Attachments sit above the message body (like Outlook) so they're seen without scrolling, but stay slim:
+// a single paperclip-led row showing the first few chips, with the rest behind a "+N more" toggle.
+const VISIBLE_ATTACHMENTS = 3;
+function AttachmentStrip({ attachments, flush = false }: { attachments: { name: string; size: string }[]; flush?: boolean }) {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? attachments : attachments.slice(0, VISIBLE_ATTACHMENTS);
+  const hidden = attachments.length - shown.length;
+  return (
+    <div className={`flex items-center flex-wrap gap-1.5 ${flush ? "" : "mb-3"}`}>
+      {shown.map((a, i) => (
+        <AttachmentChip key={i} attachment={a} />
+      ))}
+      {hidden > 0 && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="h-[28px] px-2.5 rounded-[6px] border border-[#e5e7eb] text-[11.5px] font-semibold text-[#30578D] hover:bg-[#EAF1FB] cursor-pointer transition-colors"
+        >
+          +{hidden} more
+        </button>
+      )}
+      {showAll && attachments.length > VISIBLE_ATTACHMENTS && (
+        <button onClick={() => setShowAll(false)} className="h-[28px] px-2 text-[11.5px] font-semibold text-[#6b7280] hover:text-[#111827] cursor-pointer transition-colors">
+          Show less
+        </button>
+      )}
+      {attachments.length > 1 && (
+        <button
+          onClick={() => toast.info(`Downloading all ${attachments.length} attachments`)}
+          title="Download every attachment"
+          className="h-[28px] flex items-center gap-1 px-2 rounded-[6px] text-[11.5px] font-semibold text-[#30578D] hover:bg-[#EAF1FB] cursor-pointer transition-colors whitespace-nowrap"
+        >
+          <Download size={12} />
+          Download all
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Shared by the latest message and each (expanded) history item: external-sender warning, attachments strip,
+// subject + body. Kept separate so the two message treatments below don't duplicate this rendering.
+function MessageBody({ message, showAttachments = true }: { message: Email; showAttachments?: boolean }) {
   const attachmentCount = message.attachments?.length ?? 0;
   return (
     <>
@@ -80,19 +120,10 @@ function MessageBody({ message }: { message: Email }) {
         </div>
       )}
 
+      {showAttachments && attachmentCount > 0 && <AttachmentStrip attachments={message.attachments!} />}
+
       <p className="text-[13.5px] font-bold text-[#111827] mb-1.5">{message.subject}</p>
       <p className="text-[13px] text-[#374151] leading-[1.65] whitespace-pre-wrap">{message.body ?? "No content preview available."}</p>
-
-      {attachmentCount > 0 && (
-        <div className="mt-3">
-          <p className="text-[10.5px] font-bold text-[#9ca3af] uppercase tracking-wide mb-1.5">Attachments ({attachmentCount})</p>
-          <div className="flex flex-wrap gap-1.5">
-            {message.attachments!.map((a, i) => (
-              <AttachmentChip key={i} attachment={a} />
-            ))}
-          </div>
-        </div>
-      )}
     </>
   );
 }
@@ -102,6 +133,8 @@ function MessageBody({ message }: { message: Email }) {
 export function LatestMessage({ message }: { message: Email }) {
   const name = senderDisplayName(message.sender);
   const initials = name.split(" ").map(w => w[0]).slice(0, 2).join("");
+
+  const attachmentCount = message.attachments?.length ?? 0;
 
   return (
     <div className="px-4 py-4">
@@ -115,9 +148,15 @@ export function LatestMessage({ message }: { message: Email }) {
             <p className="text-[11px] text-[#9ca3af] shrink-0">{message.received}</p>
           </div>
           <p className="text-[12px] text-[#6b7280] truncate">{message.sender}</p>
+          {/* Attachments sit right under the sender's address (Outlook-style) — one slim row, extras behind "+N more". */}
+          {attachmentCount > 0 && (
+            <div className="mt-2">
+              <AttachmentStrip attachments={message.attachments!} flush />
+            </div>
+          )}
         </div>
       </div>
-      <MessageBody message={message} />
+      <MessageBody message={message} showAttachments={false} />
     </div>
   );
 }

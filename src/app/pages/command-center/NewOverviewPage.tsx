@@ -820,7 +820,16 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
 
   const rows = allRows.filter((r) => {
     if (emailScope === "mine" && r.assignedTo !== NEW_OVERVIEW_CURRENT_USER.name) return false;
-    if (searchQuery.trim() && !`${r.subject} ${r.sender} ${r.classification ?? ""}`.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
+    if (searchQuery.trim()) {
+      // Email, CCC# and order# — an email also matches when any of its linked CCCs does, since those are
+      // the nested rows people actually search by.
+      const q = searchQuery.trim().toLowerCase();
+      const haystack = [r, ...(r.linkedCccs ?? [])]
+        .map((e) => `${e.id} ${e.subject} ${e.sender} ${e.classification ?? ""} ${e.cccId ?? ""} ${e.orderNumber ?? ""} ${e.poNumber ?? ""}`)
+        .join(" ")
+        .toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
     if (appliedClassifications.length > 0 && !appliedClassifications.includes(r.classification ?? "")) return false;
     if (appliedBusinessGroups.length > 0 && !appliedBusinessGroups.includes(r.businessGroup ?? "")) return false;
     const matchPanel = activeFilterSections.every((sec) => {
@@ -1106,7 +1115,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                 </button>
               </div>
 
-              <TableToolbarSearch value={searchQuery} onCommit={(v) => { setSearchQuery(v); setPage(1); }} placeholder="Search Email" debounceMs={400} />
+              <TableToolbarSearch value={searchQuery} onCommit={(v) => { setSearchQuery(v); setPage(1); }} placeholder="Search email, CCC#, order#" debounceMs={400} alwaysOpen />
               </div>
               <div className="flex items-center gap-2.5 flex-wrap">
                 {/* Classification — multi-select, staged behind Apply */}
