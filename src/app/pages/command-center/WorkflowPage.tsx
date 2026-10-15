@@ -362,7 +362,13 @@ export function WorkflowPage({
               <div className="flex items-center gap-2.5 flex-wrap">
                 <p className="text-[16px] font-bold text-[#111827] leading-snug">{email.subject}</p>
                 <span className="inline-flex items-center px-2.5 py-1 rounded-[8px] text-[11px] font-semibold bg-[#FDECEA] text-[#BA1C1C] whitespace-nowrap">
-                  {classificationLabel(email.classification)}
+                  {classificationLabel(category)}
+                </span>
+                <span
+                  title="Sub Category"
+                  className="inline-flex items-center px-2.5 py-1 rounded-[8px] text-[11px] font-semibold border border-[#F3C6C6] bg-white text-[#BA1C1C] whitespace-nowrap"
+                >
+                  {subCategory}
                 </span>
                 {email.cccId && (
                   <span className="inline-flex items-center px-2.5 py-1 rounded-[8px] text-[11px] font-semibold bg-[#EAF1FB] text-[#30578D] whitespace-nowrap">
