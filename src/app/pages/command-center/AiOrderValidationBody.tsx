@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Archive, ArrowRight, Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, Download, FileImage, FileSpreadsheet, FileText, Info, MapPin, RotateCcw, ShieldOff, TriangleAlert, X, type LucideIcon } from "lucide-react";
+import { AlertCircle, Archive, ArrowRight, Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, Download, FileImage, FileSpreadsheet, FileText, Flag, Info, MapPin, MessageSquare, RotateCcw, ShieldAlert, ShieldOff, ThumbsDown, ThumbsUp, TriangleAlert, X, type LucideIcon } from "lucide-react";
 import { TextField } from "../../components/common/TextField";
 import { WaveLoader } from "../../components/common/Loader";
 import { Button } from "../../components/common/Button";
 import { EmailTableTooltip } from "../../components/common/EmailTable";
 import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
+import { OTHER_REASON, ReasonSelect, WRONG_REASON_OPTIONS } from "../../components/common/ReasonSelect";
 import { useOrderValidation, regenerateValidation, type CheckCategory, type OrderValidationData, type ValidationCheck } from "./useOrderValidation";
 
 export type ValidationAuditEntry = { action: string; icon?: LucideIcon; detail?: string };
@@ -22,15 +23,6 @@ const CATEGORY_META: Record<CheckCategory, { tag: string; accent: string; failed
   mandatory: { tag: "Mandatory", accent: "#BA1C1C", failedLabel: "Verification Required", passedLabel: "Verified", blocking: true },
   redFlag: { tag: "Red Flag", accent: "#E67919", failedLabel: "Review Required", passedLabel: "Passed", blocking: false },
 };
-
-// The Mandatory/Red Flag table only tells the app how each check *behaves* (does it block Proceed, can it
-// be bypassed) — the results themselves stay in one combined Failed/Passed layout rather than being split
-// into separate category sections, with this asterisk — colored by category, attached right at the end of
-// the name (not a separate pill off to the side) — as the only visual sign of which type a row is. A legend
-// under the results header (see LEGEND below) spells out what each color means.
-function CategoryMark({ category }: { category: CheckCategory }) {
-  return <span className="font-bold" style={{ color: CATEGORY_META[category].accent }} title={CATEGORY_META[category].tag}> *</span>;
-}
 
 function formatVersionDateTime(d: Date) {
   return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -218,10 +210,10 @@ function FailedCheckRow({
       <div className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-[#f8fafc] transition-colors">
         <Checkbox checked={selected} onChange={onToggleSelect} />
         <button onClick={() => setExpanded(v => !v)} className="flex-1 min-w-0 flex items-center gap-2.5 text-left cursor-pointer">
-          <span className="flex-1 min-w-0 text-[12.5px] font-semibold text-[#111827] truncate">{check.label}<CategoryMark category={category} /></span>
+          <span className="flex-1 min-w-0 text-[12.5px] font-semibold text-[#111827] truncate">{check.label}</span>
         </button>
         {!check.bypass && (
-          <EmailTableTooltip label="Bypass with Reason">
+          <EmailTableTooltip label="Justify">
             <button
               onClick={(e) => { e.stopPropagation(); setBypassFormOpen(v => !v); }}
               className="shrink-0 flex items-center justify-center size-[26px] rounded-[6px] text-[#9ca3af] hover:text-[#30578D] hover:bg-[#eef0f3] cursor-pointer transition-colors"
@@ -243,7 +235,7 @@ function FailedCheckRow({
             <div className="flex items-start gap-2 rounded-[6px] px-2.5 py-2 border" style={{ backgroundColor: "#30578D1A", borderColor: "#30578D33" }}>
               <ShieldOff size={12} className="shrink-0 mt-[1px]" style={{ color: "#30578D" }} />
               <div className="min-w-0 flex-1">
-                <p className="text-[11.5px] text-[#374151] leading-[1.4]"><span className="font-semibold" style={{ color: "#30578D" }}>Bypassed:</span> {check.bypass.reason}</p>
+                <p className="text-[11.5px] text-[#374151] leading-[1.4]"><span className="font-semibold" style={{ color: "#30578D" }}>Justified:</span> {check.bypass.reason}</p>
                 <p className="text-[10px] mt-0.5" style={{ color: "#30578DCC" }}>{check.bypass.by} · {check.bypass.at}</p>
               </div>
             </div>
@@ -253,7 +245,7 @@ function FailedCheckRow({
                 autoFocus
                 value={reasonDraft}
                 onChange={(e) => setReasonDraft(e.target.value)}
-                placeholder="Reason for bypassing this check (required)..."
+                placeholder="Justification for this check (required)..."
                 rows={2}
                 className="w-full px-2.5 py-2 rounded-[6px] border border-[#E2E6E9] bg-white text-[12px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors resize-none"
               />
@@ -270,7 +262,7 @@ function FailedCheckRow({
                   className="px-3 py-1.5 rounded-[6px] text-[11.5px] font-semibold text-white cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{ backgroundColor: "#30578D" }}
                 >
-                  Confirm Bypass
+                  Confirm Justification
                 </button>
               </div>
             </div>
@@ -281,7 +273,7 @@ function FailedCheckRow({
       {expanded && (
         <div className="px-4 pt-[2px] pb-3">
           <div className="rounded-[8px] px-3.5 py-2.5" style={{ backgroundColor: `${accent}14` }}>
-            <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: accent }}>{CATEGORY_META[category].failedLabel} — Reason</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: accent }}>{CATEGORY_META[category].failedLabel} Reason</p>
             <p className="text-[12px] text-[#374151] leading-[1.5]">{check.reason}</p>
             {check.recommendedAction && (
               <p className="flex items-start gap-1.5 text-[11.5px] font-medium mt-2" style={{ color: accent }}>
@@ -308,7 +300,7 @@ function VerifiedCheckRow({ check, category }: { check: ValidationCheck; categor
         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left cursor-pointer hover:bg-[#f8fafc] transition-colors"
       >
         <CircleCheck size={15} className="shrink-0 text-[#468657]" />
-        <span className="flex-1 min-w-0 text-[12.5px] font-medium text-[#111827] truncate">{check.label}<CategoryMark category={category} /></span>
+        <span className="flex-1 min-w-0 text-[12.5px] font-medium text-[#111827] truncate">{check.label}</span>
         <ChevronDown size={13} className={`text-[#9ca3af] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`} />
       </button>
       {expanded && (
@@ -325,10 +317,10 @@ function VerifiedCheckRow({ check, category }: { check: ValidationCheck; categor
 
 const CHECK_COLUMN_THRESHOLD = 5;
 
-// Left column — every failed check regardless of category (Mandatory and Red Flag mixed together, each row
-// tagged so you can still tell them apart), always fully shown since these need attention. A select-all
-// checkbox at the top drives the "Rerun Selected" action across both categories at once.
+// Failed checks for one category, always fully shown since these need attention. The select-all checkbox at the
+// top ticks this category's failed rows; selections persist across accordions and feed "Rerun Selected".
 function FailedCheckColumn({
+  title,
   checks,
   selectedIds,
   onToggleSelect,
@@ -336,6 +328,8 @@ function FailedCheckColumn({
   onBypass,
   onBypassAll,
 }: {
+  /** Section heading — named per category: "Verification Required" (Mandatory) / "FallOut" (Red Flag). */
+  title: string;
   checks: ValidationCheck[];
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
@@ -362,7 +356,7 @@ function FailedCheckColumn({
     <div className="rounded-[8px] border border-[#ebebeb]">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-[#f3f4f6]">
         <span className="w-[3px] h-[14px] rounded-full shrink-0" style={{ backgroundColor: "#BA1C1C" }} />
-        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#BA1C1C" }}>Failed & Needs Attention ({checks.length})</p>
+        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#BA1C1C" }}>{title} ({checks.length})</p>
       </div>
       {checks.length === 0 ? (
         <p className="text-[12px] text-[#9ca3af] text-center py-6">No failed checks.</p>
@@ -378,7 +372,7 @@ function FailedCheckColumn({
                 style={{ color: "#30578D" }}
               >
                 <ShieldOff size={12} />
-                Bypass all with reason
+                Justify all
               </button>
             )}
           </div>
@@ -386,13 +380,13 @@ function FailedCheckColumn({
             <div className="px-4 py-2.5 border-b border-[#f3f4f6]">
               <div className="rounded-[6px] p-2.5 border border-[#E2E6E9] bg-[#F7F7F7] flex flex-col gap-2">
                 <p className="text-[11px] text-[#6b7280]">
-                  One reason will be recorded against all {unbypassedIds.length} failed check{unbypassedIds.length === 1 ? "" : "s"} not yet bypassed. Each one is audited individually.
+                  One reason will be recorded against all {unbypassedIds.length} failed check{unbypassedIds.length === 1 ? "" : "s"} not yet justified. Each one is audited individually.
                 </p>
                 <textarea
                   autoFocus
                   value={bulkReason}
                   onChange={(e) => setBulkReason(e.target.value)}
-                  placeholder="Reason for bypassing these checks (required)..."
+                  placeholder="Justification for these checks (required)..."
                   rows={2}
                   className="w-full px-2.5 py-2 rounded-[6px] border border-[#E2E6E9] bg-white text-[12px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors resize-none"
                 />
@@ -409,7 +403,7 @@ function FailedCheckColumn({
                     className="px-3 py-1.5 rounded-[6px] text-[11.5px] font-semibold text-white cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     style={{ backgroundColor: "#30578D" }}
                   >
-                    Bypass {unbypassedIds.length} check{unbypassedIds.length === 1 ? "" : "s"}
+                    Justify {unbypassedIds.length} check{unbypassedIds.length === 1 ? "" : "s"}
                   </button>
                 </div>
               </div>
@@ -433,7 +427,7 @@ function FailedCheckColumn({
   );
 }
 
-// Right column — every passed check, both categories mixed together (same "View More" pattern as before).
+// Passed checks for one category (same "View More" pattern as before).
 function PassedCheckColumn({ checks }: { checks: ValidationCheck[] }) {
   const [showAll, setShowAll] = useState(false);
   const needsToggle = checks.length > CHECK_COLUMN_THRESHOLD;
@@ -463,6 +457,104 @@ function PassedCheckColumn({ checks }: { checks: ValidationCheck[] }) {
   );
 }
 
+// One accordion per check category (Mandatory / Red Flag). Each holds that category's own Failed and Passed
+// lists, so "what's blocking me" and "what needs a look" are separated at the top level instead of being
+// mixed together and told apart by an asterisk. Mandatory opens by default when something in it failed, since
+// it blocks Proceed; Red Flag starts collapsed (its header pill already shows the failure count) until opened.
+function CategoryAccordion({
+  category,
+  open,
+  onToggleOpen,
+  checks,
+  selectedIds,
+  onToggleSelect,
+  onSelectAll,
+  onBypass,
+  onBypassAll,
+}: {
+  category: CheckCategory;
+  /** Open/closed lives in the parent so it survives rerenders, reruns and collapsing the whole results card. */
+  open: boolean;
+  onToggleOpen: () => void;
+  checks: ValidationCheck[];
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onSelectAll: (ids: string[], select: boolean) => void;
+  onBypass: (id: string, reason: string) => void;
+  onBypassAll: (ids: string[], reason: string) => void;
+}) {
+  const meta = CATEGORY_META[category];
+  const failed = checks.filter(c => c.status === "failed");
+  const passed = checks.filter(c => c.status === "passed");
+  const needsAction = failed.filter(c => !c.bypass).length;
+
+  const total = checks.length;
+  const Icon = category === "mandatory" ? ShieldAlert : Flag;
+  const blockingNow = meta.blocking && needsAction > 0;
+
+  return (
+    <div className="rounded-[8px] border overflow-hidden" style={{ borderColor: failed.length > 0 ? `${meta.accent}33` : "#ebebeb" }}>
+      <button
+        onClick={onToggleOpen}
+        aria-expanded={open}
+        className={`w-full flex items-center justify-between gap-4 px-4 py-3.5 text-left cursor-pointer hover:brightness-[0.985] transition flex-wrap ${open ? "border-b border-[#f3f4f6]" : ""}`}
+        style={{ background: `linear-gradient(135deg, ${meta.accent}${failed.length > 0 ? "12" : "08"}, #ffffff 65%)` }}
+      >
+        <span className="flex items-center gap-3 min-w-0">
+          <ChevronDown size={14} className={`shrink-0 text-[#6b7280] transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
+          <span className="size-[36px] rounded-[8px] flex items-center justify-center shrink-0" style={{ backgroundColor: `${meta.accent}1A` }}>
+            <Icon size={17} style={{ color: meta.accent }} />
+          </span>
+          <span className="min-w-0">
+            <span className="flex items-center gap-2 flex-wrap">
+              <span className="text-[14px] font-bold text-[#111827]">{meta.tag}</span>
+              {blockingNow && (
+                <span className="inline-flex items-center px-1.5 py-[1px] rounded-[4px] text-[9.5px] font-bold uppercase tracking-wide text-white" style={{ backgroundColor: meta.accent }}>
+                  Blocks proceed
+                </span>
+              )}
+            </span>
+            <span className="block text-[11.5px] text-[#6b7280] mt-0.5">
+              {meta.blocking ? "Must pass, or be justified, to proceed" : "Needs a review, doesn't block proceeding"}
+            </span>
+          </span>
+        </span>
+        <span className="flex items-center gap-4 shrink-0">
+          <span
+            className="hidden sm:inline text-[12px] font-semibold text-[#374151] whitespace-nowrap"
+            title={needsAction < failed.length ? `${failed.length - needsAction} failed check${failed.length - needsAction === 1 ? "" : "s"} justified` : undefined}
+          >
+            {passed.length}/{total} passed
+          </span>
+          {failed.length > 0 ? (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11.5px] font-semibold" style={{ color: meta.accent, backgroundColor: `${meta.accent}1A` }}>
+              {failed.length} failed{needsAction < failed.length ? ` · ${needsAction} open` : ""}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11.5px] font-semibold text-[#468657] bg-[#EFF6F1]">
+              <Check size={12} /> All passed
+            </span>
+          )}
+        </span>
+      </button>
+      {open && (
+        <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <FailedCheckColumn
+            title={category === "mandatory" ? "Verification Required" : "FallOut"}
+            checks={failed}
+            selectedIds={selectedIds}
+            onToggleSelect={onToggleSelect}
+            onSelectAll={onSelectAll}
+            onBypass={onBypass}
+            onBypassAll={onBypassAll}
+          />
+          <PassedCheckColumn checks={passed} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CollapsibleSection({ title, badge, children }: { title: string; badge?: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
@@ -480,6 +572,292 @@ function CollapsibleSection({ title, badge, children }: { title: string; badge?:
   );
 }
 
+// Feedback on how the AI did across every check — passed and failed alike — in the same spirit as the Feedback
+// Center review: thumbs up/down per check, a required reason when it's thumbs-down, and anything left unmarked
+// counts as confirmed correct. The draft lives here until Submit; the parent keeps what was last submitted so
+// reopening the modal shows it again.
+type FeedbackVerdict = "correct" | "incorrect";
+type ValidationFeedback = {
+  verdicts: Record<string, FeedbackVerdict>;
+  reasons: Record<string, string>;
+  notes: Record<string, string>;
+};
+
+function FeedbackCheckRow({
+  check,
+  verdict,
+  reason,
+  note,
+  expanded,
+  onToggleExpand,
+  onVerdict,
+  onReason,
+  onNote,
+}: {
+  check: ValidationCheck;
+  verdict: FeedbackVerdict | undefined;
+  reason: string;
+  note: string;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onVerdict: (v: FeedbackVerdict | undefined) => void;
+  onReason: (v: string) => void;
+  onNote: (v: string) => void;
+}) {
+  const failed = check.status === "failed";
+  const noteRequired = verdict === "incorrect" && reason === OTHER_REASON;
+  return (
+    <div
+      className="border rounded-[8px] overflow-hidden transition-colors"
+      style={
+        verdict === "incorrect"
+          ? { borderColor: "#BA1C1C", backgroundColor: "#FDECEA" }
+          : verdict === "correct"
+          ? { borderColor: "#468657", backgroundColor: "#EFF6F1" }
+          : { borderColor: "#E2E6E9", backgroundColor: "#FFFFFF" }
+      }
+    >
+      <div className="flex items-center gap-3 px-3.5 py-2.5 cursor-pointer" onClick={onToggleExpand}>
+        <ChevronRight size={13} className={`shrink-0 text-[#9ca3af] transition-transform duration-200 ${expanded ? "rotate-90" : ""}`} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[12.5px] font-semibold text-[#111827] truncate">{check.label}</p>
+          {verdict === "incorrect" && reason && <p className="text-[10.5px] text-[#9ca3af] truncate">{reason}</p>}
+        </div>
+        <span
+          className="shrink-0 px-2 py-0.5 rounded-full text-[10.5px] font-semibold whitespace-nowrap"
+          style={failed ? { color: "#BA1C1C", backgroundColor: "#FDECEA" } : { color: "#468657", backgroundColor: "#EFF6F1" }}
+        >
+          {failed ? "Failed" : "Passed"}
+        </span>
+        <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <span className="text-[11px] font-medium whitespace-nowrap w-[56px] text-right" style={{ color: verdict === "correct" ? "#468657" : verdict === "incorrect" ? "#BA1C1C" : "#97999B" }}>
+            {verdict === "correct" ? "Correct" : verdict === "incorrect" ? "Incorrect" : "Pending"}
+          </span>
+          {verdict !== "incorrect" && (
+            <button
+              onClick={() => onVerdict(verdict === "correct" ? undefined : "correct")}
+              title="AI got this right"
+              className="flex items-center justify-center size-[26px] rounded-[6px] border cursor-pointer transition-colors"
+              style={verdict === "correct" ? { borderColor: "#468657", backgroundColor: "#EFF6F1", color: "#468657" } : { borderColor: "#E2E6E9", color: "#666666", backgroundColor: "#fff" }}
+            >
+              <ThumbsUp size={13} fill={verdict === "correct" ? "#468657" : "none"} />
+            </button>
+          )}
+          {verdict !== "correct" && (
+            <button
+              onClick={() => onVerdict(verdict === "incorrect" ? undefined : "incorrect")}
+              title="AI got this wrong"
+              className="flex items-center justify-center size-[26px] rounded-[6px] border cursor-pointer transition-colors"
+              style={verdict === "incorrect" ? { borderColor: "#BA1C1C", backgroundColor: "#FDECEA", color: "#BA1C1C" } : { borderColor: "#E2E6E9", color: "#666666", backgroundColor: "#fff" }}
+            >
+              <ThumbsDown size={13} fill={verdict === "incorrect" ? "#BA1C1C" : "none"} />
+            </button>
+          )}
+        </div>
+      </div>
+      {expanded && (
+        <div className="border-t px-4 py-3.5 flex flex-col gap-3 bg-white/60" style={{ borderColor: verdict === "incorrect" ? "#F3C6C6" : verdict === "correct" ? "#C9E2D1" : "#E2E6E9" }}>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-[#97999B]">AI reasoning</p>
+            <p className="text-[12.5px] text-[#262626] leading-[1.55] mt-1">{check.reason}</p>
+          </div>
+          {verdict === "incorrect" && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-[#97999B]">
+                What did the AI get wrong? <span className="text-[#BA1C1C]">(required)</span>
+              </p>
+              <ReasonSelect value={reason} onChange={onReason} options={WRONG_REASON_OPTIONS} invalid={!reason} />
+            </div>
+          )}
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-[#97999B]">
+              {noteRequired ? (
+                <>
+                  Your note <span className="text-[#BA1C1C]">(required for "{OTHER_REASON}")</span>
+                </>
+              ) : (
+                "Your note (optional)"
+              )}
+            </p>
+            <textarea
+              value={note}
+              onChange={(e) => onNote(e.target.value)}
+              rows={2}
+              className="mt-1.5 w-full px-3 py-2 rounded-[8px] border bg-[#F7F7F8] text-[12.5px] text-[#262626] outline-none focus:border-[#30578D] focus:bg-white transition-colors resize-y"
+              style={{ borderColor: noteRequired && !note.trim() ? "#BA1C1C" : "#E2E6E9" }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ValidationFeedbackModal({
+  checks,
+  versionLabel,
+  initial,
+  alreadySent,
+  onSubmit,
+  onClose,
+}: {
+  checks: ValidationCheck[];
+  versionLabel: string;
+  initial: ValidationFeedback | undefined;
+  alreadySent: boolean;
+  onSubmit: (fb: ValidationFeedback) => void;
+  onClose: () => void;
+}) {
+  const [verdicts, setVerdicts] = useState<Record<string, FeedbackVerdict>>(initial?.verdicts ?? {});
+  const [reasons, setReasons] = useState<Record<string, string>>(initial?.reasons ?? {});
+  const [notes, setNotes] = useState<Record<string, string>>(initial?.notes ?? {});
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState<"all" | "failed" | "passed">("all");
+
+  const setVerdict = (id: string, v: FeedbackVerdict | undefined) => {
+    setVerdicts(prev => {
+      const next = { ...prev };
+      if (v) next[id] = v;
+      else delete next[id];
+      return next;
+    });
+    if (v === "incorrect") setExpanded(prev => new Set(prev).add(id));
+  };
+  const toggleExpand = (id: string) =>
+    setExpanded(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const markedCount = checks.filter(c => verdicts[c.id]).length;
+  const incorrectCount = checks.filter(c => verdicts[c.id] === "incorrect").length;
+  const missing = checks.filter(c => {
+    if (verdicts[c.id] !== "incorrect") return false;
+    if (!reasons[c.id]) return true;
+    return reasons[c.id] === OTHER_REASON && !(notes[c.id] ?? "").trim();
+  }).length;
+  const failedCount = checks.filter(c => c.status === "failed").length;
+
+  const visible = checks.filter(c => filter === "all" || c.status === filter);
+
+  const submit = () => {
+    if (missing > 0) return;
+    // Only keep reasons for checks that are actually still marked incorrect.
+    const keptReasons: Record<string, string> = {};
+    checks.forEach(c => { if (verdicts[c.id] === "incorrect" && reasons[c.id]) keptReasons[c.id] = reasons[c.id]; });
+    onSubmit({ verdicts, reasons: keptReasons, notes });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-[8px] shadow-xl w-full max-w-[860px] max-h-[88vh] flex flex-col overflow-hidden">
+        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-[#DEDEDE] shrink-0">
+          <div className="min-w-0">
+            <h2 className="text-[16px] font-bold text-[#262626]">Order Acceptance Validation Feedback</h2>
+            <p className="text-[12px] text-[#97999B] mt-0.5">
+              {versionLabel} · {checks.length} checks ({failedCount} failed). Thumbs-down only what the AI got wrong. Anything you leave unmarked is submitted as correct.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors shrink-0">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 flex-wrap px-6 py-3 border-b border-[#f3f4f6] shrink-0">
+          <p className="text-[13px] font-bold text-[#111827]">
+            Validate each check <span className="font-normal text-[#9ca3af]">{markedCount} / {checks.length}</span>
+          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="inline-flex items-center p-0.5 rounded-[8px] border border-[#E2E6E9] bg-[#F7F7F8]">
+              {([["all", "All"], ["failed", "Failed"], ["passed", "Passed"]] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setFilter(key)}
+                  className="px-3 h-[26px] rounded-[6px] text-[12px] font-semibold cursor-pointer transition-colors"
+                  style={filter === key ? { backgroundColor: "#fff", color: "#30578D", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" } : { color: "#666666" }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setVerdicts(prev => {
+                const next = { ...prev };
+                checks.forEach(c => { if (!next[c.id]) next[c.id] = "correct"; });
+                return next;
+              })}
+              className="text-[12px] font-semibold hover:underline cursor-pointer"
+              style={{ color: "#30578D" }}
+            >
+              Mark remaining as correct
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 flex flex-col gap-5">
+          {(["mandatory", "redFlag"] as const).map(cat => {
+            const rows = visible.filter(c => c.category === cat).sort((a, b) => (a.status === b.status ? 0 : a.status === "failed" ? -1 : 1));
+            if (rows.length === 0) return null;
+            const meta = CATEGORY_META[cat];
+            return (
+              <div key={cat}>
+                <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: meta.accent }}>
+                  {meta.tag} <span className="font-medium text-[#97999B] normal-case tracking-normal">· {rows.length} check{rows.length === 1 ? "" : "s"}</span>
+                </p>
+                <div className="flex flex-col gap-2">
+                  {rows.map(c => (
+                    <FeedbackCheckRow
+                      key={c.id}
+                      check={c}
+                      verdict={verdicts[c.id]}
+                      reason={reasons[c.id] ?? ""}
+                      note={notes[c.id] ?? ""}
+                      expanded={expanded.has(c.id)}
+                      onToggleExpand={() => toggleExpand(c.id)}
+                      onVerdict={(v) => setVerdict(c.id, v)}
+                      onReason={(r) => setReasons(prev => ({ ...prev, [c.id]: r }))}
+                      onNote={(n) => setNotes(prev => ({ ...prev, [c.id]: n }))}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {visible.length === 0 && <p className="text-[12.5px] text-[#97999B] text-center py-8">No checks in this view.</p>}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 flex-wrap px-6 py-3.5 border-t border-[#DEDEDE] shrink-0">
+          {missing > 0 ? (
+            <p className="flex items-center gap-1.5 text-[12px] text-[#BA1C1C]">
+              <AlertCircle size={14} className="shrink-0" />
+              Pick a reason{missing > 1 ? "s" : ""} for {missing} check{missing > 1 ? "s" : ""} marked incorrect before submitting.
+            </p>
+          ) : (
+            <p className="text-[12px] text-[#9ca3af]">
+              {incorrectCount > 0 ? `${incorrectCount} check${incorrectCount > 1 ? "s" : ""} flagged as incorrect.` : "Nothing flagged. All checks will be submitted as correct."}
+            </p>
+          )}
+          <div className="flex items-center gap-2.5">
+            <button onClick={onClose} className="px-4 h-[36px] rounded-[8px] border border-[#E2E6E9] text-[13px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer">
+              Cancel
+            </button>
+            <button
+              onClick={submit}
+              disabled={missing > 0}
+              className="px-5 h-[36px] rounded-[8px] text-[13px] font-semibold text-white transition-opacity enabled:hover:opacity-90 enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ backgroundColor: "#30578D" }}
+            >
+              {alreadySent ? "Update feedback" : "Submit feedback"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, onAudit }: {
   emailId: string;
   /** Same page-level loading overlay WorkflowPage's footer actions (Save, Back, ...) use, passed down so
@@ -493,6 +871,8 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
 }) {
   const { data: validation, loading, error, reload } = useOrderValidation(emailId);
   const [resultsOpen, setResultsOpen] = useState(true);
+  // undefined = "use the default" (Mandatory open when it has failures, Red Flag closed); set once the user toggles one.
+  const [categoryOpen, setCategoryOpen] = useState<Partial<Record<CheckCategory, boolean>>>({});
   const [freightTerms, setFreightTerms] = useState("");
   const [freightTermsFilled, setFreightTermsFilled] = useState(false);
   const [discountApproval, setDiscountApproval] = useState("");
@@ -507,6 +887,9 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
   const [currentVersionAt, setCurrentVersionAt] = useState(() => new Date());
   const [viewingVersion, setViewingVersion] = useState<number | null>(null);
   const [versionsModalOpen, setVersionsModalOpen] = useState(false);
+  // Feedback on the check results, kept per version since a re-validation produces a different set of results.
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackByVersion, setFeedbackByVersion] = useState<Record<number, ValidationFeedback>>({});
   // Field changes committed while the current (not-yet-superseded) version is active — rolled into that
   // version's `changes` and reset once Re-Validate closes it out and opens the next one.
   const [currentVersionChanges, setCurrentVersionChanges] = useState<FieldChange[]>([]);
@@ -531,11 +914,11 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
     if (!check) return;
     updateCheck(id, c => ({ ...c, bypass: { reason, by: "Jagdish K.", at: new Date().toLocaleString("en-US", { day: "2-digit", month: "short", hour: "numeric", minute: "2-digit", hour12: true }) } }));
     onAudit?.({
-      action: check.category === "mandatory" ? "Mandatory Check Bypassed" : "Red Flag Check Bypassed",
+      action: check.category === "mandatory" ? "Mandatory Check Justified" : "Red Flag Check Justified",
       icon: ShieldOff,
-      detail: `${check.label} — ${reason}`,
+      detail: `${check.label}: ${reason}`,
     });
-    toast.success(`Bypassed "${check.label}"`);
+    toast.success(`Justified "${check.label}"`);
   };
 
   // Same rules as a single bypass (non-empty reason, no revalidation, audited), applied in one state update.
@@ -552,12 +935,12 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
     });
     targets.forEach(check =>
       onAudit?.({
-        action: check.category === "mandatory" ? "Mandatory Check Bypassed" : "Red Flag Check Bypassed",
+        action: check.category === "mandatory" ? "Mandatory Check Justified" : "Red Flag Check Justified",
         icon: ShieldOff,
-        detail: `${check.label} — ${reason} (bulk bypass)`,
+        detail: `${check.label}: ${reason} (bulk justification)`,
       })
     );
-    toast.success(`Bypassed ${targets.length} check${targets.length === 1 ? "" : "s"}`);
+    toast.success(`Justified ${targets.length} check${targets.length === 1 ? "" : "s"}`);
   };
 
   const toggleSelect = (id: string) => {
@@ -599,9 +982,9 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
     onAudit?.({
       action: `Re-Validated (${label})`,
       icon: RotateCcw,
-      detail: `Version ${currentVersionNumber + 1} generated — ${resolvedIds.length} check${resolvedIds.length === 1 ? "" : "s"} targeted, ${stillFailed} still outstanding`,
+      detail: `Version ${currentVersionNumber + 1} generated: ${resolvedIds.length} check${resolvedIds.length === 1 ? "" : "s"} targeted, ${stillFailed} still outstanding`,
     });
-    toast.success(`Re-validated ${label.toLowerCase()} — now viewing version ${currentVersionNumber + 1}`);
+    toast.success(`Re-validated ${label.toLowerCase()}, now viewing version ${currentVersionNumber + 1}`);
   };
 
   const handleRerun = (targetIds: string[], label: string) => {
@@ -651,7 +1034,7 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
     {isViewingHistory && (
       <div className="mb-4 flex items-center justify-between gap-3 rounded-[8px] px-4 py-2.5" style={{ backgroundColor: "#FDF3E7" }}>
         <p className="text-[12px] font-medium" style={{ color: "#92600B" }}>
-          Viewing Version {viewingVersion} (read-only) — {formatVersionDateTime(versions.find(ver => ver.version === viewingVersion)?.at ?? currentVersionAt)}
+          Viewing Version {viewingVersion} (read-only) · {formatVersionDateTime(versions.find(ver => ver.version === viewingVersion)?.at ?? currentVersionAt)}
         </p>
         <button onClick={() => setViewingVersion(null)} className="text-[11.5px] font-semibold underline cursor-pointer shrink-0" style={{ color: "#92600B" }}>
           Back to Latest
@@ -669,14 +1052,23 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setResultsOpen(v => !v); }}
             className={`w-full flex items-center justify-between gap-2 px-5 py-4 cursor-pointer flex-wrap ${resultsOpen ? "border-b border-[#f3f4f6]" : ""}`}
           >
-            <div className="flex items-center gap-2">
-              <ChevronDown size={15} className={`text-[#6b7280] transition-transform duration-200 ${resultsOpen ? "" : "-rotate-90"}`} />
-              <h3 className="text-[14px] font-bold text-[#111827]">OA Validation Results</h3>
+            <div className="flex items-start gap-2">
+              <ChevronDown size={15} className={`mt-[3px] shrink-0 text-[#6b7280] transition-transform duration-200 ${resultsOpen ? "" : "-rotate-90"}`} />
+              <div>
+                <h3 className="text-[14px] font-bold text-[#111827]">Order Acceptance Validation</h3>
+                <p className="flex items-center gap-1.5 text-[11.5px] text-[#9ca3af] mt-0.5">
+                  <Info size={12} className="shrink-0" /> {totalChecks} checks by Oracle · click any check to see its reason
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-3">
-              <p className="flex items-center gap-1.5 text-[11.5px] text-[#9ca3af]">
-                <Info size={12} className="shrink-0" /> {totalChecks} checks by Oracle · click any check to see its reason
-              </p>
+              <button
+                onClick={(e) => { e.stopPropagation(); setFeedbackOpen(true); }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] border border-[#e5e7eb] text-[11.5px] font-semibold text-[#374151] hover:bg-[#f8fafc] cursor-pointer transition-colors shrink-0"
+              >
+                {feedbackByVersion[viewingVersion ?? currentVersionNumber] ? <Check size={12} style={{ color: "#468657" }} /> : <MessageSquare size={12} />}
+                {feedbackByVersion[viewingVersion ?? currentVersionNumber] ? "Feedback sent" : "Feedback"}
+              </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setVersionsModalOpen(true); }}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] border border-[#e5e7eb] text-[11.5px] font-semibold text-[#374151] hover:bg-[#f8fafc] cursor-pointer transition-colors shrink-0"
@@ -689,22 +1081,26 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
             </div>
           </div>
           {resultsOpen && (
-            <div className="px-5 py-5 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-              <div className="flex flex-col gap-2">
-                <FailedCheckColumn
-                  checks={v.checks.filter(c => c.status === "failed")}
+            <div className="px-5 py-5 flex flex-col gap-3">
+              {(["mandatory", "redFlag"] as const).map(cat => {
+                const catChecks = v.checks.filter(c => c.category === cat);
+                const defaultOpen = cat === "mandatory" && catChecks.some(c => c.status === "failed");
+                const open = categoryOpen[cat] ?? defaultOpen;
+                return (
+                <CategoryAccordion
+                  key={cat}
+                  category={cat}
+                  open={open}
+                  onToggleOpen={() => setCategoryOpen(prev => ({ ...prev, [cat]: !open }))}
+                  checks={catChecks}
                   selectedIds={selectedIds}
                   onToggleSelect={toggleSelect}
                   onSelectAll={selectAllFailed}
                   onBypass={handleBypass}
                   onBypassAll={handleBypassAll}
                 />
-                <p className="text-[11px] text-[#6b7280] px-1">
-                  <span className="font-bold" style={{ color: CATEGORY_META.mandatory.accent }}>(*)</span> Mandatory
-                  <span className="ml-3 font-bold" style={{ color: CATEGORY_META.redFlag.accent }}>(*)</span> Red Flag
-                </p>
-              </div>
-              <PassedCheckColumn checks={v.checks.filter(c => c.status === "passed")} />
+                );
+              })}
             </div>
           )}
         </div>
@@ -842,6 +1238,27 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
       </div>
     </div>
     <AttachmentPreviewModal attachment={previewAttachment} onClose={() => setPreviewAttachment(null)} />
+    {feedbackOpen && (
+      <ValidationFeedbackModal
+        checks={v.checks}
+        versionLabel={isViewingHistory ? `Version ${viewingVersion}` : `Version ${currentVersionNumber} (Latest)`}
+        initial={feedbackByVersion[viewingVersion ?? currentVersionNumber]}
+        alreadySent={Boolean(feedbackByVersion[viewingVersion ?? currentVersionNumber])}
+        onClose={() => setFeedbackOpen(false)}
+        onSubmit={(fb) => {
+          const version = viewingVersion ?? currentVersionNumber;
+          const flagged = v.checks.filter(c => fb.verdicts[c.id] === "incorrect").length;
+          setFeedbackByVersion(prev => ({ ...prev, [version]: fb }));
+          setFeedbackOpen(false);
+          onAudit?.({
+            action: "Validation Feedback Submitted",
+            icon: MessageSquare,
+            detail: `Version ${version}: ${flagged > 0 ? `${flagged} check${flagged === 1 ? "" : "s"} marked incorrect` : "all checks confirmed correct"}`,
+          });
+          toast.success(flagged > 0 ? `Feedback submitted: ${flagged} check${flagged === 1 ? "" : "s"} flagged as incorrect` : "Feedback submitted: all checks confirmed correct");
+        }}
+      />
+    )}
     {versionsModalOpen && (
       <VersionHistoryModal
         versions={versions}

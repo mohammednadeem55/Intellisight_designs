@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText, History, Lightbulb, MessageSquare, Pencil, Sparkles, User, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText, History, Lightbulb, MessageSquare, Pencil, Sparkles, TriangleAlert, User, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import { Button, IconButton } from "../../components/common/Button";
@@ -19,7 +19,7 @@ import { useWorkflowEmail } from "./useWorkflowEmail";
 const WORKFLOW_STAGES: { key: string; label: string }[] = [
   { key: "classify", label: "Email & Classify" },
   { key: "ccc", label: "CCC Creation" },
-  { key: "validation", label: "AI Order Validation" },
+  { key: "validation", label: "Order Validation" },
   { key: "quote", label: "Quote Update" },
   { key: "order", label: "Order Creation" },
   { key: "soa", label: "SOA" },
@@ -198,7 +198,7 @@ export function WorkflowPage({
     toast.success(`${email.id} email sent`);
   };
 
-  // AISO-658 — AI Order Validation's own results own this state (see AiOrderValidationBody's onGateChange);
+  // AISO-658 — Order Validation's own results own this state (see AiOrderValidationBody's onGateChange);
   // WorkflowPage just needs it to know whether to disable the footer's Proceed button at that stage. Red
   // Flag checks never affect this, only unresolved/un-bypassed Mandatory ones.
   const [validationGate, setValidationGate] = useState<{ canProceed: boolean; blockingCount: number }>({ canProceed: true, blockingCount: 0 });
@@ -815,9 +815,19 @@ export function WorkflowPage({
 
         {/* Footer actions — full-bleed bar flush with the bottom edge, mirroring the header's treatment */}
         <div className="shrink-0 bg-white border-t border-[#ebebeb]">
-          <div className="max-w-[1600px] mx-auto px-5 py-3.5 flex items-center justify-between gap-3">
+          <div className="max-w-[1600px] mx-auto px-5 py-3.5 flex items-end justify-between gap-3">
             <Button variant="secondary" icon={ArrowLeft} onClick={() => withPageLoader("Going back...", onBack)}>Back</Button>
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-col items-end gap-2">
+              {/* AISO-658 AC7/AC9-12 — Proceed stays disabled at Order Validation while any Mandatory check is still
+                  failed and un-justified; Red Flag checks never block this. The reason sits directly above the
+                  button it explains, right-aligned with it. */}
+              {currentStageIndex === 2 && !validationGate.canProceed && (
+                <p role="status" className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: "#BA1C1C" }}>
+                  <TriangleAlert size={13} className="shrink-0" />
+                  {validationGate.blockingCount} mandatory check{validationGate.blockingCount === 1 ? "" : "s"} need{validationGate.blockingCount === 1 ? "s" : ""} resolution or justification before you can proceed
+                </p>
+              )}
+              <div className="flex items-center gap-2.5">
               <Button variant="secondary" onClick={() => withPageLoader("Saving...", () => toast.success(`${email.id} saved`))}>Save & Update</Button>
               {currentStageIndex === 1 && cccOutcome !== "success" ? (
                 <Button variant="primary" onClick={() => withPageLoader("Creating CCC request...", handleCreateCcc)}>Create CCC Req.</Button>
@@ -831,23 +841,17 @@ export function WorkflowPage({
                   {currentStageIndex === 5 && (
                     <Button variant="outline" accent="#E90029" onClick={() => withPageLoader("Sending email...", handleSendEmail)}>Send Email</Button>
                   )}
-                  {/* AISO-658 AC7/AC9-12 — Proceed stays disabled at AI Order Validation while any Mandatory
-                      check is still failed and un-bypassed; Red Flag checks never block this. */}
-                  {currentStageIndex === 2 && !validationGate.canProceed && (
-                    <span className="text-[11.5px] font-semibold" style={{ color: "#BA1C1C" }}>
-                      {validationGate.blockingCount} mandatory check{validationGate.blockingCount === 1 ? "" : "s"} need resolution or bypass
-                    </span>
-                  )}
                   <Button
                     variant="primary"
                     disabled={currentStageIndex === 2 && !validationGate.canProceed}
-                    title={currentStageIndex === 2 && !validationGate.canProceed ? "Resolve or bypass (with reason) every failed Mandatory check before proceeding" : undefined}
+                    title={currentStageIndex === 2 && !validationGate.canProceed ? "Resolve or justify every failed Mandatory check before proceeding" : undefined}
                     onClick={() => withPageLoader("Proceeding...", handleProceed)}
                   >
                     {currentStageIndex < WORKFLOW_STAGES.length - 1 ? "Proceed" : "Complete"}
                   </Button>
                 </>
               )}
+              </div>
             </div>
           </div>
         </div>

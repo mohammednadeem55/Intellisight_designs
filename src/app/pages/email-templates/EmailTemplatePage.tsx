@@ -107,7 +107,7 @@ function columnDisplayValue(key: ColumnKey, t: EmailTemplate): string {
 
 // Matching criteria a mapping can be scoped by, beyond just Workflow Type + Step — each independently
 // optional via the "Any (wildcard)" option, so a mapping can be as broad or as specific as needed.
-export const MAPPING_STEPS = ["Email & Classify", "CCC Creation", "AI Order Validation", "Order Creation", "SOA"];
+export const MAPPING_STEPS = ["Email & Classify", "CCC Creation", "Order Validation", "Order Creation", "SOA"];
 const MAPPING_COUNTRIES = ["India", "Japan", "UAE", "UK", "USA"];
 const MAPPING_OPERATING_UNITS = ["KRS-OU-4123", "KRS-OU-5001", "KRS-OU-6002", "KRS-OU-7003", "KRS-OU-8004", "USO-OU-8213"];
 const MAPPING_WILDCARD = "Any (wildcard)";
@@ -425,7 +425,7 @@ const INITIAL_EXCEPTIONS: TemplateException[] = [
     id: "exc-4",
     name: "India/UAE Credit Hold",
     workflowCategory: "Post Order Booking",
-    step: "AI Order Validation",
+    step: "Order Validation",
     priority: 3,
     conditions: mockGroup("AND", [mockRule("billToCountry", "is one of", ["India", "UAE"])]),
     templateIfMatch: "Credit Hold Notification",

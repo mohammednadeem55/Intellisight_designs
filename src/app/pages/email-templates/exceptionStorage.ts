@@ -10,7 +10,9 @@ export function loadTemplateExceptions(fallback: TemplateException[]): TemplateE
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : fallback;
+    if (!Array.isArray(parsed)) return fallback;
+    // The step was renamed from "AI Order Validation" — carry saved exceptions over so their Step still matches.
+    return parsed.map((e: TemplateException) => (e.step === "AI Order Validation" ? { ...e, step: "Order Validation" } : e));
   } catch {
     return fallback;
   }
