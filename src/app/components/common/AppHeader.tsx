@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { ChevronDown, LogOut, Menu, User, X } from "lucide-react";
 import headerSvg from "@/imports/IntellisightHeader/svg-55fm8fp6rz";
 import intellisightLogo from "@/imports/IntellisightHeader/intellisight_logo.png";
@@ -38,6 +39,7 @@ export function AppHeader({
   onNavigateEmailWorkflow?: () => void;
   onNavigateFeedbackCenter?: (docType: "trade-order" | "service-agreement" | "som") => void;
 }) {
+  const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -75,10 +77,11 @@ export function AppHeader({
     { label: "Communication", match: (n) => n === "Communication", onClick: onNavigateCommunication },
     {
       label: "Admin",
-      match: (n) => n === "Email Template" || n === "Cmd Center Adv. Filter",
+      match: (n) => n === "Email Template" || n === "Cmd Center Adv. Filter" || n === "Email Reconciliation",
       children: [
         { label: "Email", onClick: onNavigateEmailTemplate },
         { label: "Cmd Center Adv. Filter", onClick: onNavigateCmdCenterAdvFilter },
+        { label: "Email Reconciliation", onClick: () => navigate("/command-center/email-reconciliation") },
       ],
     },
     {

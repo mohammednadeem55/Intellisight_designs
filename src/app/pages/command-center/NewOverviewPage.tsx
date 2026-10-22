@@ -44,6 +44,7 @@ import {
   EmailTable,
   tatBand,
 } from "../../components/common/EmailTable";
+import { IngestionStatusChip } from "./EmailReconciliationPage";
 import { TableToolbarApplyReset, TableToolbarMultiSelect, TableToolbarSearch } from "../../components/common/TableToolbar";
 import { TableFilterPanel, TableFilterTrigger } from "../../components/common/TableFilterPanel";
 import { TablePagination, type RowDensity } from "../../components/common/TablePagination";
@@ -1021,6 +1022,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
               </div>
             </div>
             <div className="flex items-center gap-2.5 flex-wrap">
+              <IngestionStatusChip />
               <span className="flex items-center gap-1.5 text-[12px] text-[#4D4D4D]">
                 <span className="size-[7px] rounded-full bg-[#468657]" />
                 Last synced {lastSynced}
