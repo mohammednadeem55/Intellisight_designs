@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText, History, Lightbulb, MessageSquare, Pencil, Sparkles, TriangleAlert, User, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, CircleAlert, CircleCheck, Copy, FileText, History, Lightbulb, MessageSquare, Pencil, Sparkles, User, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import { Button, IconButton } from "../../components/common/Button";
@@ -213,6 +213,14 @@ export function WorkflowPage({
     setOrderCreated(false);
     auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, action: "Quote Updated", icon: Pencil, detail: "Order invalidated — Create Order required again" });
     toast.success(`${email.id} quote updated`);
+  };
+  // Order Validation shortcut: update the quote and hand straight over to Order Creation in one step, skipping the
+  // separate Quote Update step. Like a normal quote update, it invalidates any order already created.
+  const handleQuoteUpdateAndSubmit = () => {
+    setOrderCreated(false);
+    auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, action: "Quote Updated & Submitted to Order", icon: Pencil });
+    setCurrentStageIndex(4);
+    toast.success(`${email.id} quote updated and submitted to ${WORKFLOW_STAGES[4].label}`);
   };
   const handleCreateOrder = () => {
     setOrderCreated(true);
@@ -815,19 +823,9 @@ export function WorkflowPage({
 
         {/* Footer actions — full-bleed bar flush with the bottom edge, mirroring the header's treatment */}
         <div className="shrink-0 bg-white border-t border-[#ebebeb]">
-          <div className="max-w-[1600px] mx-auto px-5 py-3.5 flex items-end justify-between gap-3">
+          <div className="max-w-[1600px] mx-auto px-5 py-3.5 flex items-center justify-between gap-3">
             <Button variant="secondary" icon={ArrowLeft} onClick={() => withPageLoader("Going back...", onBack)}>Back</Button>
-            <div className="flex flex-col items-end gap-2">
-              {/* AISO-658 AC7/AC9-12 — Proceed stays disabled at Order Validation while any Mandatory check is still
-                  failed and un-justified; Red Flag checks never block this. The reason sits directly above the
-                  button it explains, right-aligned with it. */}
-              {currentStageIndex === 2 && !validationGate.canProceed && (
-                <p role="status" className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: "#BA1C1C" }}>
-                  <TriangleAlert size={13} className="shrink-0" />
-                  {validationGate.blockingCount} mandatory check{validationGate.blockingCount === 1 ? "" : "s"} need{validationGate.blockingCount === 1 ? "s" : ""} resolution or justification before you can proceed
-                </p>
-              )}
-              <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5">
               <Button variant="secondary" onClick={() => withPageLoader("Saving...", () => toast.success(`${email.id} saved`))}>Save & Update</Button>
               {currentStageIndex === 1 && cccOutcome !== "success" ? (
                 <Button variant="primary" onClick={() => withPageLoader("Creating CCC request...", handleCreateCcc)}>Create CCC Req.</Button>
@@ -841,17 +839,29 @@ export function WorkflowPage({
                   {currentStageIndex === 5 && (
                     <Button variant="outline" accent="#E90029" onClick={() => withPageLoader("Sending email...", handleSendEmail)}>Send Email</Button>
                   )}
+                  {/* AISO-658 AC7/AC9-12 — at Order Validation both forward actions stay disabled while any Mandatory
+                      check is still failed and un-justified; Red Flag checks never block them. */}
+                  {currentStageIndex === 2 && (
+                    <Button
+                      variant="outline"
+                      accent="#E90029"
+                      disabled={!validationGate.canProceed}
+                      title={!validationGate.canProceed ? "Verify or justify every Mandatory check requiring verification before proceeding" : undefined}
+                      onClick={() => withPageLoader("Updating quote and submitting to order...", handleQuoteUpdateAndSubmit)}
+                    >
+                      Quote Update & Submit to Order
+                    </Button>
+                  )}
                   <Button
                     variant="primary"
                     disabled={currentStageIndex === 2 && !validationGate.canProceed}
-                    title={currentStageIndex === 2 && !validationGate.canProceed ? "Resolve or justify every failed Mandatory check before proceeding" : undefined}
+                    title={currentStageIndex === 2 && !validationGate.canProceed ? "Verify or justify every Mandatory check requiring verification before proceeding" : undefined}
                     onClick={() => withPageLoader("Proceeding...", handleProceed)}
                   >
                     {currentStageIndex < WORKFLOW_STAGES.length - 1 ? "Proceed" : "Complete"}
                   </Button>
                 </>
               )}
-              </div>
             </div>
           </div>
         </div>
