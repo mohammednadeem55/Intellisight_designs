@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertCircle, Archive, ArrowRight, Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, Download, FileImage, FileSpreadsheet, FileText, Flag, Info, MapPin, MessageSquare, RotateCcw, ShieldAlert, ShieldOff, ThumbsDown, ThumbsUp, TriangleAlert, X, type LucideIcon } from "lucide-react";
+import { AlertCircle, Archive, ArrowRight, BookmarkCheck, Check, ChevronDown, ChevronRight, CircleCheck, ClipboardPen, Clock, Download, FileImage, FileSpreadsheet, FileText, Info, MapPin, MessageSquare, RotateCcw, ShieldOff, ThumbsDown, ThumbsUp, TriangleAlert, X, type LucideIcon } from "lucide-react";
 import { TextField } from "../../components/common/TextField";
 import { WaveLoader } from "../../components/common/Loader";
 import { Button } from "../../components/common/Button";
@@ -19,9 +19,9 @@ type ValidationVersion = { version: number; at: Date; data: OrderValidationData;
 // AISO-658 — the two check categories, each with its own accent color and vocabulary (a failed Mandatory
 // check is "Verification Required" since the workflow is blocked; a failed Red Flag check is "Review
 // Required" since it isn't).
-const CATEGORY_META: Record<CheckCategory, { tag: string; accent: string; failedLabel: string; passedLabel: string; blocking: boolean }> = {
-  mandatory: { tag: "Mandatory", accent: "#BA1C1C", failedLabel: "Verification Required", passedLabel: "Verified", blocking: true },
-  redFlag: { tag: "Red Flag", accent: "#E67919", failedLabel: "Review Required", passedLabel: "Passed", blocking: false },
+const CATEGORY_META: Record<CheckCategory, { tag: string; icon: LucideIcon; sectionTitle: string; sectionHint: string; accent: string; failedLabel: string; passedLabel: string; blocking: boolean }> = {
+  mandatory: { tag: "Mandatory", icon: ClipboardPen, sectionTitle: "Mandatory Checks (Order Entry)", sectionHint: "Must be resolved or justified before order creation", accent: "#BA1C1C", failedLabel: "Verification Required", passedLabel: "Verified", blocking: true },
+  redFlag: { tag: "Red Flag", icon: BookmarkCheck, sectionTitle: "Mandatory Checks (Order Booking)", sectionHint: "Must be resolved before order booking", accent: "#823E81", failedLabel: "Verification Required", passedLabel: "Verified", blocking: false },
 };
 
 function formatVersionDateTime(d: Date) {
@@ -141,10 +141,10 @@ function RerunSplitButton({ selectedCount, onSelect }: { selectedCount: number; 
             Rerun All Checks
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); onSelect(["__failed__"], "Failed Checks Only"); setOpen(false); }}
+            onClick={(e) => { e.stopPropagation(); onSelect(["__failed__"], "Verification Required Checks Only"); setOpen(false); }}
             className="w-full text-left px-3.5 py-2 text-[12.5px] font-medium text-[#374151] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
           >
-            Rerun Failed Checks Only
+            Rerun Verification Required Only
           </button>
           <button
             disabled={selectedCount === 0}
@@ -321,6 +321,7 @@ const CHECK_COLUMN_THRESHOLD = 5;
 // top ticks this category's failed rows; selections persist across accordions and feed "Rerun Selected".
 function FailedCheckColumn({
   title,
+  accent,
   checks,
   selectedIds,
   onToggleSelect,
@@ -328,8 +329,10 @@ function FailedCheckColumn({
   onBypass,
   onBypassAll,
 }: {
-  /** Section heading — named per category: "Verification Required" (Mandatory) / "FallOut" (Red Flag). */
+  /** Section heading — "Verification Required" for both categories. */
   title: string;
+  /** The section's own colour (red for Order Entry, purple for Order Booking). */
+  accent: string;
   checks: ValidationCheck[];
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
@@ -355,11 +358,11 @@ function FailedCheckColumn({
   return (
     <div className="rounded-[8px] border border-[#ebebeb]">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-[#f3f4f6]">
-        <span className="w-[3px] h-[14px] rounded-full shrink-0" style={{ backgroundColor: "#BA1C1C" }} />
-        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#BA1C1C" }}>{title} ({checks.length})</p>
+        <span className="w-[3px] h-[14px] rounded-full shrink-0" style={{ backgroundColor: accent }} />
+        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: accent }}>{title} ({checks.length})</p>
       </div>
       {checks.length === 0 ? (
-        <p className="text-[12px] text-[#9ca3af] text-center py-6">No failed checks.</p>
+        <p className="text-[12px] text-[#9ca3af] text-center py-6">Nothing requires verification.</p>
       ) : (
         <>
           <div className="flex items-center gap-2 px-4 py-2 bg-[#fafafa] border-b border-[#f3f4f6]">
@@ -380,7 +383,7 @@ function FailedCheckColumn({
             <div className="px-4 py-2.5 border-b border-[#f3f4f6]">
               <div className="rounded-[6px] p-2.5 border border-[#E2E6E9] bg-[#F7F7F7] flex flex-col gap-2">
                 <p className="text-[11px] text-[#6b7280]">
-                  One reason will be recorded against all {unbypassedIds.length} failed check{unbypassedIds.length === 1 ? "" : "s"} not yet justified. Each one is audited individually.
+                  One reason will be recorded against all {unbypassedIds.length} check{unbypassedIds.length === 1 ? "" : "s"} requiring verification that {unbypassedIds.length === 1 ? "is" : "are"} not yet justified. Each one is audited individually.
                 </p>
                 <textarea
                   autoFocus
@@ -438,7 +441,7 @@ function PassedCheckColumn({ checks }: { checks: ValidationCheck[] }) {
     <div className="rounded-[8px] border border-[#ebebeb]">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-[#f3f4f6]">
         <span className="w-[3px] h-[14px] rounded-full shrink-0" style={{ backgroundColor: "#468657" }} />
-        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#468657" }}>Passed ({checks.length})</p>
+        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#468657" }}>Verified ({checks.length})</p>
       </div>
       <div>
         {visible.map(c => (
@@ -459,8 +462,8 @@ function PassedCheckColumn({ checks }: { checks: ValidationCheck[] }) {
 
 // One accordion per check category (Mandatory / Red Flag). Each holds that category's own Failed and Passed
 // lists, so "what's blocking me" and "what needs a look" are separated at the top level instead of being
-// mixed together and told apart by an asterisk. Mandatory opens by default when something in it failed, since
-// it blocks Proceed; Red Flag starts collapsed (its header pill already shows the failure count) until opened.
+// mixed together and told apart by an asterisk. A section opens by default whenever something in it needs
+// verification (both are required, so neither should hide behind a collapsed header); an all-verified one stays closed.
 function CategoryAccordion({
   category,
   open,
@@ -489,8 +492,7 @@ function CategoryAccordion({
   const needsAction = failed.filter(c => !c.bypass).length;
 
   const total = checks.length;
-  const Icon = category === "mandatory" ? ShieldAlert : Flag;
-  const blockingNow = meta.blocking && needsAction > 0;
+  const Icon = meta.icon;
 
   return (
     <div className="rounded-[8px] border overflow-hidden" style={{ borderColor: failed.length > 0 ? `${meta.accent}33` : "#ebebeb" }}>
@@ -507,32 +509,27 @@ function CategoryAccordion({
           </span>
           <span className="min-w-0">
             <span className="flex items-center gap-2 flex-wrap">
-              <span className="text-[14px] font-bold text-[#111827]">{meta.tag}</span>
-              {blockingNow && (
-                <span className="inline-flex items-center px-1.5 py-[1px] rounded-[4px] text-[9.5px] font-bold uppercase tracking-wide text-white" style={{ backgroundColor: meta.accent }}>
-                  Blocks proceed
-                </span>
-              )}
+              <span className="text-[14px] font-bold text-[#111827]">{meta.sectionTitle}</span>
             </span>
             <span className="block text-[11.5px] text-[#6b7280] mt-0.5">
-              {meta.blocking ? "Must pass, or be justified, to proceed" : "Needs a review, doesn't block proceeding"}
+              {meta.sectionHint}
             </span>
           </span>
         </span>
         <span className="flex items-center gap-4 shrink-0">
           <span
             className="hidden sm:inline text-[12px] font-semibold text-[#374151] whitespace-nowrap"
-            title={needsAction < failed.length ? `${failed.length - needsAction} failed check${failed.length - needsAction === 1 ? "" : "s"} justified` : undefined}
+            title={needsAction < failed.length ? `${failed.length - needsAction} check${failed.length - needsAction === 1 ? "" : "s"} requiring verification justified` : undefined}
           >
-            {passed.length}/{total} passed
+            {passed.length}/{total} verified
           </span>
           {failed.length > 0 ? (
             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11.5px] font-semibold" style={{ color: meta.accent, backgroundColor: `${meta.accent}1A` }}>
-              {failed.length} failed{needsAction < failed.length ? ` · ${needsAction} open` : ""}
+              {failed.length} verification required{needsAction < failed.length ? ` · ${needsAction} open` : ""}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11.5px] font-semibold text-[#468657] bg-[#EFF6F1]">
-              <Check size={12} /> All passed
+              <Check size={12} /> All verified
             </span>
           )}
         </span>
@@ -540,7 +537,8 @@ function CategoryAccordion({
       {open && (
         <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           <FailedCheckColumn
-            title={category === "mandatory" ? "Verification Required" : "FallOut"}
+            title="Verification Required"
+            accent={meta.accent}
             checks={failed}
             selectedIds={selectedIds}
             onToggleSelect={onToggleSelect}
@@ -625,9 +623,9 @@ function FeedbackCheckRow({
         </div>
         <span
           className="shrink-0 px-2 py-0.5 rounded-full text-[10.5px] font-semibold whitespace-nowrap"
-          style={failed ? { color: "#BA1C1C", backgroundColor: "#FDECEA" } : { color: "#468657", backgroundColor: "#EFF6F1" }}
+          style={failed ? { color: CATEGORY_META[check.category].accent, backgroundColor: `${CATEGORY_META[check.category].accent}14` } : { color: "#468657", backgroundColor: "#EFF6F1" }}
         >
-          {failed ? "Failed" : "Passed"}
+          {failed ? "Verification Required" : "Verified"}
         </span>
         <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
           <span className="text-[11px] font-medium whitespace-nowrap w-[56px] text-right" style={{ color: verdict === "correct" ? "#468657" : verdict === "incorrect" ? "#BA1C1C" : "#97999B" }}>
@@ -757,7 +755,7 @@ function ValidationFeedbackModal({
           <div className="min-w-0">
             <h2 className="text-[16px] font-bold text-[#262626]">Order Acceptance Validation Feedback</h2>
             <p className="text-[12px] text-[#97999B] mt-0.5">
-              {versionLabel} · {checks.length} checks ({failedCount} failed). Thumbs-down only what the AI got wrong. Anything you leave unmarked is submitted as correct.
+              {versionLabel} · {checks.length} checks ({failedCount} requiring verification). Thumbs-down only what the AI got wrong. Anything you leave unmarked is submitted as correct.
             </p>
           </div>
           <button onClick={onClose} className="text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors shrink-0">
@@ -771,7 +769,7 @@ function ValidationFeedbackModal({
           </p>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="inline-flex items-center p-0.5 rounded-[8px] border border-[#E2E6E9] bg-[#F7F7F8]">
-              {([["all", "All"], ["failed", "Failed"], ["passed", "Passed"]] as const).map(([key, label]) => (
+              {([["all", "All"], ["failed", "Verification Required"], ["passed", "Verified"]] as const).map(([key, label]) => (
                 <button
                   key={key}
                   onClick={() => setFilter(key)}
@@ -804,7 +802,7 @@ function ValidationFeedbackModal({
             return (
               <div key={cat}>
                 <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: meta.accent }}>
-                  {meta.tag} <span className="font-medium text-[#97999B] normal-case tracking-normal">· {rows.length} check{rows.length === 1 ? "" : "s"}</span>
+                  {meta.sectionTitle} <span className="font-medium text-[#97999B] normal-case tracking-normal">· {rows.length} check{rows.length === 1 ? "" : "s"}</span>
                 </p>
                 <div className="flex flex-col gap-2">
                   {rows.map(c => (
@@ -871,7 +869,7 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
 }) {
   const { data: validation, loading, error, reload } = useOrderValidation(emailId);
   const [resultsOpen, setResultsOpen] = useState(true);
-  // undefined = "use the default" (Mandatory open when it has failures, Red Flag closed); set once the user toggles one.
+  // undefined = "use the default" (a section opens by itself when it has checks needing verification); set once the user toggles one.
   const [categoryOpen, setCategoryOpen] = useState<Partial<Record<CheckCategory, boolean>>>({});
   const [freightTerms, setFreightTerms] = useState("");
   const [freightTermsFilled, setFreightTermsFilled] = useState(false);
@@ -1023,11 +1021,8 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
   const v = displayedData;
   const isViewingHistory = viewingVersion !== null;
   const totalChecks = v.checks.length;
-  const verifiedCount = v.checks.filter(c => c.status === "passed").length;
   const mandatoryChecks = v.checks.filter(c => c.category === "mandatory");
   const redFlagChecks = v.checks.filter(c => c.category === "redFlag");
-  const mandatoryRequiredCount = mandatoryChecks.filter(c => c.status === "failed").length;
-  const redFlagRequiredCount = redFlagChecks.filter(c => c.status === "failed").length;
 
   return (
     <>
@@ -1084,7 +1079,7 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
             <div className="px-5 py-5 flex flex-col gap-3">
               {(["mandatory", "redFlag"] as const).map(cat => {
                 const catChecks = v.checks.filter(c => c.category === cat);
-                const defaultOpen = cat === "mandatory" && catChecks.some(c => c.status === "failed");
+                const defaultOpen = catChecks.some(c => c.status === "failed");
                 const open = categoryOpen[cat] ?? defaultOpen;
                 return (
                 <CategoryAccordion
@@ -1150,41 +1145,45 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
 
       {/* Right: check summary + ship-to + documents */}
       <div className="flex flex-col gap-4">
-        <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
-          <h3 className="text-[14px] font-bold text-[#111827]">Validation Checks</h3>
-          <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">Overview by category.</p>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-[8px] bg-[#EFF6F1] px-2.5 py-3 flex flex-col items-center gap-1.5">
-              <div className="flex items-center gap-1.5">
-                <CircleCheck size={18} className="text-[#468657] shrink-0" />
-                <span className="text-[20px] font-bold text-[#468657] leading-none">{verifiedCount}/{totalChecks}</span>
-              </div>
-              <span className="text-[10.5px] font-medium text-[#6b7280] text-center leading-tight">Verified</span>
-            </div>
-            <div className="rounded-[8px] bg-[#FDECEA] px-2.5 py-3 flex flex-col items-center gap-1.5">
-              <div className="flex items-center gap-1.5">
-                <CircleX size={18} className="text-[#BA1C1C] shrink-0" />
-                <span className="text-[20px] font-bold text-[#BA1C1C] leading-none">{mandatoryRequiredCount}</span>
-              </div>
-              <span className="text-[10.5px] font-medium text-[#6b7280] text-center leading-tight">Verification Required</span>
-            </div>
-            <div className="rounded-[8px] bg-[#FDF3E7] px-2.5 py-3 flex flex-col items-center gap-1.5">
-              <div className="flex items-center gap-1.5">
-                <TriangleAlert size={18} className="text-[#E67919] shrink-0" />
-                <span className="text-[20px] font-bold text-[#92600B] leading-none">{redFlagRequiredCount}</span>
-              </div>
-              <span className="text-[10.5px] font-medium text-[#6b7280] text-center leading-tight">Review Required</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-[#f3f4f6]">
-            <div>
-              <p className="text-[10.5px] text-[#9ca3af]">Screening Started</p>
-              <p className="text-[12.5px] font-semibold text-[#111827] mt-0.5">{v.screeningStartedAt}</p>
-            </div>
-            <div>
-              <p className="text-[10.5px] text-[#9ca3af]">Screening Completed</p>
-              <p className="text-[12.5px] font-semibold text-[#111827] mt-0.5">{v.screeningCompletedAt}</p>
-            </div>
+        <div className="bg-white rounded-[8px] border border-[#ebebeb] px-4 py-3">
+          <h3 className="text-[16px] font-bold leading-tight" style={{ color: "#30578D" }}>Validation Checks</h3>
+          <p className="text-[12px] font-medium text-[#6b7280] mt-0.5 mb-3">Trade Order</p>
+          <div className="flex flex-col divide-y divide-[#f3f4f6]">
+            {([
+              { cat: "mandatory" as const, title: "Mandatory Checks (Order Entry)", checks: mandatoryChecks, requiredLabel: "Verification Required (Before Order Entry)" },
+              { cat: "redFlag" as const, title: "Mandatory Checks (Order Booking)", checks: redFlagChecks, requiredLabel: "Verification Required (Before Order Booking)" },
+            ]).map(({ cat, title, checks, requiredLabel }) => {
+              const verified = checks.filter(c => c.status === "passed").length;
+              const required = checks.filter(c => c.status === "failed").length;
+              const clear = required === 0;
+              const accent = CATEGORY_META[cat].accent; // red for Order Entry, purple for Order Booking, same as the sections below
+              const fg = clear ? "#468657" : accent;
+              const bg = clear ? "#EFF6F1" : `${accent}14`;
+              return (
+                <div key={cat} className="py-2 first:pt-0">
+                  <p className="text-[10.5px] font-bold uppercase tracking-wide text-[#97999B] mb-1.5">{title}</p>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="rounded-[8px] bg-[#EFF6F1] px-3 py-2.5 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <CircleCheck size={20} className="text-[#468657] shrink-0" />
+                        <span className="text-[24px] font-bold text-[#468657] leading-none">{verified}/{checks.length}</span>
+                      </div>
+                      <p className="text-[12px] font-semibold text-[#468657] mt-1.5 leading-tight">Verified</p>
+                    </div>
+                    <div className="rounded-[8px] px-3 py-2.5 min-w-0" style={{ backgroundColor: bg }}>
+                      <div className="flex items-center gap-2">
+                        {clear ? <CircleCheck size={20} className="shrink-0" style={{ color: fg }} /> : <TriangleAlert size={20} className="shrink-0" style={{ color: accent }} />}
+                        <span className="text-[24px] font-bold leading-none" style={{ color: fg }}>{required}</span>
+                      </div>
+                      <p className="text-[12px] font-semibold mt-1.5 leading-tight" style={{ color: fg }}>{clear ? "Nothing to verify" : requiredLabel}</p>
+                    </div>
+                  </div>
+                  <p className="text-[10.5px] text-[#9ca3af] mt-1.5">
+                    Screening completed <span className="font-semibold text-[#374151]">{v.categoryScreeningCompletedAt[cat]}</span>
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
 
