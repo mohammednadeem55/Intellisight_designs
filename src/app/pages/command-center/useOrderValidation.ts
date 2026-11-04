@@ -26,9 +26,6 @@ export type OrderValidationData = {
   documents: { name: string; size: string }[];
   screeningStartedAt: string;
   screeningCompletedAt: string;
-  /** Each category is screened on its own, so each has its own completion time. A rerun only re-stamps the
-      categories it actually touched. */
-  categoryScreeningCompletedAt: Record<CheckCategory, string>;
   poParsing: { matched: number; total: number; poNumber: string; lineItems: string; shipToAddress: string };
   salesForceQuote: { matched: number; total: number; quoteNumber: string; quoteOwner: string; approvalStatus: string };
 };
@@ -101,8 +98,7 @@ const MOCK_VALIDATION: OrderValidationData = {
     { name: "LoremIpsum.CSV", size: "1.2 MB" },
   ],
   screeningStartedAt: "31 Jul 2026, 10:52 PM",
-  screeningCompletedAt: "31 Jul 2026, 11:04 PM",
-  categoryScreeningCompletedAt: { mandatory: "31 Jul 2026, 10:52 PM", redFlag: "31 Jul 2026, 11:04 PM" },
+  screeningCompletedAt: "31 Jul 2026, 10:52 PM",
   poParsing: { matched: 14, total: 18, poNumber: "1514444", lineItems: "8 line items parsed", shipToAddress: "100 Chelmsford St, Lowell, MA 01851" },
   salesForceQuote: { matched: 7, total: 8, quoteNumber: "QT-5000", quoteOwner: "Jagdish K.", approvalStatus: "Manager Approved" },
 };
@@ -141,10 +137,6 @@ export function regenerateValidation(base: OrderValidationData, targetIds: strin
     ),
     screeningStartedAt: base.screeningCompletedAt,
     screeningCompletedAt: now,
-    categoryScreeningCompletedAt: {
-      mandatory: base.checks.some(c => c.category === "mandatory" && idSet.has(c.id)) ? now : base.categoryScreeningCompletedAt.mandatory,
-      redFlag: base.checks.some(c => c.category === "redFlag" && idSet.has(c.id)) ? now : base.categoryScreeningCompletedAt.redFlag,
-    },
   };
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertCircle, Archive, ArrowRight, BookmarkCheck, Check, ChevronDown, ChevronRight, CircleCheck, ClipboardPen, Clock, Download, FileImage, FileSpreadsheet, FileText, Info, MapPin, MessageSquare, RotateCcw, ShieldOff, ThumbsDown, ThumbsUp, TriangleAlert, X, type LucideIcon } from "lucide-react";
+import { AlertCircle, Archive, ArrowRight, BookmarkCheck, Check, ChevronDown, ChevronRight, CircleCheck, ClipboardPen, Clock, Download, FileImage, FileSpreadsheet, FileText, MapPin, MessageSquare, RotateCcw, ShieldOff, ThumbsDown, ThumbsUp, TriangleAlert, X, type LucideIcon } from "lucide-react";
 import { TextField } from "../../components/common/TextField";
 import { WaveLoader } from "../../components/common/Loader";
 import { Button } from "../../components/common/Button";
@@ -19,9 +19,9 @@ type ValidationVersion = { version: number; at: Date; data: OrderValidationData;
 // AISO-658 — the two check categories, each with its own accent color and vocabulary (a failed Mandatory
 // check is "Verification Required" since the workflow is blocked; a failed Red Flag check is "Review
 // Required" since it isn't).
-const CATEGORY_META: Record<CheckCategory, { tag: string; icon: LucideIcon; sectionTitle: string; sectionHint: string; accent: string; failedLabel: string; passedLabel: string; blocking: boolean }> = {
-  mandatory: { tag: "Mandatory", icon: ClipboardPen, sectionTitle: "Mandatory Checks (Order Entry)", sectionHint: "Must be resolved or justified before order creation", accent: "#BA1C1C", failedLabel: "Verification Required", passedLabel: "Verified", blocking: true },
-  redFlag: { tag: "Red Flag", icon: BookmarkCheck, sectionTitle: "Mandatory Checks (Order Booking)", sectionHint: "Must be resolved before order booking", accent: "#823E81", failedLabel: "Verification Required", passedLabel: "Verified", blocking: false },
+const CATEGORY_META: Record<CheckCategory, { tag: string; icon: LucideIcon; sectionTitle: string; sectionHint: string; accent: string; failedLabel: string; passedLabel: string; blocking: boolean; canJustify: boolean }> = {
+  mandatory: { tag: "Mandatory", icon: ClipboardPen, sectionTitle: "Mandatory Checks (Order Entry)", sectionHint: "Must be resolved or justified before order creation", accent: "#BA1C1C", failedLabel: "Verification Required", passedLabel: "Verified", blocking: true, canJustify: true },
+  redFlag: { tag: "Red Flag", icon: BookmarkCheck, sectionTitle: "Mandatory Checks (Order Booking)", sectionHint: "Must be resolved before order booking", accent: "#823E81", failedLabel: "Verification Required", passedLabel: "Verified", blocking: false, canJustify: false },
 };
 
 function formatVersionDateTime(d: Date) {
@@ -181,15 +181,22 @@ function FailedCheckRow({
   category,
   selected,
   onToggleSelect,
+  expanded,
+  onToggleExpand,
+  canJustify,
   onBypass,
 }: {
   check: ValidationCheck;
   category: CheckCategory;
+  /** Order Booking checks must be resolved, never justified — so no Justify action on those rows. */
+  canJustify: boolean;
   selected: boolean;
   onToggleSelect: () => void;
+  /** Open/closed is owned by the section so one "Expand all" button can drive every row. */
+  expanded: boolean;
+  onToggleExpand: () => void;
   onBypass: (reason: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [bypassFormOpen, setBypassFormOpen] = useState(false);
   const [reasonDraft, setReasonDraft] = useState("");
   const accent = CATEGORY_META[category].accent;
@@ -209,10 +216,10 @@ function FailedCheckRow({
     <div className="border-b border-[#f3f4f6] last:border-b-0">
       <div className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-[#f8fafc] transition-colors">
         <Checkbox checked={selected} onChange={onToggleSelect} />
-        <button onClick={() => setExpanded(v => !v)} className="flex-1 min-w-0 flex items-center gap-2.5 text-left cursor-pointer">
+        <button onClick={onToggleExpand} className="flex-1 min-w-0 flex items-center gap-2.5 text-left cursor-pointer">
           <span className="flex-1 min-w-0 text-[12.5px] font-semibold text-[#111827] truncate">{check.label}</span>
         </button>
-        {!check.bypass && (
+        {canJustify && !check.bypass && (
           <EmailTableTooltip label="Justify">
             <button
               onClick={(e) => { e.stopPropagation(); setBypassFormOpen(v => !v); }}
@@ -222,7 +229,7 @@ function FailedCheckRow({
             </button>
           </EmailTableTooltip>
         )}
-        <button onClick={() => setExpanded(v => !v)} className="shrink-0 cursor-pointer">
+        <button onClick={onToggleExpand} className="shrink-0 cursor-pointer">
           <ChevronDown size={13} className={`text-[#9ca3af] transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
         </button>
       </div>
@@ -290,13 +297,12 @@ function FailedCheckRow({
 
 // A verified/passed check — simple read-only row, no selection or bypass affordances since there's nothing
 // to act on.
-function VerifiedCheckRow({ check, category }: { check: ValidationCheck; category: CheckCategory }) {
-  const [expanded, setExpanded] = useState(false);
+function VerifiedCheckRow({ check, category, expanded, onToggleExpand }: { check: ValidationCheck; category: CheckCategory; expanded: boolean; onToggleExpand: () => void }) {
   const meta = CATEGORY_META[category];
   return (
     <div className="border-b border-[#f3f4f6] last:border-b-0">
       <button
-        onClick={() => setExpanded(v => !v)}
+        onClick={onToggleExpand}
         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left cursor-pointer hover:bg-[#f8fafc] transition-colors"
       >
         <CircleCheck size={15} className="shrink-0 text-[#468657]" />
@@ -323,6 +329,9 @@ function FailedCheckColumn({
   title,
   accent,
   checks,
+  expandedIds,
+  onToggleExpand,
+  canJustify,
   selectedIds,
   onToggleSelect,
   onSelectAll,
@@ -334,6 +343,10 @@ function FailedCheckColumn({
   /** The section's own colour (red for Order Entry, purple for Order Booking). */
   accent: string;
   checks: ValidationCheck[];
+  expandedIds: Set<string>;
+  onToggleExpand: (id: string) => void;
+  /** False for Order Booking: those checks have to be resolved, so Justify / Justify all aren't offered. */
+  canJustify: boolean;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
   onSelectAll: (ids: string[], select: boolean) => void;
@@ -368,7 +381,7 @@ function FailedCheckColumn({
           <div className="flex items-center gap-2 px-4 py-2 bg-[#fafafa] border-b border-[#f3f4f6]">
             <Checkbox checked={allSelected} onChange={() => onSelectAll(ids, !allSelected)} />
             <span className="text-[11px] font-medium text-[#6b7280]">Select all</span>
-            {unbypassedIds.length > 0 && (
+            {canJustify && unbypassedIds.length > 0 && (
               <button
                 onClick={() => setBulkOpen(v => !v)}
                 className="ml-auto flex items-center gap-1.5 px-2 py-1 rounded-[6px] text-[11px] font-semibold cursor-pointer transition-colors hover:bg-[#eef0f3]"
@@ -379,7 +392,7 @@ function FailedCheckColumn({
               </button>
             )}
           </div>
-          {bulkOpen && unbypassedIds.length > 0 && (
+          {canJustify && bulkOpen && unbypassedIds.length > 0 && (
             <div className="px-4 py-2.5 border-b border-[#f3f4f6]">
               <div className="rounded-[6px] p-2.5 border border-[#E2E6E9] bg-[#F7F7F7] flex flex-col gap-2">
                 <p className="text-[11px] text-[#6b7280]">
@@ -420,6 +433,9 @@ function FailedCheckColumn({
                 category={c.category}
                 selected={selectedIds.has(c.id)}
                 onToggleSelect={() => onToggleSelect(c.id)}
+                expanded={expandedIds.has(c.id)}
+                onToggleExpand={() => onToggleExpand(c.id)}
+                canJustify={canJustify}
                 onBypass={(reason) => onBypass(c.id, reason)}
               />
             ))}
@@ -431,7 +447,7 @@ function FailedCheckColumn({
 }
 
 // Passed checks for one category (same "View More" pattern as before).
-function PassedCheckColumn({ checks }: { checks: ValidationCheck[] }) {
+function PassedCheckColumn({ checks, expandedIds, onToggleExpand }: { checks: ValidationCheck[]; expandedIds: Set<string>; onToggleExpand: (id: string) => void }) {
   const [showAll, setShowAll] = useState(false);
   const needsToggle = checks.length > CHECK_COLUMN_THRESHOLD;
   const visible = !needsToggle || showAll ? checks : checks.slice(0, CHECK_COLUMN_THRESHOLD);
@@ -445,7 +461,7 @@ function PassedCheckColumn({ checks }: { checks: ValidationCheck[] }) {
       </div>
       <div>
         {visible.map(c => (
-          <VerifiedCheckRow key={c.id} check={c} category={c.category} />
+          <VerifiedCheckRow key={c.id} check={c} category={c.category} expanded={expandedIds.has(c.id)} onToggleExpand={() => onToggleExpand(c.id)} />
         ))}
       </div>
       {needsToggle && (
@@ -490,6 +506,15 @@ function CategoryAccordion({
   const failed = checks.filter(c => c.status === "failed");
   const passed = checks.filter(c => c.status === "passed");
   const needsAction = failed.filter(c => !c.bypass).length;
+  // One Expand all / Collapse all for both lists in this section (Verification Required and Verified).
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const allExpanded = checks.length > 0 && checks.every(c => expandedIds.has(c.id));
+  const toggleOne = (id: string) =>
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const total = checks.length;
   const Icon = meta.icon;
@@ -535,18 +560,32 @@ function CategoryAccordion({
         </span>
       </button>
       {open && (
-        <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <div className="p-4 pt-2.5">
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={() => setExpandedIds(allExpanded ? new Set() : new Set(checks.map(c => c.id)))}
+              className="text-[12px] font-semibold hover:underline cursor-pointer"
+              style={{ color: "#30578D" }}
+            >
+              {allExpanded ? "Collapse all" : "Expand all"}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           <FailedCheckColumn
             title="Verification Required"
             accent={meta.accent}
             checks={failed}
+            expandedIds={expandedIds}
+            onToggleExpand={toggleOne}
+            canJustify={meta.canJustify}
             selectedIds={selectedIds}
             onToggleSelect={onToggleSelect}
             onSelectAll={onSelectAll}
             onBypass={onBypass}
             onBypassAll={onBypassAll}
           />
-          <PassedCheckColumn checks={passed} />
+          <PassedCheckColumn checks={passed} expandedIds={expandedIds} onToggleExpand={toggleOne} />
+          </div>
         </div>
       )}
     </div>
@@ -1020,7 +1059,9 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
   const displayedData = viewingVersion !== null ? (versions.find(ver => ver.version === viewingVersion)?.data ?? latestData!) : latestData!;
   const v = displayedData;
   const isViewingHistory = viewingVersion !== null;
-  const totalChecks = v.checks.length;
+  // Overall status shown beside the section title: "Verifying" while any check still needs verification (failed and
+  // not justified), "Completed" once nothing is outstanding.
+  const verifying = v.checks.some(c => c.status === "failed" && !c.bypass);
   const mandatoryChecks = v.checks.filter(c => c.category === "mandatory");
   const redFlagChecks = v.checks.filter(c => c.category === "redFlag");
 
@@ -1047,14 +1088,16 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setResultsOpen(v => !v); }}
             className={`w-full flex items-center justify-between gap-2 px-5 py-4 cursor-pointer flex-wrap ${resultsOpen ? "border-b border-[#f3f4f6]" : ""}`}
           >
-            <div className="flex items-start gap-2">
-              <ChevronDown size={15} className={`mt-[3px] shrink-0 text-[#6b7280] transition-transform duration-200 ${resultsOpen ? "" : "-rotate-90"}`} />
-              <div>
-                <h3 className="text-[14px] font-bold text-[#111827]">Order Acceptance Validation</h3>
-                <p className="flex items-center gap-1.5 text-[11.5px] text-[#9ca3af] mt-0.5">
-                  <Info size={12} className="shrink-0" /> {totalChecks} checks by Oracle · click any check to see its reason
-                </p>
-              </div>
+            <div className="flex items-center gap-2">
+              <ChevronDown size={15} className={`shrink-0 text-[#6b7280] transition-transform duration-200 ${resultsOpen ? "" : "-rotate-90"}`} />
+              <h3 className="text-[14px] font-bold text-[#111827]">Order Acceptance Validation</h3>
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold whitespace-nowrap"
+                style={verifying ? { color: "#30578D", backgroundColor: "#EAF1FB" } : { color: "#468657", backgroundColor: "#EFF6F1" }}
+              >
+                {verifying ? <span className="size-[6px] rounded-full animate-pulse" style={{ backgroundColor: "#30578D" }} /> : <Check size={12} strokeWidth={3} />}
+                {verifying ? "Verifying" : "Completed"}
+              </span>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -1178,13 +1221,13 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
                       <p className="text-[12px] font-semibold mt-1.5 leading-tight" style={{ color: fg }}>{clear ? "Nothing to verify" : requiredLabel}</p>
                     </div>
                   </div>
-                  <p className="text-[10.5px] text-[#9ca3af] mt-1.5">
-                    Screening completed <span className="font-semibold text-[#374151]">{v.categoryScreeningCompletedAt[cat]}</span>
-                  </p>
                 </div>
               );
             })}
           </div>
+          <p className="text-[11px] text-[#9ca3af] mt-2.5 pt-2.5 border-t border-[#f3f4f6]">
+            Screening completed <span className="font-semibold text-[#111827]">{v.screeningCompletedAt}</span>
+          </p>
         </div>
 
         <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
@@ -1206,33 +1249,56 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
         </div>
 
         <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
-          <h3 className="text-[14px] font-bold text-[#111827]">Documents</h3>
-          <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">{v.documents.length} file{v.documents.length !== 1 ? "s" : ""} attached</p>
-          <div className="flex flex-col gap-2">
-            {v.documents.map(doc => {
-              const meta = docMeta(doc.name);
-              return (
-                <button
-                  key={doc.name}
-                  onClick={() => setPreviewAttachment(doc)}
-                  className="group flex items-center gap-2.5 px-3 py-2 rounded-[8px] border border-[#ebebeb] hover:border-[#d1d5db] hover:bg-[#f8fafc] cursor-pointer transition-colors text-left w-full"
-                >
-                  <div className="size-[32px] rounded-[8px] flex items-center justify-center shrink-0" style={{ backgroundColor: meta.bg }}>
-                    <meta.icon size={15} style={{ color: meta.fg }} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[12.5px] font-medium text-[#111827] truncate">{doc.name}</p>
-                    <p className="text-[11px] text-[#9ca3af]">{doc.size}</p>
-                  </div>
-                  <Download
-                    size={14}
-                    className="text-[#9ca3af] group-hover:text-[#111827] cursor-pointer transition-colors shrink-0"
-                    onClick={(e) => { e.stopPropagation(); toast.info(`Downloading ${doc.name}`); }}
-                  />
-                </button>
-              );
-            })}
-          </div>
+          {/* The OA validation summary is generated from the results being shown (so it follows the version in view),
+              and sits first so it's the easy one to find among the order's own attached files. */}
+          {(() => {
+            const summaryVersion = viewingVersion ?? currentVersionNumber;
+            const docs: { name: string; size: string; generated?: boolean }[] = [
+              { name: `OA_Validation_Summary_v${summaryVersion}.pdf`, size: "184 KB", generated: true },
+              ...v.documents,
+            ];
+            return (
+              <>
+                <h3 className="text-[14px] font-bold text-[#111827]">Documents</h3>
+                <p className="text-[12px] text-[#9ca3af] mt-0.5 mb-3">{docs.length} file{docs.length !== 1 ? "s" : ""} attached</p>
+                <div className="flex flex-col gap-2">
+                  {docs.map(doc => {
+                    const meta = docMeta(doc.name);
+                    return (
+                      <button
+                        key={doc.name}
+                        onClick={() => setPreviewAttachment(doc)}
+                        className="group flex items-center gap-2.5 px-3 py-2 rounded-[8px] border border-[#ebebeb] hover:border-[#d1d5db] hover:bg-[#f8fafc] cursor-pointer transition-colors text-left w-full"
+                      >
+                        <div className="size-[32px] rounded-[8px] flex items-center justify-center shrink-0" style={{ backgroundColor: meta.bg }}>
+                          <meta.icon size={15} style={{ color: meta.fg }} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-[12.5px] font-medium text-[#111827] truncate">{doc.name}</span>
+                            {doc.generated && (
+                              <span className="shrink-0 px-1.5 py-[1px] rounded-[4px] text-[9.5px] font-bold uppercase tracking-wide" style={{ color: "#30578D", backgroundColor: "#EAF1FB" }}>
+                                Summary
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-[#9ca3af]">
+                            {doc.size}
+                            {doc.generated && <> · Generated {v.screeningCompletedAt}</>}
+                          </p>
+                        </div>
+                        <Download
+                          size={14}
+                          className="text-[#9ca3af] group-hover:text-[#111827] cursor-pointer transition-colors shrink-0"
+                          onClick={(e) => { e.stopPropagation(); toast.info(`Downloading ${doc.name}`); }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
