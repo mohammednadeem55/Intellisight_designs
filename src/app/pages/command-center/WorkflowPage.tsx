@@ -93,7 +93,7 @@ This is a ${classificationLabel(email.classification).toLowerCase()} request${em
 • Business Group: ${email.businessGroup ?? "Unassigned"}${email.poNumber ? `\n• PO Number: ${email.poNumber}` : ""}${email.accountName ? `\n• Account: ${email.accountName}` : ""}
 
 3. RECOMMENDED NEXT STEP
-Proceed to CCC Creation once the classification above is confirmed.`;
+Click Next to continue to CCC Creation once the classification above is confirmed.`;
 }
 
 // The email's detail/drill-down destination — clicking a row (table) or opening an email (Email View) lands here.
@@ -192,6 +192,14 @@ export function WorkflowPage({
     } else {
       toast.success(`${email.id} workflow complete`);
     }
+  };
+  // Back steps through the workflow one stage at a time; only from the very first stage does it leave for the listing.
+  const handleBack = () => {
+    if (currentStageIndex > 0) {
+      setCurrentStageIndex(currentStageIndex - 1);
+      return;
+    }
+    onBack();
   };
   const handleSendEmail = () => {
     auditLog.addEntry(currentStageKey, { user: CURRENT_USER.name, initials: CURRENT_USER.initials, action: "Email Sent", icon: Check });
@@ -824,7 +832,7 @@ export function WorkflowPage({
         {/* Footer actions — full-bleed bar flush with the bottom edge, mirroring the header's treatment */}
         <div className="shrink-0 bg-white border-t border-[#ebebeb]">
           <div className="max-w-[1600px] mx-auto px-5 py-3.5 flex items-center justify-between gap-3">
-            <Button variant="secondary" icon={ArrowLeft} onClick={() => withPageLoader("Going back...", onBack)}>Back</Button>
+            <Button variant="secondary" icon={ArrowLeft} onClick={() => withPageLoader("Going back...", handleBack)}>Back</Button>
             <div className="flex items-center gap-2.5">
               <Button variant="secondary" onClick={() => withPageLoader("Saving...", () => toast.success(`${email.id} saved`))}>Save & Update</Button>
               {currentStageIndex === 1 && cccOutcome !== "success" ? (
@@ -856,9 +864,9 @@ export function WorkflowPage({
                     variant="primary"
                     disabled={currentStageIndex === 2 && !validationGate.canProceed}
                     title={currentStageIndex === 2 && !validationGate.canProceed ? "Verify or justify every Mandatory check requiring verification before proceeding" : undefined}
-                    onClick={() => withPageLoader("Proceeding...", handleProceed)}
+                    onClick={() => withPageLoader("Moving to next step...", handleProceed)}
                   >
-                    {currentStageIndex < WORKFLOW_STAGES.length - 1 ? "Proceed" : "Complete"}
+                    {currentStageIndex < WORKFLOW_STAGES.length - 1 ? "Next" : "Complete"}
                   </Button>
                 </>
               )}
