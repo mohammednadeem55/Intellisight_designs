@@ -437,3 +437,136 @@ export function isBlockedLine(l: OrderLineOption): boolean {
   // "Line items with SRT <02-weeks for F01/F48 will not be available for selection"
   return (l.factory === "F01" || l.factory === "F48") && l.srt < 2;
 }
+
+// ---------------------------------------------------------------------------------------------------------
+// Shared helpers
+
+export const todayStr = () => new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }).replace(/ /g, "-");
+
+export function parseCaseDate(d: string): Date | null {
+  const m = /^(\d{2})-([A-Za-z]{3})-(\d{2})$/.exec(d);
+  if (!m) return null;
+  const date = new Date(`${m[1]} ${m[2]} 20${m[3]}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Oracle order lookup (mock). A CSR searches an order number; in the real tool this is a Jitterbit call.
+
+export type OracleOrder = {
+  orderNo: string;
+  orderStatus: string;
+  customerPo: string;
+  customer: string;
+  ou: string;
+  region: string;
+  destination: string;
+  crddType: string;
+  crddDate: string;
+  totalPriceUsd: string;
+  lines: OrderLineOption[];
+};
+
+const MOCK_CUSTOMERS: Pick<OracleOrder, "customer" | "ou" | "region" | "destination">[] = [
+  { customer: "Acme Industries", ou: "USA-OU-1100", region: "NA", destination: "US" },
+  { customer: "Lumen Electronique", ou: "FRA-OU-0910", region: "EU", destination: "FR" },
+  { customer: "Hoshino Systems", ou: "JPN-OU-0420", region: "APAC", destination: "JP" },
+  { customer: "Nordvik Telecom", ou: "SWE-OU-0305", region: "EU", destination: "SE" },
+];
+
+/** Returns null when Oracle has no such order. Seven-digit numbers resolve; known case orders return their own header. */
+export function lookupOracleOrder(orderNo: string): OracleOrder | null {
+  const no = orderNo.trim();
+  if (!/^\d{7}$/.test(no)) return null;
+  const known = INITIAL_CASES.find((c) => c.orderNo === no);
+  const seed = Number(no.slice(-2));
+  const base = known
+    ? { customer: known.customer, ou: known.ou, region: known.region, destination: known.destination }
+    : MOCK_CUSTOMERS[seed % MOCK_CUSTOMERS.length];
+  return {
+    orderNo: no,
+    orderStatus: known?.orderStatus ?? "BOOKED",
+    customerPo: known?.customerPo ?? `PO-${no.slice(-4)}`,
+    ...base,
+    crddType: known?.crddType ?? "5 Multiple Dates Per Order",
+    crddDate: known?.crddDate ?? "",
+    totalPriceUsd: known?.totalPriceUsd ?? (12000 + seed * 137.5).toFixed(2),
+    lines: orderLinesFor(no),
+  };
+}
+
+/** A fresh case line for an Oracle order line that is being brought into a case. */
+export function newCaseLine(o: OrderLineOption, requestType: RequestType, comment: string, by: string, owner: string, ownerEmail: string): CaseLine {
+  return {
+    line: o.line,
+    partNumber: o.partNumber,
+    quantity: 1,
+    factory: o.factory,
+    bookedDate: o.bookedDate,
+    ssd: o.ssd,
+    crd: o.crddDate || o.ssd,
+    sad: o.ssd,
+    srt: o.srt,
+    requestType,
+    status: "New",
+    caseOwner: owner,
+    ownerEmail,
+    planner: "ji-tai.tan@keysight.com",
+    plannerCode: "EPSG180CMB",
+    oracleLineStatus: o.flowStatus,
+    planningPriority: 100,
+    extSellingPrice: 0,
+    pl: "1A",
+    p1Rme: false,
+    requireRme: false,
+    factoryBestSsd: "",
+    rescheduleSsd: "NA",
+    followupDate: "",
+    updatedInOracle: false,
+    shipDate: "",
+    reopenDate: "",
+    lineHoldInfo: "",
+    taaCompliance: "",
+    comments: comment ? [{ at: todayStr(), by, text: comment }] : [],
+  };
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Case activity: one chronological history built from the case header, RME hand-offs and every line's comments.
+
+export type ActivityKind = "case" | "comment" | "oracle" | "rme";
+export type ActivityEvent = { at: string; kind: ActivityKind; title: string; by: string; text?: string; line?: string };
+
+export function buildCaseActivity(c: SsdSoeCase): ActivityEvent[] {
+  const events: (ActivityEvent & { order: number })[] = [];
+  let order = 0;
+  const add = (e: ActivityEvent) => events.push({ ...e, order: order++ });
+
+  add({ at: c.dateSubmitted, kind: "case", title: c.source === "Factory" ? "Case created from factory upload" : "Case created from Salesforce", by: c.requester });
+  if (c.rme) {
+    add({ at: c.rme.raisedAt, kind: "rme", title: `P1 RME raised, routed to ${c.rme.routedTo}`, by: c.rme.raisedBy, text: c.rme.reason });
+    if (c.rme.feedback && c.rme.feedbackAt) add({ at: c.rme.feedbackAt, kind: "rme", title: `RME feedback: ${c.rme.status.toLowerCase()}`, by: c.rme.feedbackBy ?? "SPOC", text: c.rme.feedback });
+  }
+  for (const l of c.lines) {
+    for (const cm of l.comments) {
+      add({ at: cm.at, kind: /oracle/i.test(cm.text) ? "oracle" : "comment", title: /oracle/i.test(cm.text) ? "Oracle update" : "Comment", by: cm.by, text: cm.text, line: l.line });
+    }
+  }
+  if (c.dateClosed) add({ at: c.dateClosed, kind: "case", title: "Case closed", by: c.csr });
+
+  const t = (e: ActivityEvent) => parseCaseDate(e.at)?.getTime() ?? 0;
+  // Newest first; on the same day, closing sits on top and creation at the bottom.
+  return events
+    .sort((a, b) => {
+      const d = t(b) - t(a);
+      if (d !== 0) return d;
+      const closeA = a.title === "Case closed" ? -1 : 0;
+      const closeB = b.title === "Case closed" ? -1 : 0;
+      if (closeA !== closeB) return closeA - closeB;
+      const createdA = a.title.startsWith("Case created") ? 1 : 0;
+      const createdB = b.title.startsWith("Case created") ? 1 : 0;
+      if (createdA !== createdB) return createdA - createdB;
+      return a.order - b.order;
+    })
+    .map(({ order: _o, ...e }) => e);
+}

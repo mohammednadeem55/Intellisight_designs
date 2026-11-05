@@ -1,15 +1,16 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { CheckCircle2, ClipboardList, Download, FileSpreadsheet, Maximize2, Minimize2, RefreshCw, ShieldCheck, ThumbsUp, TriangleAlert, Upload, X } from "lucide-react";
+import { CheckCircle2, ClipboardList, Download, FileSpreadsheet, Plus, Maximize2, Minimize2, RefreshCw, ShieldCheck, ThumbsUp, TriangleAlert, Upload, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
 import { ColumnResizeHandle, useResizableColumns } from "../../components/common/ResizableColumns";
-import { EMAIL_TABLE_NAVY, TruncateTooltip } from "../../components/common/EmailTable";
+import { EMAIL_TABLE_NAVY, EmailTableTooltip, TruncateTooltip } from "../../components/common/EmailTable";
 import { TablePagination, type RowDensity } from "../../components/common/TablePagination";
 import { exportRowsToExcel } from "../../components/common/exportExcel";
 import { TableToolbarMultiSelect, TableToolbarSearch, useExclusiveOpen } from "../../components/common/TableToolbar";
 import { CASE_STATUSES, FACTORIES, PERSONA_LABELS, REQUEST_TYPES, type CaseKind, type CaseStatus, type SsdSoeCase } from "./ssdSoeData";
+import { CreateCaseModal } from "./CreateCaseModal";
 import { addCases, casesForPersona, resetDemoData, useSsdSoeCases, usePersona } from "./ssdSoeStore";
 import { AMBER, GREEN, KIND_STYLE, KindPill, PersonaSwitcher, PURPLE, RED, SourcePill, StatTile, StatusPill, YesNoPill } from "./ssdSoeUi";
 
@@ -42,6 +43,7 @@ export function SsdSoePage(nav: NavProps) {
 
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<"All" | CaseKind>("All");
+  const [createOpen, setCreateOpen] = useState(false);
   const [factories, setFactories] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
   const [requestTypes, setRequestTypes] = useState<string[]>([]);
@@ -168,7 +170,6 @@ export function SsdSoePage(nav: NavProps) {
 
             <div className="bg-white rounded-[8px] border border-[#E2E6E9] overflow-hidden">
               <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-[#DEDEDE] flex-wrap">
-                <TableToolbarSearch value={search} onCommit={(v) => { setSearch(v); setPage(1); }} placeholder="Search case, order, customer, part" />
                 <div className="inline-flex items-center p-0.5 rounded-[8px] border border-[#E2E6E9] bg-[#F7F7F8]">
                   {(["All", "SOE", "SSD"] as const).map((k) => (
                     <button
@@ -182,6 +183,8 @@ export function SsdSoePage(nav: NavProps) {
                     </button>
                   ))}
                 </div>
+                <TableToolbarSearch value={search} onCommit={(v) => { setSearch(v); setPage(1); }} placeholder="Search case, order, customer, part" />
+                <div className="ml-auto flex items-center gap-2.5 flex-wrap">
                 {persona !== "factory" && (
                   <TableToolbarMultiSelect
                     label="Factory"
@@ -231,12 +234,28 @@ export function SsdSoePage(nav: NavProps) {
                     Clear filters
                   </button>
                 )}
-                <button
-                  onClick={exportExcel}
-                  className="ml-auto flex items-center gap-1.5 h-[36px] px-3.5 rounded-[8px] border border-[#E2E6E9] bg-white text-[12.5px] font-semibold text-[#4D4D4D] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
-                >
-                  <Download size={14} /> Export to Excel
-                </button>
+                {persona === "csr" && (
+                  <EmailTableTooltip label="Create case">
+                    <button
+                      onClick={() => setCreateOpen(true)}
+                      aria-label="Create case"
+                      className="flex items-center justify-center size-[36px] rounded-[8px] text-white hover:opacity-90 cursor-pointer transition-opacity"
+                      style={{ backgroundColor: EMAIL_TABLE_NAVY }}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </EmailTableTooltip>
+                )}
+                <EmailTableTooltip label="Export to Excel">
+                  <button
+                    onClick={exportExcel}
+                    aria-label="Export to Excel"
+                    className="flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
+                  >
+                    <Download size={14} />
+                  </button>
+                </EmailTableTooltip>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
@@ -319,6 +338,14 @@ export function SsdSoePage(nav: NavProps) {
           </div>
         </main>
       </div>
+      {createOpen && (
+        <CreateCaseModal
+          defaultKind={kind === "All" ? "SSD" : kind}
+          existingCaseNos={allCases.map((c) => c.caseNo)}
+          onClose={() => setCreateOpen(false)}
+          onCreated={(caseNo) => { setCreateOpen(false); navigate(`/ssd-soe/case/${caseNo}`); }}
+        />
+      )}
     </div>
   );
 }

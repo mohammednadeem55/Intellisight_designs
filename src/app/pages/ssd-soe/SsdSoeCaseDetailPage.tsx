@@ -1,24 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
-import { AlertCircle, Building2, Calendar, Clock, DollarSign, Info, Layers, List, MapPin, Maximize2, MessageSquareText, Minimize2, Plus, RefreshCw, ShieldCheck, ThumbsDown, ThumbsUp, TriangleAlert, X } from "lucide-react";
+import { AlertCircle, Building2, Calendar, ChevronDown, Download, Search, Clock, DollarSign, Info, Layers, List, MapPin, Maximize2, MessageSquareText, Minimize2, Plus, RefreshCw, ShieldCheck, ThumbsDown, ThumbsUp, TriangleAlert, X } from "lucide-react";
 import { AppHeader } from "../../components/common/AppHeader";
 import { Breadcrumbs } from "../../components/common/Breadcrumbs";
-import { EMAIL_TABLE_NAVY, InfoTile } from "../../components/common/EmailTable";
+import { EMAIL_TABLE_NAVY, EmailTableTooltip, InfoTile } from "../../components/common/EmailTable";
 import { ColumnResizeHandle, useResizableColumns } from "../../components/common/ResizableColumns";
 import { DatePickerPopover } from "../../components/common/DatePickerPopover";
+import { exportRowsToExcel } from "../../components/common/exportExcel";
 import { ReasonSelect } from "../../components/common/ReasonSelect";
 import {
-  ORACLE_UPDATE_REQUEST_TYPES,
   REQUEST_TYPES,
   isBlockedLine,
   orderLinesFor,
   type CaseLine,
   type RequestType,
+  parseCaseDate,
+  todayStr,
   type SsdSoeCase,
 } from "./ssdSoeData";
 import { updateCase, usePersona, useSsdSoeCases } from "./ssdSoeStore";
-import { AMBER, GREEN, KindPill, PersonaSwitcher, PURPLE, RED, StatusPill } from "./ssdSoeUi";
+import { AMBER, FieldLabel, GREEN, KindPill, Modal, PersonaSwitcher, primaryBtn, PURPLE, RED, secondaryBtn, StatusPill } from "./ssdSoeUi";
 
 type NavProps = {
   onViewAllNotifications: () => void;
@@ -35,49 +38,11 @@ type NavProps = {
   onNavigateEmailWorkflow?: () => void;
 };
 
-const today = () => new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }).replace(/ /g, "-");
+const today = todayStr;
 const ME = { name: "Arman Singh", tag: "AS" };
-
-function primaryBtn(disabled?: boolean) {
-  return `flex items-center gap-1.5 h-[36px] px-4 rounded-[8px] text-white text-[12.5px] font-semibold transition-opacity ${disabled ? "opacity-40 cursor-not-allowed" : "hover:opacity-90 cursor-pointer"}`;
-}
-const secondaryBtn = "flex items-center gap-1.5 h-[36px] px-4 rounded-[8px] border border-[#E2E6E9] bg-white text-[12.5px] font-semibold text-[#4D4D4D] hover:bg-[#F7F7F7] cursor-pointer transition-colors";
-
-function Modal({ title, subtitle, onClose, children, footer, wide }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode; wide?: boolean }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className={`relative bg-white rounded-[8px] shadow-xl w-full ${wide ? "max-w-[980px]" : "max-w-[560px]"} max-h-[88vh] flex flex-col overflow-hidden`}>
-        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-[#DEDEDE] shrink-0">
-          <div className="min-w-0">
-            <h2 className="text-[16px] font-bold text-[#262626]">{title}</h2>
-            {subtitle && <p className="text-[12px] text-[#97999B] mt-0.5">{subtitle}</p>}
-          </div>
-          <button onClick={onClose} className="text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors shrink-0" aria-label="Close"><X size={18} /></button>
-        </div>
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">{children}</div>
-        <div className="flex items-center justify-end gap-2.5 px-6 py-3.5 border-t border-[#DEDEDE] shrink-0">{footer}</div>
-      </div>
-    </div>
-  );
-}
-
-function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
-  return (
-    <p className="text-[10.5px] font-bold uppercase tracking-wide text-[#97999B]">
-      {children} {required && <span style={{ color: RED }}>(required)</span>}
-    </p>
-  );
-}
 
 // Reference "now" for aging: the sample cases are dated Jul/Aug 2026, so aging is measured against a fixed mock date.
 const MOCK_NOW = new Date(2026, 7, 10);
-function parseCaseDate(d: string): Date | null {
-  const m = /^(\d{2})-([A-Za-z]{3})-(\d{2})$/.exec(d);
-  if (!m) return null;
-  const date = new Date(`${m[1]} ${m[2]} 20${m[3]}`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
 const TH = "relative sticky top-0 z-10 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] text-[12px] font-semibold text-[#4D4D4D]";
 const iconBtn = "flex items-center justify-center size-[36px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer";
 
@@ -93,7 +58,6 @@ export function SsdSoeCaseDetailPage(nav: NavProps) {
   const [activeLine, setActiveLine] = useState<string | null>(null);
   const [tab, setTab] = useState<"lines" | "comments">("lines");
   const [refExpanded, setRefExpanded] = useState(true);
-  const [fullOpen, setFullOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -158,6 +122,14 @@ export function SsdSoeCaseDetailPage(nav: NavProps) {
     toast.success(`${c.caseNo} rejected. The factory has been notified.`);
   };
 
+  // Factory: approval status of every line, as an Excel file
+  const downloadStatus = () => {
+    const headers = ["Case No", "Order No", "Line", "Part Number", "Factory", "Current SSD", "Factory Best SSD", "Reschedule SSD", "Status", "Updated in Oracle", "Latest comment"];
+    const data = lines.map((l) => [c.caseNo, c.orderNo, l.line, l.partNumber, l.factory, l.ssd, l.factoryBestSsd || "-", l.rescheduleSsd, l.status, l.updatedInOracle ? "Yes" : "No", l.comments[0]?.text ?? ""]);
+    exportRowsToExcel(`ssd-approval-status-${c.caseNo}`, headers, data, "Approval status");
+    toast.success("Approval status downloaded");
+  };
+
   // CSR: push a chosen SSD or SAD date to Oracle for the selected lines (Jitterbit call is simulated)
   const pushToOracle = (field: "ssd" | "sad", iso: string) => {
     const d = new Date(iso + "T00:00:00");
@@ -210,7 +182,7 @@ export function SsdSoeCaseDetailPage(nav: NavProps) {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-[18px] font-semibold text-[#262626] leading-tight">Case {c.caseNo}</h1>
                 <button
-                  onClick={() => setFullOpen(true)}
+                  onClick={() => navigate(`/ssd-soe/case/${c.caseNo}/details`)}
                   className="inline-flex items-center gap-1 px-2 py-1 rounded-[8px] border border-[#E2E6E9] text-[11.5px] font-semibold hover:bg-[#F7F7F7] cursor-pointer transition-colors"
                   style={{ color: EMAIL_TABLE_NAVY }}
                 >
@@ -259,7 +231,7 @@ export function SsdSoeCaseDetailPage(nav: NavProps) {
               {c.status === "Approved" && "Approved. The SSD / SAD has been updated in Oracle."}
               {c.status === "Rejected" && "Rejected by the CSR. See the comments for the reason, then upload a new proposal."}
               {!["Awaiting Approval", "Approved", "Rejected"].includes(c.status) && `Status: ${c.status}.`}
-              <span className="text-[#97999B]"> You have read-only access. The CSR updates this case in Oracle.</span>
+              <span className="text-[#97999B]"> You can add line items and download the approval status. The CSR makes the Oracle updates.</span>
             </div>
           )}
           {c.rme && <RmeCard c={c} canRespond={persona === "rme" && c.rme.status === "Open"} onRespond={giveFeedback} />}
@@ -299,6 +271,14 @@ export function SsdSoeCaseDetailPage(nav: NavProps) {
                   );
                 })}
               </div>
+              {persona === "factory" && tab === "lines" && (
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <button onClick={downloadStatus} className={toolbarBtn}><Download size={14} /> Download approval status</button>
+                  <EmailTableTooltip label="Add Line Item">
+                    <button onClick={() => setAddOpen(true)} aria-label="Add Line Item" className="flex items-center justify-center size-[34px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] hover:border-[#30578D] hover:bg-[#EAF1FB] hover:text-[#30578D] cursor-pointer transition-colors"><Plus size={15} /></button>
+                  </EmailTableTooltip>
+                </div>
+              )}
               {isCsr && tab === "lines" && (
                 <div className="flex items-center gap-2.5 flex-wrap">
                   {hasProposal && (
@@ -306,15 +286,20 @@ export function SsdSoeCaseDetailPage(nav: NavProps) {
                       <AlertCircle size={13} /> SSD reschedule request exists for marked lines
                     </p>
                   )}
-                  <button onClick={() => (selected.size === 0 ? needLines() : setEditOpen(true))} className={primaryBtn()} style={{ backgroundColor: EMAIL_TABLE_NAVY, height: 34 }}>
-                    Update{selected.size > 0 ? ` (${selected.size})` : ""}
-                  </button>
-                  <button onClick={() => (selected.size === 0 ? needLines() : setOracleField("ssd"))} className={toolbarBtn}><Calendar size={14} /> Update SSD in Oracle</button>
-                  <button onClick={() => (selected.size === 0 ? needLines() : setOracleField("sad"))} className={toolbarBtn}><Calendar size={14} /> Update SAD in Oracle</button>
+                  <UpdateMenu
+                    count={selected.size}
+                    onPick={(a) => {
+                      if (selected.size === 0) return needLines();
+                      if (a === "edit") setEditOpen(true);
+                      else setOracleField(a);
+                    }}
+                  />
                   <button onClick={() => (selected.size === 0 ? needLines() : setRmeOpen(true))} className={toolbarBtn}>
                     <ShieldCheck size={14} /> Requires RME
                   </button>
-                  <button onClick={() => setAddOpen(true)} className={toolbarBtn}><Plus size={14} /> Add Line Item</button>
+                  <EmailTableTooltip label="Add Line Item">
+                    <button onClick={() => setAddOpen(true)} aria-label="Add Line Item" className="flex items-center justify-center size-[34px] rounded-[8px] border border-[#E2E6E9] bg-white text-[#4D4D4D] hover:border-[#30578D] hover:bg-[#EAF1FB] hover:text-[#30578D] cursor-pointer transition-colors"><Plus size={15} /></button>
+                  </EmailTableTooltip>
                 </div>
               )}
             </div>
@@ -401,7 +386,6 @@ export function SsdSoeCaseDetailPage(nav: NavProps) {
         </>
       )}
 
-      {fullOpen && <FullCaseModal c={c} onClose={() => setFullOpen(false)} />}
       {editOpen && (
         <EditLinesModal
           c={c}
@@ -415,7 +399,6 @@ export function SsdSoeCaseDetailPage(nav: NavProps) {
                 let next: CaseLine = { ...l, requestType: v.requestType };
                 if (v.soeStatus === "Cancelled") next = { ...next, status: "Cancelled" };
                 if (v.soeStatus === "Re-Open") next = { ...next, status: "In Progress", reopenDate: today() };
-                if (v.updatedInOracle) next = { ...next, updatedInOracle: true };
                 return v.comment ? addComment(next, v.comment) : next;
               }),
               status: v.soeStatus === "Cancelled" && x.lines.every((l) => selected.has(l.line)) ? "Cancelled" : x.status === "New" ? "In Progress" : x.status,
@@ -435,11 +418,11 @@ export function SsdSoeCaseDetailPage(nav: NavProps) {
             const added: CaseLine[] = picked.map((p) => ({
               ...base,
               line: p.line, partNumber: p.partNumber, quantity: 1, factory: p.factory, bookedDate: p.bookedDate, ssd: p.ssd, srt: p.srt, requestType,
-              status: "New", p1Rme: false, requireRme: false, factoryBestSsd: "", rescheduleSsd: "NA", updatedInOracle: false, reopenDate: "", comments: [{ at: today(), by: ME.tag, text: comment }],
+              status: persona === "factory" ? "Awaiting Approval" : "New", p1Rme: false, requireRme: false, factoryBestSsd: "", rescheduleSsd: "NA", updatedInOracle: false, reopenDate: "", comments: [{ at: today(), by: persona === "factory" ? "Factory" : ME.tag, text: persona === "factory" ? `Factory requested this line be added: ${comment}` : comment }],
             }));
-            updateCase(c.caseNo, (x) => ({ ...x, lines: [...x.lines, ...added] }));
+            updateCase(c.caseNo, (x) => ({ ...x, status: persona === "factory" ? "Awaiting Approval" : x.status, lines: [...x.lines, ...added] }));
             setAddOpen(false);
-            toast.success(`${added.length} line${added.length === 1 ? "" : "s"} added to ${c.caseNo}`);
+            toast.success(persona === "factory" ? `${added.length} line${added.length === 1 ? "" : "s"} sent to the CSR for approval` : `${added.length} line${added.length === 1 ? "" : "s"} added to ${c.caseNo}`);
           }}
         />
       )}
@@ -469,52 +452,6 @@ export function SsdSoeCaseDetailPage(nav: NavProps) {
 }
 
 // "Full Case Details": every header field, grouped the same way as Order Details' Full Order Details modal.
-// Same chrome as Hold Mgmt's "Full Order Details" modal: plain header with title + subtitle and a bare X,
-// navy uppercase section headings separated by hairlines, and an InfoTile grid with no boxed background.
-function FullCaseModal({ c, onClose }: { c: SsdSoeCase; onClose: () => void }) {
-  const sections: { title: string; tiles: [string, React.ReactNode][] }[] = [
-    { title: "Case", tiles: [["Case number", c.caseNo], ["Type", c.kind], ["Status", c.status], ["Source", c.source === "Factory" ? "Factory upload" : "Salesforce"], ["SSD case number", c.ssdCaseNo], ["SSD case status", c.ssdCaseStatus], ["Linked case", c.linkedCase]] },
-    { title: "Order", tiles: [["Order number", c.orderNo], ["Order status", c.orderStatus], ["Customer PO", c.customerPo], ["CRDD type", c.crddType], ["CRDD date", c.crddDate], ["Total unit selling price (USD)", c.totalPriceUsd], ["Header hold info", c.headerHold]] },
-    { title: "Customer & Region", tiles: [["Customer", c.customer], ["Operating unit", c.ou], ["Region", c.region], ["Destination", c.destination], ["Field engineer", c.fieldEngineer], ["Original request", c.originalRequest]] },
-    { title: "People & Dates", tiles: [["Requester", c.requester], ["CSR", c.csr], ["Date submitted", c.dateSubmitted], ["Date closed", c.dateClosed]] },
-  ];
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-[8px] shadow-xl w-full max-w-[820px] max-h-[85vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#DEDEDE] shrink-0">
-          <div className="min-w-0">
-            <span className="text-[16px] font-bold text-[#262626] truncate">Full Case Details</span>
-            <p className="text-[12px] text-[#97999B] mt-0.5 truncate">Case #{c.caseNo}</p>
-          </div>
-          <button onClick={onClose} className="shrink-0 text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors" aria-label="Close">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-auto px-6 py-5 flex flex-col gap-5">
-          {sections.map((sec, i) => (
-            <div key={sec.title} className={i > 0 ? "border-t border-[#F1F2F4] pt-5" : ""}>
-              <h3 className="text-[11px] font-bold uppercase tracking-wide mb-3" style={{ color: EMAIL_TABLE_NAVY }}>{sec.title}</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-5">
-                {sec.tiles.map(([label, value]) => (
-                  <InfoTile key={label} label={label} value={value || "-"} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-end px-6 py-4 border-t border-[#DEDEDE] shrink-0">
-          <button onClick={onClose} className="px-4 py-2 rounded-[8px] border border-[#E2E6E9] text-[13px] font-medium text-[#4D4D4D] hover:bg-[#F7F7F7] transition-colors cursor-pointer">
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function RmeCard({ c, canRespond, onRespond }: { c: SsdSoeCase; canRespond: boolean; onRespond: (d: "Accepted" | "Declined", fb: string) => void }) {
   const rme = c.rme!;
   const [fb, setFb] = useState("");
@@ -551,12 +488,11 @@ function RmeCard({ c, canRespond, onRespond }: { c: SsdSoeCase; canRespond: bool
   );
 }
 
-function EditLinesModal({ c, lineIds, onClose, onSave }: { c: SsdSoeCase; lineIds: string[]; onClose: () => void; onSave: (v: { requestType: RequestType; soeStatus: string; comment: string; updatedInOracle: boolean }) => void }) {
+function EditLinesModal({ c, lineIds, onClose, onSave }: { c: SsdSoeCase; lineIds: string[]; onClose: () => void; onSave: (v: { requestType: RequestType; soeStatus: string; comment: string }) => void }) {
   const picked = c.lines.filter((l) => lineIds.includes(l.line));
   const [requestType, setRequestType] = useState<string>(picked[0]?.requestType ?? "");
   const [soeStatus, setSoeStatus] = useState("");
   const [comment, setComment] = useState("");
-  const [updatedInOracle, setUpdatedInOracle] = useState(false);
   const valid = Boolean(requestType);
   return (
     <Modal
@@ -567,7 +503,7 @@ function EditLinesModal({ c, lineIds, onClose, onSave }: { c: SsdSoeCase; lineId
       footer={
         <>
           <button onClick={onClose} className={secondaryBtn}>Close</button>
-          <button disabled={!valid} onClick={() => onSave({ requestType: requestType as RequestType, soeStatus, comment: comment.trim(), updatedInOracle })} className={primaryBtn(!valid)} style={{ backgroundColor: EMAIL_TABLE_NAVY }}>Save changes</button>
+          <button disabled={!valid} onClick={() => onSave({ requestType: requestType as RequestType, soeStatus, comment: comment.trim() })} className={primaryBtn(!valid)} style={{ backgroundColor: EMAIL_TABLE_NAVY }}>Save changes</button>
         </>
       }
     >
@@ -610,13 +546,6 @@ function EditLinesModal({ c, lineIds, onClose, onSave }: { c: SsdSoeCase; lineId
           <FieldLabel>Add comment</FieldLabel>
           <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} className="mt-1.5 w-full px-3 py-2 rounded-[8px] border border-[#E2E6E9] bg-[#F7F7F8] text-[12.5px] text-[#262626] outline-none focus:border-[#30578D] focus:bg-white transition-colors resize-y" />
         </div>
-        <label className="md:col-span-2 flex items-start gap-2.5 cursor-pointer">
-          <input type="checkbox" checked={updatedInOracle} onChange={(e) => setUpdatedInOracle(e.target.checked)} className="size-[15px] mt-0.5 accent-[#30578D] cursor-pointer" />
-          <span className="text-[12.5px] text-[#262626]">
-            <span className="font-semibold">Updated in Oracle</span>
-            <span className="block text-[11.5px] mt-0.5" style={{ color: RED }}>Applicable for request types: {ORACLE_UPDATE_REQUEST_TYPES.join(", ")}</span>
-          </span>
-        </label>
       </div>
     </Modal>
   );
@@ -628,7 +557,9 @@ function AddLinesModal({ c, onClose, onSave }: { c: SsdSoeCase; onClose: () => v
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [requestType, setRequestType] = useState("");
   const [comment, setComment] = useState("");
-  const selectable = options.filter((o) => !isBlockedLine(o) && !inCase.has(o.line));
+  const [q, setQ] = useState("");
+  const visible = options.filter((o) => !q.trim() || `${o.line} ${o.partNumber} ${o.factory} ${o.flowStatus}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const selectable = visible.filter((o) => !isBlockedLine(o) && !inCase.has(o.line));
   const toggle = (id: string) => setPicked((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const valid = picked.size > 0 && Boolean(requestType) && Boolean(comment.trim());
   return (
@@ -639,6 +570,7 @@ function AddLinesModal({ c, onClose, onSave }: { c: SsdSoeCase; onClose: () => v
       onClose={onClose}
       footer={
         <>
+          {!valid && <span className="mr-auto text-[12px]" style={{ color: RED }}>{picked.size === 0 ? "Select at least one line" : !requestType ? "Choose a request type" : "Add a comment"}</span>}
           <button onClick={onClose} className={secondaryBtn}>Close</button>
           <button disabled={!valid} onClick={() => onSave(options.filter((o) => picked.has(o.line)), requestType as RequestType, comment.trim())} className={primaryBtn(!valid)} style={{ backgroundColor: EMAIL_TABLE_NAVY }}>
             Add {picked.size > 0 ? `${picked.size} line${picked.size === 1 ? "" : "s"}` : "lines"}
@@ -647,20 +579,25 @@ function AddLinesModal({ c, onClose, onSave }: { c: SsdSoeCase; onClose: () => v
       }
     >
       <p className="flex items-center gap-1.5 text-[12px] mb-3" style={{ color: RED }}><AlertCircle size={13} /> Line items with SRT under 2 weeks for F01 / F48 will not be available for selection.</p>
-      <div className="overflow-x-auto rounded-[8px] border border-[#E2E6E9]">
+      <div className="relative mb-2.5 max-w-[320px]">
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#97999B] pointer-events-none" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search line, part number, factory, status" className="w-full h-[34px] pl-8 pr-3 rounded-[8px] border border-[#E2E6E9] bg-white text-[12.5px] text-[#262626] placeholder:text-[#97999B] outline-none focus:border-[#30578D] transition-colors" />
+      </div>
+      <div className="overflow-auto max-h-[260px] rounded-[8px] border border-[#E2E6E9]">
         <table className="w-full min-w-[860px] border-separate border-spacing-0 text-[12.5px]">
           <thead>
             <tr className="bg-[#F7F7F7]">
-              <th className="px-3 h-[38px] w-[40px] border-b border-[#DEDEDE]">
+              <th className="sticky top-0 z-10 bg-[#F7F7F7] px-3 h-[38px] w-[40px] border-b border-[#DEDEDE]">
                 <input type="checkbox" checked={selectable.length > 0 && selectable.every((o) => picked.has(o.line))} onChange={() => setPicked(selectable.every((o) => picked.has(o.line)) ? new Set() : new Set(selectable.map((o) => o.line)))} className="size-[15px] accent-[#30578D] cursor-pointer" aria-label="Select all lines" />
               </th>
               {["Line", "Part number", "Factory", "Booked date", "SSD", "CRDD type", "CRDD date", "Line flow status", "SRT"].map((h) => (
-                <th key={h} className="px-3 h-[38px] text-left whitespace-nowrap border-b border-[#DEDEDE] text-[12px] font-semibold text-[#4D4D4D]">{h}</th>
+                <th key={h} className="sticky top-0 z-10 bg-[#F7F7F7] px-3 h-[38px] text-left whitespace-nowrap border-b border-[#DEDEDE] text-[12px] font-semibold text-[#4D4D4D]">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {options.map((o) => {
+            {visible.length === 0 && (<tr><td colSpan={10} className="px-3 py-8 text-center text-[13px] text-[#97999B]">No lines match your search</td></tr>)}
+            {visible.map((o) => {
               const blocked = isBlockedLine(o);
               const already = inCase.has(o.line);
               const disabled = blocked || already;
@@ -779,6 +716,54 @@ function LinePanel({ line: l, index, total, author, onNav, onClose, onComment }:
         </div>
       </div>
     </div>
+  );
+}
+
+// One "Update" entry point: edit the lines on the dashboard, or push a new SSD / SAD date to Oracle.
+function UpdateMenu({ count, onPick }: { count: number; onPick: (a: "edit" | "ssd" | "sad") => void }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const close = () => setOpen(false);
+    document.addEventListener("mousedown", h);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => { document.removeEventListener("mousedown", h); window.removeEventListener("resize", close); window.removeEventListener("scroll", close, true); };
+  }, [open]);
+  const toggle = () => {
+    if (!open) {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (r) setPos({ top: r.bottom + 4, left: r.left });
+    }
+    setOpen((v) => !v);
+  };
+  const item = "w-full flex flex-col text-left px-3.5 py-2 hover:bg-[#F7F7F7] cursor-pointer transition-colors";
+  return (
+    <>
+      <button ref={btnRef} onClick={toggle} className={primaryBtn()} style={{ backgroundColor: EMAIL_TABLE_NAVY, height: 34 }}>
+        Update{count > 0 ? ` (${count})` : ""}
+        <ChevronDown size={13} className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && pos && createPortal(
+        <div ref={menuRef} className="fixed z-[100] bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg py-1 w-[250px]" style={{ top: pos.top, left: pos.left }}>
+          {([["edit", "Edit lines", "Request type, SOE status, comment"], ["ssd", "Update SSD in Oracle", "Pick a date and push it to Oracle"], ["sad", "Update SAD in Oracle", "Pick a date and push it to Oracle"]] as const).map(([k, label, hint]) => (
+            <button key={k} onClick={() => { setOpen(false); onPick(k); }} className={item}>
+              <span className="text-[12.5px] font-semibold text-[#262626]">{label}</span>
+              <span className="text-[11px] text-[#97999B]">{hint}</span>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 

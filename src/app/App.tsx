@@ -19,6 +19,7 @@ import { FeedbackCenterPage } from "./pages/feedback-center/FeedbackCenterPage";
 import { EmailReconciliationPage } from "./pages/command-center/EmailReconciliationPage";
 import { SsdSoePage } from "./pages/ssd-soe/SsdSoePage";
 import { SsdSoeCaseDetailPage } from "./pages/ssd-soe/SsdSoeCaseDetailPage";
+import { SsdSoeCaseInfoPage } from "./pages/ssd-soe/SsdSoeCaseInfoPage";
 import type { DocType } from "./pages/feedback-center/feedbackCenterData";
 import { ALL_EMAILS_WITH_CCC } from "./pages/command-center/emailData";
 
@@ -154,6 +155,7 @@ function AppRoutes() {
       <Route path="/command-center/email-reconciliation" element={<EmailReconciliationPage {...nav} />} />
       <Route path="/ssd-soe" element={<SsdSoePage {...nav} />} />
       <Route path="/ssd-soe/case/:caseNo" element={<SsdSoeCaseDetailPage {...nav} />} />
+      <Route path="/ssd-soe/case/:caseNo/details" element={<SsdSoeCaseInfoPage {...nav} />} />
 
       <Route
         path="/hold-management"

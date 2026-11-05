@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Factory, ShieldCheck, Users } from "lucide-react";
+import { Check, ChevronDown, Factory, ShieldCheck, Users, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { EMAIL_TABLE_NAVY } from "../../components/common/EmailTable";
 import { ENABLED_PERSONAS, PERSONA_LABELS, type CaseKind, type CaseSource, type CaseStatus, type Persona } from "./ssdSoeData";
@@ -135,3 +135,37 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 export const OkIcon = Check;
+
+// Shared modal chrome + buttons for the SSD / SOE screens.
+export function primaryBtn(disabled?: boolean) {
+  return `flex items-center gap-1.5 h-[36px] px-4 rounded-[8px] text-white text-[12.5px] font-semibold transition-opacity ${disabled ? "opacity-40 cursor-not-allowed" : "hover:opacity-90 cursor-pointer"}`;
+}
+export const secondaryBtn = "flex items-center gap-1.5 h-[36px] px-4 rounded-[8px] border border-[#E2E6E9] bg-white text-[12.5px] font-semibold text-[#4D4D4D] hover:bg-[#F7F7F7] cursor-pointer transition-colors";
+
+export function Modal({ title, subtitle, onClose, children, footer, wide }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode; footer: ReactNode; wide?: boolean }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className={`relative bg-white rounded-[8px] shadow-xl w-full ${wide ? "max-w-[980px]" : "max-w-[560px]"} max-h-[88vh] flex flex-col overflow-hidden`}>
+        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-[#DEDEDE] shrink-0">
+          <div className="min-w-0">
+            <h2 className="text-[16px] font-bold text-[#262626]">{title}</h2>
+            {subtitle && <p className="text-[12px] text-[#97999B] mt-0.5">{subtitle}</p>}
+          </div>
+          <button onClick={onClose} className="text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors shrink-0" aria-label="Close"><X size={18} /></button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">{children}</div>
+        <div className="flex items-center justify-end gap-2.5 px-6 py-3.5 border-t border-[#DEDEDE] shrink-0">{footer}</div>
+      </div>
+    </div>
+  );
+}
+
+export function FieldLabel({ children, required }: { children: ReactNode; required?: boolean }) {
+  return (
+    <p className="text-[10.5px] font-bold uppercase tracking-wide text-[#97999B]">
+      {children} {required && <span style={{ color: RED }}>(required)</span>}
+    </p>
+  );
+}
+
