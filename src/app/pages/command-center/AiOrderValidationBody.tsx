@@ -1059,7 +1059,7 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
   const displayedData = viewingVersion !== null ? (versions.find(ver => ver.version === viewingVersion)?.data ?? latestData!) : latestData!;
   const v = displayedData;
   const isViewingHistory = viewingVersion !== null;
-  // Overall status shown beside the section title: "Verifying" while any check still needs verification (failed and
+  // Overall status shown beside the section title: "Validating" while any check still needs verification (failed and
   // not justified), "Completed" once nothing is outstanding.
   const verifying = v.checks.some(c => c.status === "failed" && !c.bypass);
   const mandatoryChecks = v.checks.filter(c => c.category === "mandatory");
@@ -1096,7 +1096,7 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
                 style={verifying ? { color: "#30578D", backgroundColor: "#EAF1FB" } : { color: "#468657", backgroundColor: "#EFF6F1" }}
               >
                 {verifying ? <span className="size-[6px] rounded-full animate-pulse" style={{ backgroundColor: "#30578D" }} /> : <Check size={12} strokeWidth={3} />}
-                {verifying ? "Verifying" : "Completed"}
+                {verifying ? "Validating" : "Completed"}
               </span>
             </div>
             <div className="flex items-center gap-3">
