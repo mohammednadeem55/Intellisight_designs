@@ -20,6 +20,7 @@ import {
   History,
   MessageSquare,
   MessageSquareHeart,
+  MoreHorizontal,
   Paperclip,
   Plus,
   Send,
@@ -1102,6 +1103,99 @@ export function EmailTableFeedbackButton({
   );
 }
 
+// CSR worklist row actions — collapsed behind one ellipsis button so the table keeps its width. Assign is
+// deliberately absent: it belongs to the FCNV view only. Same portaled floating-menu pattern as the Feedback
+// dropdown so the sticky Action column can't clip it.
+function EmailTableActionMenu({
+  entity,
+  reaction,
+  onToggleReaction,
+  onAudit,
+  onSendEmail,
+  onComment,
+  hoverBg,
+}: {
+  entity: Email;
+  reaction: "like" | "dislike" | undefined;
+  onToggleReaction: (reaction: "like" | "dislike") => void;
+  onAudit: () => void;
+  onSendEmail: () => void;
+  onComment: () => void;
+  /** The row's hover background, so the fade behind the buttons blends into it. */
+  hoverBg: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const auditCount = getAllAuditEntriesForEmail(entity.id).length;
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (btnRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const close = () => setOpen(false);
+    document.addEventListener("mousedown", handler);
+    window.addEventListener("resize", close);
+    return () => { document.removeEventListener("mousedown", handler); window.removeEventListener("resize", close); };
+  }, [open]);
+
+  const toggleOpen = () => {
+    if (!open) {
+      const rect = btnRef.current?.getBoundingClientRect();
+      if (rect) setPos({ top: rect.bottom + 6, left: rect.right - 200 });
+    }
+    setOpen((v) => !v);
+  };
+  const run = (fn: () => void) => { fn(); setOpen(false); };
+  const item = "w-full flex items-center gap-2.5 px-3 py-2 text-[12.5px] text-[#4D4D4D] hover:bg-[#F7F7F7] cursor-pointer text-left transition-colors";
+
+  const duplicate = () => toast.success(`${entity.cccId ?? entity.id} duplicated`);
+
+  // Floats over the right edge of the row on hover (no Action column of its own) — shown while the row is hovered,
+  // focused or the menu is open; the row's `group` drives it.
+  return (
+    <div
+      style={{ background: `linear-gradient(to right, transparent, ${hoverBg} 34px)` }}
+      className={`absolute inset-y-0 right-0 flex items-center gap-1.5 pl-12 pr-3 transition-all duration-200 ease-out ${open ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:translate-x-0 focus-within:pointer-events-auto"}`}
+    >
+      <EmailTableSendEmailButton onSendEmail={onSendEmail} colorClassName="border-[#C9D3E0] bg-white text-[#30578D] shadow-sm hover:bg-[#30578D] hover:border-[#30578D] hover:text-white" />
+      <EmailTableTooltip label="More actions">
+        <button
+          ref={btnRef}
+          onClick={(e) => { e.stopPropagation(); toggleOpen(); }}
+          className={`flex items-center justify-center size-[28px] rounded-[8px] border cursor-pointer transition-colors ${open ? "border-[#30578D] bg-[#30578D] text-white" : "border-[#C9D3E0] bg-white text-[#30578D] shadow-sm hover:bg-[#30578D] hover:border-[#30578D] hover:text-white"}`}
+        >
+          <MoreHorizontal size={15} />
+        </button>
+      </EmailTableTooltip>
+      {open && pos && createPortal(
+        <div ref={menuRef} className="fixed z-[100] bg-white border border-[#E2E6E9] rounded-[8px] shadow-lg w-[200px] py-1.5" style={{ top: pos.top, left: pos.left }} onClick={(e) => e.stopPropagation()}>
+          <button onClick={() => run(onAudit)} className={item}><History size={13} className="text-[#97999B]" />{auditCount > 0 ? `Audit (${auditCount})` : "Audit"}</button>
+          <button onClick={() => run(onComment)} className={item}><MessageSquare size={13} className="text-[#97999B]" />Comment</button>
+          <button onClick={() => run(duplicate)} className={item}><Copy size={13} className="text-[#97999B]" />Duplicate</button>
+          <div className="my-1 border-t border-[#E2E6E9]" />
+          <div className="px-3 py-1.5 flex items-center justify-between">
+            <span className="text-[11px] font-medium text-[#97999B]">React</span>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => run(() => onToggleReaction("like"))} className="flex items-center justify-center size-[26px] rounded-[6px] border transition-colors cursor-pointer" style={reaction === "like" ? { borderColor: "#468657", backgroundColor: "#EFF6F1", color: "#468657" } : { borderColor: "#E2E6E9", color: "#666666" }}>
+                <ThumbsUp size={12} fill={reaction === "like" ? "#468657" : "none"} />
+              </button>
+              <button onClick={() => run(() => onToggleReaction("dislike"))} className="flex items-center justify-center size-[26px] rounded-[6px] border transition-colors cursor-pointer" style={reaction === "dislike" ? { borderColor: "#dc2626", backgroundColor: "#FAEBEB", color: "#dc2626" } : { borderColor: "#E2E6E9", color: "#666666" }}>
+                <ThumbsDown size={12} fill={reaction === "dislike" ? "#dc2626" : "none"} />
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 function EmailTableActionCell({
   entity,
   reaction,
@@ -1278,6 +1372,7 @@ export function EmailTable({
   subjectSortKey = "sender",
   onOpenAttachment,
   onSendEmail,
+  collapsedActions = false,
 }: {
   rows: Email[];
   expandedIds: Set<string>;
@@ -1310,6 +1405,8 @@ export function EmailTable({
   /** Overrides the row action's Send Email behavior — pass this to navigate somewhere (e.g. the
       Communication page) instead of opening the built-in placeholder modal. Omit to keep the modal. */
   onSendEmail?: (email: Email) => void;
+  /** CSR worklist: collapse row actions behind one ellipsis menu and drop Assign (FCNV-only). */
+  collapsedActions?: boolean;
 }) {
   const subjectPadY = rowDensity === "small" ? "py-1" : rowDensity === "medium" ? "py-1.5" : "py-2";
   const childSubjectPadY = rowDensity === "small" ? "py-0.5" : rowDensity === "medium" ? "py-1" : "py-1.5";
@@ -1393,9 +1490,13 @@ export function EmailTable({
                 </th>
               );
             })}
+            {collapsedActions ? (
+              <th className="sticky top-0 right-0 z-30 bg-[#F7F7F7] p-0 w-0 h-[42px] border-b border-[#DEDEDE]" aria-hidden />
+            ) : (
             <th className="sticky top-0 right-0 z-30 bg-[#F7F7F7] px-4 h-[42px] text-left whitespace-nowrap border-b border-[#DEDEDE] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
               <span className="text-[12px] font-semibold text-[#4D4D4D]">Action</span>
             </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -1427,7 +1528,18 @@ export function EmailTable({
                 {additionalColumns.map((key) => (
                   <td key={key} className={`px-4 ${subjectPadY} border-b border-[#DEDEDE]`}>{renderEmailTableColumnCell(key, row, reviews, () => setReviewsModalRow(row))}</td>
                 ))}
-                <td className={`sticky right-0 z-10 bg-white group-hover:bg-[#EEF2F7] px-4 ${subjectPadY} border-b border-[#DEDEDE] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] transition-colors`}>
+                <td className={collapsedActions ? "sticky right-0 z-10 p-0 w-0 !overflow-visible border-b border-[#DEDEDE]" : `sticky right-0 z-10 bg-white group-hover:bg-[#EEF2F7] px-4 ${subjectPadY} border-b border-[#DEDEDE] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] transition-colors`}>
+                  {collapsedActions ? (
+                    <EmailTableActionMenu
+                      hoverBg="#EEF2F7"
+                      entity={row}
+                      reaction={reactions[row.id]}
+                      onToggleReaction={(r) => onToggleReaction(row.id, r)}
+                      onAudit={() => setAuditModalRow(row)}
+                      onSendEmail={() => (onSendEmail ? onSendEmail(row) : setSendEmailModalRow(row))}
+                      onComment={() => setCommentModalRow(row)}
+                    />
+                  ) : (
                   <EmailTableActionCell
                     entity={row}
                     reaction={reactions[row.id]}
@@ -1437,6 +1549,7 @@ export function EmailTable({
                     onSendEmail={() => (onSendEmail ? onSendEmail(row) : setSendEmailModalRow(row))}
                     onComment={() => setCommentModalRow(row)}
                   />
+                  )}
                 </td>
               </tr>
             );
@@ -1456,7 +1569,18 @@ export function EmailTable({
                 {additionalColumns.map((key) => (
                   <td key={key} className={`px-4 ${childSubjectPadY} border-b border-[#DEDEDE]`}>{renderEmailTableColumnCell(key, ccc, reviews, () => setReviewsModalRow(ccc))}</td>
                 ))}
-                <td className={`sticky right-0 z-10 bg-[#F7F7F7] group-hover:bg-[#E2E6E9] px-4 ${childSubjectPadY} border-b border-[#DEDEDE] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] transition-colors`}>
+                <td className={collapsedActions ? "sticky right-0 z-10 p-0 w-0 !overflow-visible border-b border-[#DEDEDE]" : `sticky right-0 z-10 bg-[#F7F7F7] group-hover:bg-[#E2E6E9] px-4 ${childSubjectPadY} border-b border-[#DEDEDE] shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] transition-colors`}>
+                  {collapsedActions ? (
+                    <EmailTableActionMenu
+                      hoverBg="#E2E6E9"
+                      entity={ccc}
+                      reaction={reactions[ccc.id]}
+                      onToggleReaction={(r) => onToggleReaction(ccc.id, r)}
+                      onAudit={() => setAuditModalRow(ccc)}
+                      onSendEmail={() => (onSendEmail ? onSendEmail(ccc) : setSendEmailModalRow(ccc))}
+                      onComment={() => setCommentModalRow(ccc)}
+                    />
+                  ) : (
                   <EmailTableActionCell
                     entity={ccc}
                     reaction={reactions[ccc.id]}
@@ -1466,6 +1590,7 @@ export function EmailTable({
                     onSendEmail={() => (onSendEmail ? onSendEmail(ccc) : setSendEmailModalRow(ccc))}
                     onComment={() => setCommentModalRow(ccc)}
                   />
+                  )}
                 </td>
               </tr>
             ));
