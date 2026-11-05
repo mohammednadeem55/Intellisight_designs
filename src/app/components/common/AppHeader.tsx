@@ -74,6 +74,7 @@ export function AppHeader({
         { label: "Order Listing", onClick: onNavigateOrderListing },
       ],
     },
+    { label: "SSD / SOE", match: (n) => n === "SSD / SOE", onClick: () => navigate("/ssd-soe") },
     { label: "Communication", match: (n) => n === "Communication", onClick: onNavigateCommunication },
     {
       label: "Admin",
