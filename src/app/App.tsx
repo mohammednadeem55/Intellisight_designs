@@ -17,6 +17,8 @@ import { OrderDetailsPage } from "./pages/hold-management/OrderDetailsPage";
 import { CommunicationPage } from "./pages/hold-management/CommunicationPage";
 import { FeedbackCenterPage } from "./pages/feedback-center/FeedbackCenterPage";
 import { EmailReconciliationPage } from "./pages/command-center/EmailReconciliationPage";
+import { SsdSoePage } from "./pages/ssd-soe/SsdSoePage";
+import { SsdSoeCaseDetailPage } from "./pages/ssd-soe/SsdSoeCaseDetailPage";
 import type { DocType } from "./pages/feedback-center/feedbackCenterData";
 import { ALL_EMAILS_WITH_CCC } from "./pages/command-center/emailData";
 
@@ -150,6 +152,8 @@ function AppRoutes() {
       <Route path="/command-center/overview" element={<NewOverviewPage {...nav} onNavigateWorkflow={onNavigateWorkflow} />} />
       <Route path="/command-center/email/:emailId" element={<WorkflowRoute nav={nav} />} />
       <Route path="/command-center/email-reconciliation" element={<EmailReconciliationPage {...nav} />} />
+      <Route path="/ssd-soe" element={<SsdSoePage {...nav} />} />
+      <Route path="/ssd-soe/case/:caseNo" element={<SsdSoeCaseDetailPage {...nav} />} />
 
       <Route
         path="/hold-management"

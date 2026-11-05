@@ -488,10 +488,10 @@ export function EmailReconciliationPage({
                       const rate = c.received === 0 ? 100 : (c.ingested / c.received) * 100;
                       return (
                         <tr key={m} className="hover:bg-[#F7F9FC] transition-colors">
-                          <td className="px-4 py-2.5 text-[12.5px] font-semibold text-[#262626] whitespace-nowrap border-b border-[#EEF0F2]">{m}</td>
-                          <td className="px-4 py-2.5 text-[12.5px] text-[#4D4D4D] border-b border-[#EEF0F2]">{c.received.toLocaleString()}</td>
-                          <td className="px-4 py-2.5 text-[12.5px] text-[#4D4D4D] border-b border-[#EEF0F2]">{c.ingested.toLocaleString()}</td>
-                          <td className="px-4 py-2.5 border-b border-[#EEF0F2]">
+                          <td className="px-4 py-2.5 text-[12.5px] font-semibold text-[#262626] whitespace-nowrap border-b border-[#DEDEDE]">{m}</td>
+                          <td className="px-4 py-2.5 text-[12.5px] text-[#4D4D4D] border-b border-[#DEDEDE]">{c.received.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-[12.5px] text-[#4D4D4D] border-b border-[#DEDEDE]">{c.ingested.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 border-b border-[#DEDEDE]">
                             <span className="flex items-center gap-2.5">
                               <span className="block w-[90px] h-[6px] rounded-full bg-[#E2E6E9] overflow-hidden">
                                 <span className="block h-full rounded-full" style={{ width: `${rate}%`, backgroundColor: v === 0 ? GREEN : RED }} />
@@ -499,7 +499,7 @@ export function EmailReconciliationPage({
                               <span className="text-[12px] text-[#4D4D4D] tabular-nums">{rate.toFixed(2)}%</span>
                             </span>
                           </td>
-                          <td className="px-4 py-2.5 border-b border-[#EEF0F2]">
+                          <td className="px-4 py-2.5 border-b border-[#DEDEDE]">
                             {v === 0 ? <span className="text-[12.5px] text-[#97999B]">0</span> : <Pill label={String(v)} fg={RED} bg={RED_LIGHT} />}
                           </td>
                         </tr>
@@ -537,18 +537,18 @@ export function EmailReconciliationPage({
                     <tbody>
                       {summary.missing.map((m) => (
                         <tr key={m.id} className="hover:bg-[#F7F9FC] transition-colors">
-                          <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] whitespace-nowrap border-b border-[#EEF0F2]">{formatReconDate(m.date)}</td>
-                          <td className="px-4 py-3 text-[12.5px] font-semibold text-[#262626] whitespace-nowrap border-b border-[#EEF0F2]">{m.id}</td>
-                          <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] border-b border-[#EEF0F2]">
+                          <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] whitespace-nowrap border-b border-[#DEDEDE]">{formatReconDate(m.date)}</td>
+                          <td className="px-4 py-3 text-[12.5px] font-semibold text-[#262626] whitespace-nowrap border-b border-[#DEDEDE]">{m.id}</td>
+                          <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] border-b border-[#DEDEDE]">
                             <TruncateTooltip label={m.sender} />
                           </td>
-                          <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] max-w-[320px] border-b border-[#EEF0F2]">
+                          <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] max-w-[320px] border-b border-[#DEDEDE]">
                             <TruncateTooltip label={m.subject} />
                           </td>
-                          <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] whitespace-nowrap border-b border-[#EEF0F2]">{m.receivedAt}</td>
-                          <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] whitespace-nowrap border-b border-[#EEF0F2]">{m.mailbox}</td>
-                          <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] whitespace-nowrap border-b border-[#EEF0F2]">{m.owner}</td>
-                          <td className="px-4 py-3 border-b border-[#EEF0F2]" title={m.note}>
+                          <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] whitespace-nowrap border-b border-[#DEDEDE]">{m.receivedAt}</td>
+                          <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] whitespace-nowrap border-b border-[#DEDEDE]">{m.mailbox}</td>
+                          <td className="px-4 py-3 text-[12.5px] text-[#4D4D4D] whitespace-nowrap border-b border-[#DEDEDE]">{m.owner}</td>
+                          <td className="px-4 py-3 border-b border-[#DEDEDE]" title={m.note}>
                             <Pill label={m.status} {...MISSING_STATUS_STYLE[m.status]} />
                           </td>
                         </tr>
@@ -599,11 +599,11 @@ export function EmailReconciliationPage({
                             onClick={() => pickDay(d.date)}
                             className={`cursor-pointer transition-colors ${single ? "bg-[#EAF1FB]" : "hover:bg-[#F7F9FC]"}`}
                           >
-                            <td className="px-4 py-2.5 text-[12.5px] font-semibold text-[#262626] whitespace-nowrap border-b border-[#EEF0F2]">{formatReconDate(d.date, { weekday: true })}</td>
-                            <td className="px-4 py-2.5 text-[12.5px] text-[#4D4D4D] border-b border-[#EEF0F2]">{d.received.toLocaleString()}</td>
-                            <td className="px-4 py-2.5 text-[12.5px] text-[#4D4D4D] border-b border-[#EEF0F2]">{d.ingested.toLocaleString()}</td>
-                            <td className="px-4 py-2.5 text-[12.5px] font-semibold border-b border-[#EEF0F2]" style={{ color: d.variance === 0 ? "#97999B" : RED }}>{d.variance}</td>
-                            <td className="px-4 py-2.5 border-b border-[#EEF0F2]">
+                            <td className="px-4 py-2.5 text-[12.5px] font-semibold text-[#262626] whitespace-nowrap border-b border-[#DEDEDE]">{formatReconDate(d.date, { weekday: true })}</td>
+                            <td className="px-4 py-2.5 text-[12.5px] text-[#4D4D4D] border-b border-[#DEDEDE]">{d.received.toLocaleString()}</td>
+                            <td className="px-4 py-2.5 text-[12.5px] text-[#4D4D4D] border-b border-[#DEDEDE]">{d.ingested.toLocaleString()}</td>
+                            <td className="px-4 py-2.5 text-[12.5px] font-semibold border-b border-[#DEDEDE]" style={{ color: d.variance === 0 ? "#97999B" : RED }}>{d.variance}</td>
+                            <td className="px-4 py-2.5 border-b border-[#DEDEDE]">
                               <Pill label={o} {...OUTCOME_STYLE[o]} />
                             </td>
                           </tr>

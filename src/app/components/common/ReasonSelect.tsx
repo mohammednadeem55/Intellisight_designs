@@ -8,7 +8,7 @@ import { EMAIL_TABLE_NAVY } from "./EmailTable";
 // Custom single-select for "What did the AI get wrong?" — styled like the rest of the app's dropdowns
 // (trigger + portaled floating list) instead of a native <select>, which can't carry the required-field red
 // border or the app's selected-row check glyph consistently across browsers.
-export function ReasonSelect({ value, onChange, options, invalid }: { value: string; onChange: (v: string) => void; options: readonly string[]; invalid: boolean }) {
+export function ReasonSelect({ value, onChange, options, invalid, placeholder = "Select a reason…" }: { value: string; onChange: (v: string) => void; options: readonly string[]; invalid: boolean; placeholder?: string }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -40,7 +40,7 @@ export function ReasonSelect({ value, onChange, options, invalid }: { value: str
         className="mt-1.5 w-full flex items-center justify-between gap-2 px-3 py-2 rounded-[8px] border bg-white text-[12.5px] outline-none cursor-pointer transition-colors"
         style={{ borderColor: open ? "#30578D" : invalid ? "#BA1C1C" : "#E2E6E9" }}
       >
-        <span className={`truncate text-left ${value ? "text-[#262626]" : "text-[#97999B]"}`}>{value || "Select a reason…"}</span>
+        <span className={`truncate text-left ${value ? "text-[#262626]" : "text-[#97999B]"}`}>{value || placeholder}</span>
         <ChevronDown size={14} className={`shrink-0 text-[#9ca3af] transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && pos && createPortal(
