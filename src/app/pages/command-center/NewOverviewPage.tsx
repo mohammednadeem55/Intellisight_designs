@@ -1333,6 +1333,7 @@ export function NewOverviewPage({ onLogout, onViewAllNotifications, onNavigateHo
                   subjectSortKey={activeView === "CSR" ? "cccId" : "sender"}
                   onOpenAttachment={setPreviewAttachments}
                   onSendEmail={(email) => onNavigateCommunication?.({ emailId: email.id })}
+                  collapsedActions={activeView === "CSR"}
                 />
               ) : (
                 <NewOverviewListView
