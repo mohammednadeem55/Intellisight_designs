@@ -1225,9 +1225,13 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
               );
             })}
           </div>
-          <p className="text-[11px] text-[#9ca3af] mt-2.5 pt-2.5 border-t border-[#f3f4f6]">
-            Screening completed <span className="font-semibold text-[#111827]">{v.screeningCompletedAt}</span>
-          </p>
+          <div className="mt-1 pt-2.5 border-t border-[#f3f4f6]">
+            <p className="text-[10.5px] font-bold uppercase tracking-wide text-[#97999B] mb-1.5">Screening</p>
+            <div className="flex items-center justify-between gap-3 flex-wrap text-[11.5px] text-[#6b7280]">
+              <p>Start: <span className="font-semibold text-[#111827]">{v.screeningStartedAt}</span></p>
+              <p>End: <span className="font-semibold text-[#111827]">{v.screeningCompletedAt}</span></p>
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-[8px] border border-[#ebebeb] px-5 py-4">
