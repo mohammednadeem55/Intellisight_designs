@@ -514,7 +514,7 @@ export function EmailTableAssignModal({ email, onClose }: { email: Email; onClos
           <button
             onClick={handleSave}
             className="px-4 py-2 rounded-[8px] text-[13px] font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer"
-            style={{ backgroundColor: "#E90029" }}
+            style={{ backgroundColor: EMAIL_TABLE_NAVY }}
           >
             Save
           </button>

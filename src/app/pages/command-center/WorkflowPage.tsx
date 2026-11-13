@@ -836,9 +836,9 @@ export function WorkflowPage({
             <div className="flex items-center gap-2.5">
               <Button variant="secondary" onClick={() => withPageLoader("Saving...", () => toast.success(`${email.id} saved`))}>Save & Update</Button>
               {currentStageIndex === 1 && cccOutcome !== "success" ? (
-                <Button variant="primary" onClick={() => withPageLoader("Creating CCC request...", handleCreateCcc)}>Create CCC Req.</Button>
+                <Button variant="primary" accent="#30578D" onClick={() => withPageLoader("Creating CCC request...", handleCreateCcc)}>Create CCC Req.</Button>
               ) : currentStageIndex === 4 && !orderCreated ? (
-                <Button variant="primary" onClick={() => withPageLoader("Creating order...", handleCreateOrder)}>Create Order</Button>
+                <Button variant="primary" accent="#30578D" onClick={() => withPageLoader("Creating order...", handleCreateOrder)}>Create Order</Button>
               ) : (
                 <>
                   {currentStageIndex === 3 && (
@@ -862,6 +862,7 @@ export function WorkflowPage({
                   )}
                   <Button
                     variant="primary"
+                    accent="#30578D"
                     disabled={currentStageIndex === 2 && !validationGate.canProceed}
                     title={currentStageIndex === 2 && !validationGate.canProceed ? "Verify or justify every Mandatory check requiring verification before proceeding" : undefined}
                     onClick={() => withPageLoader("Moving to next step...", handleProceed)}
