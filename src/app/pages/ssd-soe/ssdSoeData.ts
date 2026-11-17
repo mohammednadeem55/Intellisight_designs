@@ -12,7 +12,7 @@ export const PERSONA_LABELS: Record<Persona, { name: string; blurb: string }> = 
 };
 
 // Personas switched on for now; the rest show as "Coming soon" in the switcher.
-export const ENABLED_PERSONAS: Persona[] = ["csr"];
+export const ENABLED_PERSONAS: Persona[] = ["csr", "factory"];
 
 export type CaseKind = "SOE" | "SSD";
 export type CaseSource = "Factory" | "Customer"; // Factory = dashboard-native, Customer = Salesforce case
