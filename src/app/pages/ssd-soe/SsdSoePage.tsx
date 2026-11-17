@@ -11,7 +11,7 @@ import { exportRowsToExcel } from "../../components/common/exportExcel";
 import { TableToolbarMultiSelect, TableToolbarSearch, useExclusiveOpen } from "../../components/common/TableToolbar";
 import { CASE_STATUSES, FACTORIES, PERSONA_LABELS, REQUEST_TYPES, type CaseKind, type CaseStatus, type SsdSoeCase } from "./ssdSoeData";
 import { CreateCaseModal } from "./CreateCaseModal";
-import { addCases, casesForPersona, resetDemoData, useSsdSoeCases, usePersona } from "./ssdSoeStore";
+import { addCases, casesForPersona, useSsdSoeCases, usePersona } from "./ssdSoeStore";
 import { AMBER, GREEN, KIND_STYLE, KindPill, PersonaSwitcher, PURPLE, RED, SourcePill, StatTile, StatusPill, YesNoPill } from "./ssdSoeUi";
 
 type NavProps = {
@@ -328,13 +328,6 @@ export function SsdSoePage(nav: NavProps) {
                 onPageChange={setPage}
               />
             </div>
-
-            <p className="text-[11px] text-[#97999B]">
-              Demo data is kept in your browser.{" "}
-              <button onClick={() => { resetDemoData(); toast.success("Demo data reset"); }} className="underline hover:text-[#4D4D4D] cursor-pointer">
-                Reset demo data
-              </button>
-            </p>
           </div>
         </main>
       </div>
