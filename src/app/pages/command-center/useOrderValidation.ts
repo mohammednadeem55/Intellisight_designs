@@ -15,6 +15,8 @@ export type ValidationCheck = {
   label: string;
   category: CheckCategory;
   status: CheckStatus;
+  /** Short outcome of the check, e.g. "Mismatch", "Found", "Valid". */
+  result: string;
   reason: string;
   recommendedAction?: string;
   bypass?: BypassInfo;
@@ -38,53 +40,59 @@ const MOCK_VALIDATION: OrderValidationData = {
     // ── Mandatory — Verification Required (2) ──
     {
       id: "m-ppqd", label: "Product, Pricing, Quantity, Discount", category: "mandatory", status: "failed",
+      result: "Mismatch",
       reason: "Unit price on line 3 (N5766A) is 12% below the quoted price with no discount approval on file.",
       recommendedAction: "Confirm discount approval with the account manager or correct the unit price",
     },
     {
       id: "m-incoterms", label: "Incoterms Check", category: "mandatory", status: "failed",
+      result: "Mismatch",
       reason: "PO specifies EXW, but the quote was issued under DDP terms.",
       recommendedAction: "Confirm the correct Incoterm with the customer before proceeding",
     },
     // ── Mandatory — Verified (9) ──
-    { id: "m-crd", label: "Customer Requested Date (CRD)", category: "mandatory", status: "passed", reason: "Requested date on the PO matches the quote's committed date." },
-    { id: "m-address", label: "Bill To/ Ship To Address", category: "mandatory", status: "passed", reason: "Bill-to and ship-to addresses are both verified and active in Oracle." },
-    { id: "m-country", label: "Country Comparison Purchase Order Vs Quote", category: "mandatory", status: "passed", reason: "Shipping country on the PO matches the country on the quote." },
-    { id: "m-custname", label: "Customer Name Purchase Order Vs Quote", category: "mandatory", status: "passed", reason: "Customer legal name on the PO matches the quote exactly." },
-    { id: "m-embargo", label: "Embargo and Sanctioned Country", category: "mandatory", status: "passed", reason: "Ship-to country is not on any embargoed or sanctioned list." },
-    { id: "m-legal", label: "Keysight Legal Entity", category: "mandatory", status: "passed", reason: "The accepting Keysight legal entity is active and in good standing." },
-    { id: "m-payterm", label: "Payment Term Check", category: "mandatory", status: "passed", reason: "Payment terms on the PO match the account's approved terms." },
-    { id: "m-quote", label: "Quote Validity", category: "mandatory", status: "passed", reason: "Quote QT-5000 is within its validity window." },
-    { id: "m-pa", label: "Purchase Agreement (PA)", category: "mandatory", status: "passed", reason: "An active purchase agreement covers this order." },
+    { id: "m-crd", label: "Customer Requested Date (CRD)", category: "mandatory", status: "passed", result: "Pass", reason: "Requested date on the PO matches the quote's committed date." },
+    { id: "m-address", label: "Bill To/ Ship To Address", category: "mandatory", status: "passed", result: "Valid", reason: "Bill-to and ship-to addresses are both verified and active in Oracle." },
+    { id: "m-country", label: "Country Comparison Purchase Order Vs Quote", category: "mandatory", status: "passed", result: "Match", reason: "Shipping country on the PO matches the country on the quote." },
+    { id: "m-custname", label: "Customer Name Purchase Order Vs Quote", category: "mandatory", status: "passed", result: "Match", reason: "Customer legal name on the PO matches the quote exactly." },
+    { id: "m-embargo", label: "Embargo and Sanctioned Country", category: "mandatory", status: "passed", result: "Clear", reason: "Ship-to country is not on any embargoed or sanctioned list." },
+    { id: "m-legal", label: "Keysight Legal Entity", category: "mandatory", status: "passed", result: "Active", reason: "The accepting Keysight legal entity is active and in good standing." },
+    { id: "m-payterm", label: "Payment Term Check", category: "mandatory", status: "passed", result: "Match", reason: "Payment terms on the PO match the account's approved terms." },
+    { id: "m-quote", label: "Quote Validity", category: "mandatory", status: "passed", result: "Valid", reason: "Quote QT-5000 is within its validity window." },
+    { id: "m-pa", label: "Purchase Agreement (PA)", category: "mandatory", status: "passed", result: "Active", reason: "An active purchase agreement covers this order." },
 
     // ── Red Flag — Review Required (4) ──
     {
       id: "rf-egregious", label: "Egregious/boycott Language", category: "redFlag", status: "failed",
+      result: "Found",
       reason: "PO terms and conditions contain boycott-related language in clause 14.",
       recommendedAction: "Route to legal/compliance for review before booking",
     },
     {
       id: "rf-payterm-lang", label: "Payment Term Non-Standard Language", category: "redFlag", status: "failed",
+      result: "Found",
       reason: "PO includes a non-standard early-payment discount clause not present in the quote.",
       recommendedAction: "Confirm with finance whether the clause is acceptable",
     },
     {
       id: "rf-nonstd-accept", label: "Non-Standard Acceptance Language", category: "redFlag", status: "failed",
+      result: "Found",
       reason: "PO acceptance clause deviates from Keysight's standard acceptance language.",
       recommendedAction: "Have the deviation reviewed before order booking",
     },
     {
       id: "rf-export-screen", label: "Customer Export Screening", category: "redFlag", status: "failed",
+      result: "Review Required",
       reason: "Customer name partially matches an entry on the denied parties list.",
       recommendedAction: "Run a manual denied-party screening and attach clearance evidence",
     },
     // ── Red Flag — Passed (6) ──
-    { id: "rf-rpl", label: "Restricted Party List (RPL)", category: "redFlag", status: "passed", reason: "No matches found against the restricted party list." },
-    { id: "rf-nonfirm", label: "Non-firm Language check", category: "redFlag", status: "passed", reason: "No non-firm/contingent order language detected." },
-    { id: "rf-tax", label: "Tax Special Language", category: "redFlag", status: "passed", reason: "No unusual tax clauses detected on the PO." },
-    { id: "rf-lowrisk", label: "Low Risk and T&C", category: "redFlag", status: "passed", reason: "Order qualifies as low-risk under standard terms and conditions." },
-    { id: "rf-poformat", label: "Purchase Order (PO) Format check", category: "redFlag", status: "passed", reason: "PO format matches the expected schema for this account." },
-    { id: "rf-compare-name", label: "Compare Quote to and Bill to Customer Name", category: "redFlag", status: "passed", reason: "Bill-to customer name matches the name on the quote." },
+    { id: "rf-rpl", label: "Restricted Party List (RPL)", category: "redFlag", status: "passed", result: "No match", reason: "No matches found against the restricted party list." },
+    { id: "rf-nonfirm", label: "Non-firm Language check", category: "redFlag", status: "passed", result: "Not found", reason: "No non-firm/contingent order language detected." },
+    { id: "rf-tax", label: "Tax Special Language", category: "redFlag", status: "passed", result: "Not found", reason: "No unusual tax clauses detected on the PO." },
+    { id: "rf-lowrisk", label: "Low Risk and T&C", category: "redFlag", status: "passed", result: "Low risk", reason: "Order qualifies as low-risk under standard terms and conditions." },
+    { id: "rf-poformat", label: "Purchase Order (PO) Format check", category: "redFlag", status: "passed", result: "Valid", reason: "PO format matches the expected schema for this account." },
+    { id: "rf-compare-name", label: "Compare Quote to and Bill to Customer Name", category: "redFlag", status: "passed", result: "Match", reason: "Bill-to customer name matches the name on the quote." },
   ],
   shipTo: {
     company: "MACOM Technology Solutions Inc.",
@@ -132,7 +140,7 @@ export function regenerateValidation(base: OrderValidationData, targetIds: strin
     ...base,
     checks: base.checks.map(c =>
       c.status === "failed" && idSet.has(c.id)
-        ? { ...c, status: "passed" as const, reason: `Resolved on re-validation: ${c.reason}`, recommendedAction: undefined, bypass: undefined }
+        ? { ...c, status: "passed" as const, result: "Resolved", reason: `Resolved on re-validation: ${c.reason}`, recommendedAction: undefined, bypass: undefined }
         : c
     ),
     screeningStartedAt: base.screeningCompletedAt,

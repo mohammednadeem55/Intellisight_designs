@@ -14,7 +14,9 @@ export type ValidationAuditEntry = { action: string; icon?: LucideIcon; detail?:
 // separate from the check-result snapshot itself so "what changed" reads as a distinct line from "what the
 // checks looked like".
 type FieldChange = { label: string; icon?: LucideIcon; at: Date };
-type ValidationVersion = { version: number; at: Date; data: OrderValidationData; changes: FieldChange[] };
+// `rerun` is the scope that produced this version ("N/A" for the first, original run) and `owner` who ran it.
+type ValidationVersion = { version: number; at: Date; data: OrderValidationData; changes: FieldChange[]; rerun: string; owner: string };
+const CURRENT_USER = "Jagdish K.";
 
 // AISO-658 — the two check categories, each with its own accent color and vocabulary (a failed Mandatory
 // check is "Verification Required" since the workflow is blocked; a failed Red Flag check is "Review
@@ -28,13 +30,15 @@ function formatVersionDateTime(d: Date) {
   return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-// Lists every version newest-first (current version pinned at the top), lets the user click into any past
-// one to view it read-only, or jump back to Latest. Distinct from the Audit Trail modal — this browses full
-// snapshots of the validation results, plus the field changes made while each version was active.
+// One row per version, newest first (current version pinned at the top): QA status, how many Order Entry and
+// Order Booking checks passed, which rerun scope produced it, when screening started and ended, and who ran it.
+// Clicking a row opens that version read-only (or returns to Latest). Distinct from the Audit Trail modal — this
+// browses full snapshots of the validation results, plus the field changes made while each version was active.
 function VersionHistoryModal({
   versions,
   currentVersionNumber,
-  currentAt,
+  currentData,
+  currentRerun,
   currentChanges,
   viewingVersion,
   onSelectVersion,
@@ -42,53 +46,84 @@ function VersionHistoryModal({
 }: {
   versions: ValidationVersion[];
   currentVersionNumber: number;
-  currentAt: Date;
+  currentData: OrderValidationData;
+  currentRerun: string;
   currentChanges: FieldChange[];
   viewingVersion: number | null;
   onSelectVersion: (version: number | null) => void;
   onClose: () => void;
 }) {
   const rows = [
-    { version: currentVersionNumber, at: currentAt, isLatest: true, changes: currentChanges },
-    ...versions.slice().reverse().map(v => ({ version: v.version, at: v.at, isLatest: false, changes: v.changes })),
+    { version: currentVersionNumber, data: currentData, isLatest: true, changes: currentChanges, rerun: currentRerun, owner: CURRENT_USER },
+    ...versions.slice().reverse().map(v => ({ version: v.version, data: v.data, isLatest: false, changes: v.changes, rerun: v.rerun, owner: v.owner })),
   ];
+  // "Entry 7/9": muted label, bold count — green when everything passed, otherwise the category's own red / purple.
+  const count = (data: OrderValidationData, cat: CheckCategory, label: string) => {
+    const list = data.checks.filter(c => c.category === cat);
+    const passed = list.filter(c => c.status === "passed").length;
+    return (
+      <span className="whitespace-nowrap">
+        <span className="text-[#97999B] font-medium">{label}</span>{" "}
+        <span className="font-bold" style={{ color: passed === list.length ? "#468657" : CATEGORY_META[cat].accent }}>{passed}/{list.length}</span>
+      </span>
+    );
+  };
+  const rerunLabel = (r: string) => (r === "N/A" ? "Initial run" : r === "All Checks" ? "Rerun all" : r === "Selected Checks" ? "Rerun selected" : "Rerun failed only");
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-[8px] shadow-xl w-full max-w-[400px] max-h-[80vh] flex flex-col">
+      <div className="relative bg-white rounded-[8px] shadow-xl w-full max-w-[660px] max-h-[85vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#DEDEDE] shrink-0">
-          <h2 className="text-[16px] font-bold text-[#262626]">Version History</h2>
+          <div>
+            <h2 className="text-[16px] font-bold text-[#262626]">Version History</h2>
+            <p className="text-[12px] text-[#97999B] mt-0.5">Click a version to view its results.</p>
+          </div>
           <button onClick={onClose} className="text-[#97999B] hover:text-[#4D4D4D] cursor-pointer transition-colors">
             <X size={18} />
           </button>
         </div>
-        <div className="px-3 py-3 flex flex-col gap-1 overflow-y-auto">
-          {rows.map(row => {
-            const active = viewingVersion === null ? row.isLatest : viewingVersion === row.version;
-            return (
-              <button
-                key={row.version}
-                onClick={() => { onSelectVersion(row.isLatest ? null : row.version); onClose(); }}
-                className={`w-full text-left px-3.5 py-2.5 rounded-[8px] cursor-pointer transition-colors ${active ? "bg-[#30578D]/[0.08]" : "hover:bg-[#F7F7F7]"}`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[13px] font-semibold text-[#262626]">Version {row.version}{row.isLatest ? " (Latest)" : ""}</p>
-                  {active && <Check size={14} className="shrink-0" style={{ color: "#30578D" }} />}
-                </div>
-                <p className="text-[11px] text-[#97999B] mt-0.5">{formatVersionDateTime(row.at)}</p>
-                {row.changes.length > 0 && (
-                  <div className="mt-1.5 flex flex-col gap-1 border-t border-[#F1F2F4] pt-1.5">
-                    {row.changes.map((c, i) => (
-                      <p key={i} className="flex items-center gap-1.5 text-[11px] text-[#4D4D4D]">
-                        {c.icon && <c.icon size={10} className="text-[#97999B] shrink-0" />}
-                        <span className="truncate">{c.label}</span>
-                      </p>
-                    ))}
+        <div className="overflow-y-auto px-6 py-5">
+          <div className="flex flex-col gap-3">
+            {rows.map(row => {
+              const active = viewingVersion === null ? row.isLatest : viewingVersion === row.version;
+              return (
+                <button
+                  key={row.version}
+                  onClick={() => { onSelectVersion(row.isLatest ? null : row.version); onClose(); }}
+                  className={`w-full text-left rounded-[8px] border px-4 py-3 cursor-pointer transition-colors ${active ? "border-[#30578D] bg-[#EEF2F7]" : "border-[#E2E6E9] bg-white hover:bg-[#EEF2F7]"}`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-[13.5px] font-bold text-[#262626] flex items-center gap-2">
+                      Version {row.version}
+                      {row.isLatest && <span className="text-[10.5px] font-semibold rounded-full px-2 py-0.5" style={{ color: "#30578D", backgroundColor: "#EAF1FB" }}>Latest</span>}
+                    </p>
+                    <p className="flex items-center gap-4 text-[12.5px]">
+                      {count(row.data, "mandatory", "Entry")}
+                      {count(row.data, "redFlag", "Booking")}
+                    </p>
                   </div>
-                )}
-              </button>
-            );
-          })}
+                  <div className="flex items-center justify-between gap-4 mt-2">
+                    <p className="flex items-center gap-3 text-[11.5px] whitespace-nowrap">
+                      <span title="Screening start"><span className="text-[#4D4D4D] font-medium">{row.data.screeningStartedAt}</span></span>
+                      <ArrowRight size={12} className="text-[#BFC1C4] shrink-0" />
+                      <span title="Screening end"><span className="text-[#4D4D4D] font-medium">{row.data.screeningCompletedAt}</span></span>
+                    </p>
+                    <p className="text-[11.5px] text-[#97999B] whitespace-nowrap">{rerunLabel(row.rerun)} · {row.owner}</p>
+                  </div>
+                  {row.changes.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {row.changes.map((c, ci) => (
+                        <span key={ci} className="inline-flex items-center gap-1.5 text-[11px] text-[#4D4D4D] rounded-full border border-[#E2E6E9] bg-white px-2.5 py-0.5">
+                          {c.icon && <c.icon size={10} className="text-[#97999B] shrink-0" />}
+                          {c.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -279,18 +314,23 @@ function FailedCheckRow({
 
       {expanded && (
         <div className="px-4 pt-[2px] pb-3">
-          <div className="rounded-[8px] px-3.5 py-2.5" style={{ backgroundColor: `${accent}14` }}>
-            <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: accent }}>{CATEGORY_META[category].failedLabel} Reason</p>
-            <p className="text-[12px] text-[#374151] leading-[1.5]">{check.reason}</p>
-            {check.recommendedAction && (
-              <p className="flex items-start gap-1.5 text-[11.5px] font-medium mt-2" style={{ color: accent }}>
-                <ArrowRight size={11} className="shrink-0 mt-[2.5px]" />
-                <span>Recommended Action: {check.recommendedAction}</span>
-              </p>
-            )}
+          <div className="rounded-[8px] px-3.5 py-3 flex flex-col gap-2.5" style={{ backgroundColor: `${accent}14` }}>
+            <CheckDetail label="Result" labelColor={accent} value={check.result} />
+            <CheckDetail label="Reason" labelColor={accent} value={check.reason} />
+            <CheckDetail label="Recommendation" labelColor={accent} value={check.recommendedAction ?? "No action required"} />
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// One labelled line inside an expanded check: small coloured uppercase label over the text.
+function CheckDetail({ label, labelColor, value }: { label: string; labelColor: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-bold uppercase tracking-wide mb-0.5" style={{ color: labelColor }}>{label}</p>
+      <p className="text-[12px] text-[#374151] leading-[1.5]">{value}</p>
     </div>
   );
 }
@@ -311,9 +351,10 @@ function VerifiedCheckRow({ check, category, expanded, onToggleExpand }: { check
       </button>
       {expanded && (
         <div className="px-4 pt-[2px] pb-3">
-          <div className="rounded-[8px] px-3.5 py-2.5" style={{ backgroundColor: "#EFF6F1" }}>
-            <p className="text-[10px] font-bold uppercase tracking-wide mb-1 text-[#468657]">{meta.passedLabel} Reason</p>
-            <p className="text-[12px] text-[#374151] leading-[1.5]">{check.reason}</p>
+          <div className="rounded-[8px] px-3.5 py-3 flex flex-col gap-2.5" style={{ backgroundColor: "#EFF6F1" }}>
+            <CheckDetail label="Result" labelColor="#468657" value={check.result} />
+            <CheckDetail label="Reason" labelColor="#468657" value={check.reason} />
+            <CheckDetail label="Recommendation" labelColor="#468657" value={check.recommendedAction ?? "No action required"} />
           </div>
         </div>
       )}
@@ -922,6 +963,7 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
   const [overrideData, setOverrideData] = useState<OrderValidationData | null>(null);
   const [currentVersionNumber, setCurrentVersionNumber] = useState(1);
   const [currentVersionAt, setCurrentVersionAt] = useState(() => new Date());
+  const [currentRerun, setCurrentRerun] = useState("N/A");
   const [viewingVersion, setViewingVersion] = useState<number | null>(null);
   const [versionsModalOpen, setVersionsModalOpen] = useState(false);
   // Feedback on the check results, kept per version since a re-validation produces a different set of results.
@@ -1007,7 +1049,8 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
       targetIds;
     if (resolvedIds.length === 0) return;
 
-    setVersions(prev => [...prev, { version: currentVersionNumber, at: currentVersionAt, data: latestData, changes: currentVersionChanges }]);
+    setVersions(prev => [...prev, { version: currentVersionNumber, at: currentVersionAt, data: latestData, changes: currentVersionChanges, rerun: currentRerun, owner: CURRENT_USER }]);
+    setCurrentRerun(label);
     const next = regenerateValidation(latestData, resolvedIds);
     setOverrideData(next);
     setCurrentVersionNumber(n => n + 1);
@@ -1332,7 +1375,8 @@ export function AiOrderValidationBody({ emailId, withPageLoader, onGateChange, o
       <VersionHistoryModal
         versions={versions}
         currentVersionNumber={currentVersionNumber}
-        currentAt={currentVersionAt}
+        currentData={latestData!}
+        currentRerun={currentRerun}
         currentChanges={currentVersionChanges}
         viewingVersion={viewingVersion}
         onSelectVersion={setViewingVersion}
