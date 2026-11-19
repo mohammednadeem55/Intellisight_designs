@@ -22,7 +22,13 @@ export type ValidationCheck = {
   bypass?: BypassInfo;
 };
 
+// Status of one OA validation run. In Progress / Error come from the backend (`oaStatus` on the data); otherwise a
+// finished run is "Validation Fallout" while any Mandatory check is still failed and un-justified, else "Completed".
+export type OaStatus = "In Progress" | "Completed" | "Error" | "Validation Fallout";
+
 export type OrderValidationData = {
+  /** Set by the backend for runs that are still going or errored out; left unset for a normal finished run. */
+  oaStatus?: OaStatus;
   checks: ValidationCheck[];
   shipTo: { company: string; address: string; cityState: string; country: string };
   documents: { name: string; size: string }[];
@@ -171,4 +177,10 @@ export function useOrderValidation(emailId: string) {
   const reload = useCallback(() => setReloadToken(t => t + 1), []);
 
   return { data, loading: data === null && error === null, error, reload };
+}
+
+export function oaStatusOf(data: OrderValidationData): OaStatus {
+  if (data.oaStatus) return data.oaStatus;
+  const open = data.checks.some(c => c.category === "mandatory" && c.status === "failed" && !c.bypass);
+  return open ? "Validation Fallout" : "Completed";
 }

@@ -7,7 +7,7 @@ import { Button } from "../../components/common/Button";
 import { EmailTableTooltip } from "../../components/common/EmailTable";
 import { AttachmentPreviewModal } from "../../components/common/AttachmentPreviewModal";
 import { OTHER_REASON, ReasonSelect, WRONG_REASON_OPTIONS } from "../../components/common/ReasonSelect";
-import { useOrderValidation, regenerateValidation, type CheckCategory, type OrderValidationData, type ValidationCheck } from "./useOrderValidation";
+import { useOrderValidation, regenerateValidation, oaStatusOf, type OaStatus, type CheckCategory, type OrderValidationData, type ValidationCheck } from "./useOrderValidation";
 
 export type ValidationAuditEntry = { action: string; icon?: LucideIcon; detail?: string };
 // A field change made while a given version was the active one — e.g. committing Freight Terms. Kept
@@ -17,6 +17,12 @@ type FieldChange = { label: string; icon?: LucideIcon; at: Date };
 // `rerun` is the scope that produced this version ("N/A" for the first, original run) and `owner` who ran it.
 type ValidationVersion = { version: number; at: Date; data: OrderValidationData; changes: FieldChange[]; rerun: string; owner: string };
 const CURRENT_USER = "Jagdish K.";
+const OA_STATUS_STYLE: Record<OaStatus, { fg: string; bg: string }> = {
+  "In Progress": { fg: "#30578D", bg: "#EAF1FB" },
+  Completed: { fg: "#468657", bg: "#EFF6F1" },
+  Error: { fg: "#BA1C1C", bg: "#FDECEA" },
+  "Validation Fallout": { fg: "#92600B", bg: "#FDF3E7" },
+};
 
 // AISO-658 — the two check categories, each with its own accent color and vocabulary (a failed Mandatory
 // check is "Verification Required" since the workflow is blocked; a failed Red Flag check is "Review
@@ -96,6 +102,7 @@ function VersionHistoryModal({
                     <p className="text-[13.5px] font-bold text-[#262626] flex items-center gap-2">
                       Version {row.version}
                       {row.isLatest && <span className="text-[10.5px] font-semibold rounded-full px-2 py-0.5" style={{ color: "#30578D", backgroundColor: "#EAF1FB" }}>Latest</span>}
+                      {(() => { const st = oaStatusOf(row.data); const c = OA_STATUS_STYLE[st]; return <span className="text-[10.5px] font-semibold rounded-full px-2 py-0.5 whitespace-nowrap" style={{ color: c.fg, backgroundColor: c.bg }}>{st}</span>; })()}
                     </p>
                     <p className="flex items-center gap-4 text-[12.5px]">
                       {count(row.data, "mandatory", "Entry")}
@@ -317,7 +324,6 @@ function FailedCheckRow({
           <div className="rounded-[8px] px-3.5 py-3 flex flex-col gap-2.5" style={{ backgroundColor: `${accent}14` }}>
             <CheckDetail label="Result" labelColor={accent} value={check.result} />
             <CheckDetail label="Reason" labelColor={accent} value={check.reason} />
-            <CheckDetail label="Recommendation" labelColor={accent} value={check.recommendedAction ?? "No action required"} />
           </div>
         </div>
       )}
@@ -354,7 +360,6 @@ function VerifiedCheckRow({ check, category, expanded, onToggleExpand }: { check
           <div className="rounded-[8px] px-3.5 py-3 flex flex-col gap-2.5" style={{ backgroundColor: "#EFF6F1" }}>
             <CheckDetail label="Result" labelColor="#468657" value={check.result} />
             <CheckDetail label="Reason" labelColor="#468657" value={check.reason} />
-            <CheckDetail label="Recommendation" labelColor="#468657" value={check.recommendedAction ?? "No action required"} />
           </div>
         </div>
       )}
